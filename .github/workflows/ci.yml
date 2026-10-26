@@ -47,11 +47,11 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ctest --test-dir build -C Release --output-on-failure 2>&1 | tee test.log || {
+          ctest --test-dir build -C Release -V 2>&1 | tee test.log || {
             grep -E "FAIL|digest" test.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
             exit 1
           }
-          grep "digest =" test.log | while IFS= read -r l; do echo "::notice::${{ matrix.name }} $l"; done
+          grep "digest =" test.log | while IFS= read -r l; do echo "::notice::${{ matrix.name }} $l"; done || true
 
       - name: Upload Windows build
         if: runner.os == 'Windows'

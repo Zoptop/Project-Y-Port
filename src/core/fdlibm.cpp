@@ -21,6 +21,9 @@ constexpr float one = 1.0f;
 constexpr float zero = 0.0f;
 constexpr float huge = 0x1.93e5940000000p+99f /*0x7149f2ca*/;   // 1.0e30
 constexpr float tiny = 0x1.4484c00000000p-100f /*0x0da24260*/;   // 1.0e-30
+// Runtime zero for the intentional divisions by zero (-inf / NaN results);
+// a constexpr zero would be rejected or folded differently by MSVC.
+volatile float vzero = 0.0f;
 
 }  // namespace
 
@@ -250,8 +253,8 @@ float logf(float x) {
     GET_FLOAT_WORD(ix, x);
     k = 0;
     if (ix < 0x00800000) {                         // x < 2**-126
-        if ((ix & 0x7fffffff) == 0) return -two25 / zero;   // log(+-0)=-inf
-        if (ix < 0) return (x - x) / zero;                   // log(-#) = NaN
+        if ((ix & 0x7fffffff) == 0) return -two25 / vzero;   // log(+-0)=-inf
+        if (ix < 0) return (x - x) / vzero;                   // log(-#) = NaN
         k -= 25;
         x *= two25;                                          // subnormal, scale up x
         GET_FLOAT_WORD(ix, x);
