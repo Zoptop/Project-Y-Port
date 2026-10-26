@@ -107,12 +107,47 @@ void dumpTrace(CGame* g) {
     CUtils::mChecksumTrace = nullptr;
 }
 
+// Query mode (tools/verify/compare_queries.py): one query per line, floats
+// as hex bits; answers in the oracle's format.
+int runQueries(CGame* g, const std::string& file) {
+    FILE* f = std::fopen(file.c_str(), "r");
+    if (!f) return 2;
+    char op[64];
+    CLevel* L = g->getLevel();
+    while (std::fscanf(f, "%63s", op) == 1) {
+        const std::string o = op;
+        unsigned xb, yb, a = 0, b = 0, c = 0, d = 0;
+        if (std::fscanf(f, "%x %x", &xb, &yb) != 2) break;
+        const CVector2 p(bitsf(xb), bitsf(yb));
+        if (o == "cell" || o == "cellfar") {
+            CGridCell* cell = o == "cell" ? L->getGridCell(p) : L->getGridCellFar(p);
+            const auto& grid = o == "cell" ? L->mGrid : L->mGridFar;
+            std::printf("%s %ld\n", op, cell ? static_cast<long>(cell - grid.data()) : -1L);
+        } else if (o == "unit") {
+            std::fscanf(f, "%u %u %u %u", &a, &b, &c, &d);
+            CUnit* u = g->getClosestUnit(p, a ? g->getPlayer(a - 1) : nullptr, b, c != 0, d);
+            std::printf("unit %u\n", u ? u->mId : 0u);
+        } else if (o == "building") {
+            std::fscanf(f, "%u %u %u %u", &a, &b, &c, &d);
+            CBuilding* bl = g->getClosestBuilding(p, a ? g->getPlayer(a - 1) : nullptr, b, c, d != 0);
+            std::printf("building %u\n", bl ? bl->mId : 0u);
+        } else if (o == "buildingcap") {
+            std::fscanf(f, "%u %x %u %u", &a, &b, &c, &d);
+            CBuilding* bl = g->getClosestBuildingWithCap(p, a ? g->getPlayer(a - 1) : nullptr, b, c, d);
+            std::printf("buildingcap %u\n", bl ? bl->mId : 0u);
+        }
+    }
+    std::fclose(f);
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     std::string data = "data";
     int map = 1, players = 2, steps = 10;
     std::set<int> trace;
+    std::string queries;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? std::string(argv[++i]) : std::string(); };
@@ -120,6 +155,7 @@ int main(int argc, char** argv) {
         else if (a == "--map") map = std::atoi(next().c_str());
         else if (a == "--players") players = std::atoi(next().c_str());
         else if (a == "--steps") steps = std::atoi(next().c_str());
+        else if (a == "--queries") queries = next();
         else if (a == "--trace")
             while (i + 1 < argc && argv[i + 1][0] != '-') trace.insert(std::atoi(argv[++i]));
     }
@@ -146,6 +182,7 @@ int main(int argc, char** argv) {
         std::printf("LOAD FAILED\n");
         return 1;
     }
+    if (!queries.empty()) return runQueries(game.get(), queries);
     const Real step = bitsf(kStepBits);
     for (int s = 0; s < steps; ++s) {
         CUtils::resetChecksum();
