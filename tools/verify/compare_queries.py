@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Random spatial queries on a freshly loaded skirmish, original vs port:
-CLevel::getGridCell / getGridCellFar (cell index) and CGame::getClosestUnit /
+CLevel::getGridCell / getGridCellFar (cell index), CNav::isOnNavMesh and CGame::getClosestUnit /
 getClosestBuilding / getClosestBuildingWithCap (object id).
 
     LIBUNICORN_PATH=<unicorn>/build PYTHONPATH=<unicorn>/bindings/python:tools/emu \\
@@ -31,6 +31,7 @@ def main():
     ap.add_argument('--map', type=int, default=1)
     ap.add_argument('--players', type=int, default=2)
     ap.add_argument('-n', type=int, default=300)
+    ap.add_argument('--kinds', nargs='*', default=['cell', 'cellfar', 'unit', 'building', 'buildingcap', 'nav'])
     a = ap.parse_args()
 
     o = Oracle(a.so, a.data)
@@ -54,7 +55,7 @@ def main():
         y = rng.uniform(-half_h * 1.2, half_h * 1.2)
         xb, yb = f2b(x), f2b(y)
         e.uc.mem_write(pos, struct.pack('<II', xb, yb))
-        kind = rng.choice(['cell', 'cellfar', 'unit', 'building', 'buildingcap'])
+        kind = rng.choice(a.kinds)
         if kind in ('cell', 'cellfar'):
             fn = '_ZN8ProjectY6CLevel11getGridCellERKNS_8CVector2E' if kind == 'cell' else \
                  '_ZN8ProjectY6CLevel14getGridCellFarERKNS_8CVector2E'
@@ -62,6 +63,10 @@ def main():
             r = o.call(fn, level, pos)
             queries.append('%s %08x %08x' % (kind, xb, yb))
             ref.append('%s %d' % (kind, (r - base) // 0x14 if r else -1))
+        elif kind == 'nav':
+            r = o.call('_ZN8ProjectY4CNav11isOnNavMeshERKNS_8CVector2E', e.read_u32(level + 0x64), pos)
+            queries.append('nav %08x %08x' % (xb, yb))
+            ref.append('nav %d' % (1 if r & 0xff else 0))
         elif kind == 'unit':
             p, t, sk = rng.randint(0, a.players + 1), rng.choice([0, 0, 4, 1]), rng.randint(0, 1)
             ex = rng.choice([0, 1101, 1105])

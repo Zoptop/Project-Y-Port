@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <initializer_list>
 
@@ -322,7 +323,10 @@ void CLevel::initPotential(const std::string& name) {
         for (int y = 0; y < mPotH; ++y) {
             if (li >= lines.size()) break;
             CVector2& p = mStaticPotential[static_cast<size_t>(y) * static_cast<size_t>(mPotW) + static_cast<size_t>(x)];
-            std::sscanf(lines[li++].c_str(), "%f;%f", &p.x, &p.y);
+            float px = p.x, py = p.y;
+            std::sscanf(lines[li++].c_str(), "%f;%f", &px, &py);
+            p.x = px;
+            p.y = py;
         }
 }
 
@@ -596,7 +600,15 @@ bool CLevel::initByScript(const std::string& file, bool fromSavegame) {
                     // TODO(FOW): with UseFOW every player runs initFOWTexture,
                     // updateFOWtexture, initRadarMap; resources mode copies
                     // the grid and loads map_tx_res.png.
-                    if (e->mGameType == 3) mResTexture = texture("map_tx_res.png");
+                    if (e->mGameType == 3) {
+                        CUtils::log("setup res map");
+                        mResScaleY = mFowScaleY;
+                        mResScaleX = mFowScaleX;
+                        mResW = mFowTexW;
+                        mResH = mFowTexH;
+                        initRES();
+                        mResTexture = texture("map_tx_res.png");
+                    }
                 }
                 if (key == "unitavailability") {
                     std::sscanf(s, "%*s %*s %*s %i %*s %i", &i0, &i1);
@@ -731,10 +743,7 @@ bool CLevel::initByScript(const std::string& file, bool fromSavegame) {
         }
     }
 
-    if (e->mGameType == 3 && !fromSavegame) {
-        // TODO(phase 4): generateResources() - needs the navmesh (CNav::isOnNavMesh)
-        CUtils::log("CLevel: resources mode needs generateResources (phase 4)");
-    }
+    if (e->mGameType == 3 && !fromSavegame) generateResources();
     CUtils::log("Level \"%s\": %zu assets, %u sectors, %zu scripts", mMapName.c_str(), mAssets.size(), mNumSectors,
                 mScriptManager->scripts().size());
     return true;
@@ -960,22 +969,242 @@ CGridCell* CLevel::updateGridCellFar(const CVector3& p, unsigned id, CGridCell* 
 
 // ------------------------------------------------------------------ simulation
 
-// Ghidra 0x2df380
+// Ghidra 0x2df380: map scripts; in resource mode, once a second, new
+// resource fields until the map holds 5000 again.
 void CLevel::update() {
     mScriptManager->update();
-    if (CEngine::getSingletonPtr()->mGameType == 3) {
-        // TODO(phase 4, resource mode): resource respawn (every 1 s, until the
-        // total is 5000: CRngSafe positions, 4 navmesh probes, 70 m from buildings).
-        static bool warned = false;
-        if (!warned) CUtils::log("CLevel::update: resource respawn not ported yet");
-        warned = true;
+    CEngine* e = CEngine::getSingletonPtr();
+    if (e->mGameType != 3) return;
+    mResRespawnCountdown = mResRespawnCountdown - Real(e->mFrameDt);
+    if (!(mResRespawnCountdown <= 0.0f)) return;
+    mResRespawnCountdown = 1.0f;
+    Real total = getTotalResValue();
+    while (total < 5000.0f) {
+        const Real cell = Real(mMapW) * mResScaleX / i2f(mResW);
+        CVector2 p;
+        p.x = (CRngSafe::GetUniform(0x25) - 0.5f) * Real(mMapW);
+        p.y = (CRngSafe::GetUniform(0x25) - 0.5f) * Real(mMapH);
+        if (!resCellFree(p, cell)) continue;
+        CBuilding* b = e->mGame->getClosestBuilding(p, nullptr, 1, 0, true);
+        if (!b) continue;
+        const Real dx = p.x - b->mPosition.x;
+        const Real dy = p.y - b->mPosition.y;
+        if (!(fdlibm::sqrtf(dx * dx + dy * dy) > 70.0f)) continue;
+        addResource(p, 1.0f, 80.0f);
+        // (texture refresh and a particle system: not simulation)
+        total = getTotalResValue();
     }
+}
+
+// The position and the 4 points half a cell away are on the navmesh.
+// [!] "+ 0" on the unchanged coordinate turns -0 into +0, as in the original.
+bool CLevel::resCellFree(const CVector2& p, Real cell) const {
+    if (!mNav->isOnNavMesh(p)) return false;
+    const Real h = cell * 0.5f;
+    const Real hn = -cell * 0.5f;
+    if (!mNav->isOnNavMesh(CVector2(h + p.x, p.y + 0.0f))) return false;
+    if (!mNav->isOnNavMesh(CVector2(hn + p.x, p.y + 0.0f))) return false;
+    if (!mNav->isOnNavMesh(CVector2(p.x + 0.0f, h + p.y))) return false;
+    return mNav->isOnNavMesh(CVector2(p.x + 0.0f, hn + p.y));
 }
 
 // Ghidra 0x2dd074
 void CLevel::calcChecksum() {
     for (auto& s : mSectors) s.second->calcChecksum();
-    // TODO(phase 4, resource mode): + every resource cell value when GameType == 3
+    if (CEngine::getSingletonPtr()->mGameType == 3 && mResH * mResW > 0)
+        for (int i = 0; i < mResH * mResW; ++i) CUtils::updateChecksum(mRes[static_cast<size_t>(i)]);
+}
+
+// ------------------------------------------------------------------ resources
+
+// Ghidra 0x2dd44c (the byte texture buffer and its upload are not kept)
+void CLevel::initRES() { mRes.assign(static_cast<size_t>(mResW > 0 && mResH > 0 ? mResW * mResH : 0), 0.0f); }
+
+namespace {
+// Cell coordinates of a game position (the res grid's y runs down: -y).
+void resCell(const CLevel& L, const CVector2& p, int& x, int& y) {
+    x = f2i(i2f(L.mResW) * (p.x / (L.mResScaleX * Real(L.mMapW)) + 0.5f));
+    y = f2i(i2f(L.mResH) * ((-p.y) / (L.mResScaleY * Real(L.mMapH)) + 0.5f));
+}
+CVector2 resCellCentre(const CLevel& L, int x, int y) {
+    const Real px = ((i2f(x) + 0.5f) / i2f(L.mResW) - 0.5f) * (L.mResScaleX * Real(L.mMapW));
+    const Real py = ((i2f(y) + 0.5f) / i2f(L.mResH) - 0.5f) * (L.mResScaleY * Real(L.mMapH));
+    return CVector2(px, -py);
+}
+}  // namespace
+
+// Ghidra 0x2dd6a8. [!] The index uses the FOW texture size (+0x168/+0x16c);
+// the res grid is created with that size, so this is the same.
+int CLevel::getResCellIndex(const CVector2& pos) const {
+    int x, y;
+    resCell(*this, pos, x, y);
+    const int i = y * mFowTexW + x;
+    return (i < 0 || mFowTexH * mFowTexW <= i) ? -1 : i;
+}
+
+// Ghidra 0x2dd7cc
+Real CLevel::getResValue(const CVector2& pos) const {
+    const int i = getResCellIndex(pos);
+    return i >= 0 ? mRes[static_cast<size_t>(i)] * 500.0f : Real(0.0f);
+}
+
+// Ghidra 0x2dd920
+Real CLevel::getResValue(int x, int y) const {
+    if (x < mResW && y < mResH) {
+        const int i = mResW * y + x;
+        if (i >= 0 && i < mResH * mResW) return mRes[static_cast<size_t>(i)] * 500.0f;
+    }
+    return 0.0f;
+}
+
+// Ghidra 0x2dd4cc: takes up to `amount` (cell value x 500); returns what it took.
+Real CLevel::consumeRes(const CVector2& pos, Real amount) {
+    const int i = getResCellIndex(pos);
+    if (i < 0) return 0.0f;
+    Real& v = mRes[static_cast<size_t>(i)];
+    if (!(v > 0.0f)) return 0.0f;
+    mResChanged = true;
+    const Real q = amount / 500.0f;
+    if (!(v > q)) {
+        const Real took = v * 500.0f;
+        v = 0.0f;
+        return took;
+    }
+    v = v - q;
+    return amount;
+}
+
+// Ghidra 0x2ddf94
+void CLevel::addResourceDot(const CVector2& pos, Real value) {
+    int x, y;
+    resCell(*this, pos, x, y);
+    // CRasterizerF::setPixel(int, int) - unsigned compare against the size
+    if (static_cast<unsigned>(x) < static_cast<unsigned>(mResW) && static_cast<unsigned>(y) < static_cast<unsigned>(mResH))
+        mRes[static_cast<size_t>(mResW * y + x)] = value;
+}
+
+// Ghidra 0x2dd9e4: a cone of `amount` falling off to 0 at `radius`, on
+// navigable cells only, capped at 1 per cell.
+void CLevel::addResource(const CVector2& pos, Real amount, Real radius) {
+    const Real wf = i2f(mResW);
+    const Real cellW = mResScaleX * Real(mMapW);
+    const int cx = f2i(wf * (pos.x / cellW + 0.5f));
+    const int cy = f2i(i2f(mResH) * ((-pos.y) / (mResScaleY * Real(mMapH)) + 0.5f));
+    const Real cell = cellW / wf;
+    const int r = f2i(radius / cell + 2.0f);
+    for (int x = cx - r; x <= cx + r; ++x) {
+        for (int y = cy - r; y <= cy + r; ++y) {
+            const int i = y * mResW + x;
+            if (i < 0 || i >= mResH * mResW || !(mRes[static_cast<size_t>(i)] < 1.0f)) continue;
+            const CVector2 c = resCellCentre(*this, x, y);
+            if (!resCellFree(c, cell)) continue;
+            const Real dx = c.x - pos.x;
+            const Real dy = c.y - pos.y;
+            Real f = (radius - fdlibm::sqrtf(dx * dx + dy * dy)) / radius;
+            if (!(f > 0.0f)) f = 0.0f;
+            Real& v = mRes[static_cast<size_t>(i)];
+            v = v + amount * f;
+            if (v > 1.0f) v = 1.0f;
+        }
+    }
+}
+
+// Ghidra 0x2df308
+Real CLevel::getTotalResValue() const {
+    if (mResW * mResH < 1) return 0.0f;
+    Real sum = 0.0f;
+    for (int i = 0; i < mResW * mResH; ++i) sum = sum + mRes[static_cast<size_t>(i)];
+    return sum * 500.0f;
+}
+
+// Ghidra 0x2de0b4. Seeds (CRngSafe) away from buildings, then smoothing
+// passes with a 3x3 kernel (0.1 0.3 0.1 / 0.3 1 0.3 / 0.1 0.3 0.1), capped at 1.
+void CLevel::generateResources() {
+    const Real cell = Real(mMapW) * mResScaleX / i2f(mResW);
+    CEngine* e = CEngine::getSingletonPtr();
+    const Real mapW = e->mGame->getLevel()->mMapW;
+    int passes, count;
+    Real minDist;
+    if (mapW < 1200.0f) { passes = 2; count = 20; minDist = 70.0f; }
+    else if (mapW < 2200.0f) { passes = 3; count = 40; minDist = 100.0f; }
+    else if (mapW < 3200.0f) { passes = 4; count = 70; minDist = 100.0f; }
+    else { passes = 5; count = 100; minDist = 100.0f; }
+
+    auto farFromBuildings = [&](const CVector2& p) {
+        CBuilding* b = e->mGame->getClosestBuilding(p, nullptr, 1, 0, true);
+        if (!b) return false;
+        const Real dx = p.x - b->mPosition.x;
+        const Real dy = p.y - b->mPosition.y;
+        return minDist < fdlibm::sqrtf(dx * dx + dy * dy);
+    };
+    int placed = 0;
+    while (placed < count) {
+        CVector2 p;
+        p.x = (CRngSafe::GetUniform(0x25) - 0.5f) * Real(mMapW);
+        p.y = (CRngSafe::GetUniform(0x25) - 0.5f) * Real(mMapH);
+        if (!resCellFree(p, cell) || !farFromBuildings(p)) continue;
+        ++placed;
+        addResourceDot(p, 1.0f);
+    }
+
+    const Real k[3][3] = {{bitsf(0x3dcccccd), bitsf(0x3e99999a), bitsf(0x3dcccccd)},
+                          {bitsf(0x3e99999a), 1.0f, bitsf(0x3e99999a)},
+                          {bitsf(0x3dcccccd), bitsf(0x3e99999a), bitsf(0x3dcccccd)}};
+    std::vector<Real> tmp;
+    for (int pass = 0; pass < passes; ++pass) {
+        tmp = mRes;
+        for (int y = 0; y < mResH; ++y) {
+            for (int x = 0; x < mResW; ++x) {
+                const CVector2 c = resCellCentre(*this, x, y);
+                if (!resCellFree(c, cell) || !farFromBuildings(c)) continue;
+                auto at = [&](int xx, int yy, bool& ok) {
+                    ok = xx >= 0 && yy >= 0 && xx < mResW && yy < mResH;
+                    return ok ? tmp[static_cast<size_t>(yy * mResW + xx)] : Real(0.0f);
+                };
+                bool ok;
+                Real sum = 0.0f;
+                const Real first = at(x - 1, y - 1, ok);
+                if (ok) sum = first * k[0][0] + 0.0f;
+                for (int n = 1; n < 9; ++n) {
+                    const int dy = n / 3 - 1, dx = n % 3 - 1;
+                    const Real v = at(x + dx, y + dy, ok);
+                    if (ok) sum = sum + v * k[dy + 1][dx + 1];
+                }
+                mRes[static_cast<size_t>(y * mResW + x)] = sum > 1.0f ? Real(1.0f) : sum;
+            }
+        }
+    }
+    // (genRESTexture: render)
+}
+
+// Ghidra 0x2dee28: the nearest cell with resources on a ring of growing
+// radius around `pos` that is on the navmesh and within `radius` of both
+// `pos` and `from`. [!] `out` holds the last candidate tried even on failure.
+bool CLevel::findRes(const CVector2& pos, const CVector2& from, Real radius, CVector2* out) {
+    int cx, cy;
+    resCell(*this, pos, cx, cy);
+    const Real cell = (mResScaleX * Real(mMapW)) / i2f(mResW);
+    const int rings = f2i(radius / cell + 1.0f);
+    for (int k = 1; k < rings; ++k) {
+        int fromLeft = k;
+        for (int x = cx - k; x <= cx + k; ++x, --fromLeft) {
+            int fromTop = k;
+            for (int y = cy - k; y <= cy + k; ++y, --fromTop) {
+                const int i = y * mResW + x;
+                if (i < 0 || i >= mResH * mResW) continue;
+                if (!(fromLeft == k || x - cx == k || fromTop == k || y - cy == k)) continue;
+                if (!(mRes[static_cast<size_t>(i)] > 0.0f)) continue;
+                *out = resCellCentre(*this, x, y);
+                if (!mNav->isOnNavMesh(*out)) continue;
+                const Real ax = out->x - pos.x, ay = out->y - pos.y;
+                const Real d1 = fdlibm::sqrtf(ax * ax + ay * ay);
+                const Real bx = out->x - from.x, by = out->y - from.y;
+                const Real d2 = fdlibm::sqrtf(bx * bx + by * by);
+                if (radius > d1 && radius > d2) return true;
+            }
+        }
+    }
+    return false;
 }
 
 }  // namespace py

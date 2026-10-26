@@ -109,6 +109,20 @@ public:
 
     void update();          // Ghidra 0x2df380 (per step, from CGame::timeUpdate)
     void calcChecksum();    // Ghidra 0x2dd074
+
+    // ---- resource mode (GameType 3): a float grid of resource density 0..1
+    // over the map (the FOW texture's size); one cell holds 500 units at 1.0.
+    void initRES();                                             // Ghidra 0x2dd44c (data part)
+    void generateResources();                                   // Ghidra 0x2de0b4
+    void addResource(const CVector2& pos, Real amount, Real radius);   // Ghidra 0x2dd9e4
+    void addResourceDot(const CVector2& pos, Real value);       // Ghidra 0x2ddf94
+    Real consumeRes(const CVector2& pos, Real amount);          // Ghidra 0x2dd4cc
+    int getResCellIndex(const CVector2& pos) const;             // Ghidra 0x2dd6a8
+    Real getResValue(const CVector2& pos) const;                // Ghidra 0x2dd7cc
+    Real getResValue(int x, int y) const;                       // Ghidra 0x2dd920
+    Real getResValue(int index) const { return mRes[static_cast<size_t>(index)]; }   // Ghidra 0x2dd994
+    Real getTotalResValue() const;                              // Ghidra 0x2df308
+    bool findRes(const CVector2& pos, const CVector2& from, Real radius, CVector2* out);   // Ghidra 0x2dee28
     const std::string& detailTexture(int i) const { return mDetailTextureNames[i]; }   // 0..2 = MAP1..3
     const std::map<std::string, std::string>& loadedFiles() const { return mLoaded; }   // "load" lines
 
@@ -153,8 +167,14 @@ public:
     float mSizeScale = 1.0f;                                 // +0x190 1.5/2.5/3/4 by map width
     std::string mMMName = "mm", mMMBorderName = "mmborder";  // +0x194/+0x198
     std::vector<CGridCell> mGrid, mGridFar;                  // +0x68/+0x6c
+    int mResW = 0, mResH = 0;                                // +0x1b0/+0x1b4 = FOW texture size
+    Real mResScaleX = 0.0f, mResScaleY = 0.0f;               // +0x1b8/+0x1bc = FOW scale
+    std::vector<Real> mRes;                                  // +0x1c4 resW*resH
+    bool mResChanged = false;                                // +0x1d0 (texture refresh)
+    Real mResRespawnCountdown = 0.0f;                        // +0x1d4
 
 private:
+    bool resCellFree(const CVector2& p, Real cell) const;
     void initUnitLookupGrid();
     void initUnitLookupGridFar();
     void loadSharedGraphics();

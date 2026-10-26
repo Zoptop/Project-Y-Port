@@ -26,6 +26,7 @@
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
+#include "game/CNav.h"
 #include "game/CPlayer.h"
 #include "game/CProjectile.h"
 #include "game/CSceneObject.h"
@@ -123,6 +124,8 @@ int runQueries(CGame* g, const std::string& file) {
             CGridCell* cell = o == "cell" ? L->getGridCell(p) : L->getGridCellFar(p);
             const auto& grid = o == "cell" ? L->mGrid : L->mGridFar;
             std::printf("%s %ld\n", op, cell ? static_cast<long>(cell - grid.data()) : -1L);
+        } else if (o == "nav") {
+            std::printf("nav %d\n", L->getNav()->isOnNavMesh(p) ? 1 : 0);
         } else if (o == "unit") {
             std::fscanf(f, "%u %u %u %u", &a, &b, &c, &d);
             CUnit* u = g->getClosestUnit(p, a ? g->getPlayer(a - 1) : nullptr, b, c != 0, d);
@@ -145,7 +148,8 @@ int runQueries(CGame* g, const std::string& file) {
 
 int main(int argc, char** argv) {
     std::string data = "data";
-    int map = 1, players = 2, steps = 10;
+    int map = 1, players = 2, steps = 10, gameType = 0;
+    bool dumpRes = false;
     std::set<int> trace;
     std::string queries;
     for (int i = 1; i < argc; ++i) {
@@ -156,6 +160,8 @@ int main(int argc, char** argv) {
         else if (a == "--players") players = std::atoi(next().c_str());
         else if (a == "--steps") steps = std::atoi(next().c_str());
         else if (a == "--queries") queries = next();
+        else if (a == "--gametype") gameType = std::atoi(next().c_str());
+        else if (a == "--dump-res") dumpRes = true;
         else if (a == "--trace")
             while (i + 1 < argc && argv[i + 1][0] != '-') trace.insert(std::atoi(argv[++i]));
     }
@@ -167,7 +173,7 @@ int main(int argc, char** argv) {
     CTxtLoc::get().load("English");
     CEngine* e = CEngine::getSingletonPtr();
     e->setupSkirmish(static_cast<unsigned>(map), static_cast<unsigned>(players));
-    e->mGameType = 0;
+    e->mGameType = gameType;
     e->mUseFOW = false;
     e->mCratesEnabled = false;
     e->mSectorSetupMode = 0;
@@ -183,6 +189,12 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!queries.empty()) return runQueries(game.get(), queries);
+    if (dumpRes) {   // resource grid after loading (CLevel +0x1c4), as float bits
+        const CLevel* L = game->getLevel();
+        std::printf("res %d %d\n", L->mResW, L->mResH);
+        for (const Real& v : L->mRes) std::printf("%08x\n", fbits(v));
+        return 0;
+    }
     const Real step = bitsf(kStepBits);
     for (int s = 0; s < steps; ++s) {
         CUtils::resetChecksum();

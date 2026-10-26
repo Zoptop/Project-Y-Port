@@ -307,3 +307,33 @@ TEST(level_all_shipped_maps_load) {
     }
     CHECK_MSG(loaded == 29, "%d maps", loaded);
 }
+
+// Resource mode grid (CLevel 0x2dd4cc..0x2df308), values by hand: a 1000x1000
+// map with a 10x10 grid of 100-unit cells; one cell at 1.0 holds 500.
+TEST(level_resource_grid) {
+    freshEngine();
+    CLevel level;
+    level.mMapW = level.mMapH = 1000.0f;
+    level.mFowTexW = level.mFowTexH = 10;
+    level.mResW = level.mResH = 10;
+    level.mResScaleX = level.mResScaleY = 1.0f;
+    level.initRES();
+    CHECK(level.getResCellIndex(CVector2(0.0f, 0.0f)) == 55);
+    CHECK(level.getResCellIndex(CVector2(-450.0f, 450.0f)) == 0);      // y runs down
+    CHECK(level.getResCellIndex(CVector2(-450.0f, -450.0f)) == 90);
+    CHECK(level.getResCellIndex(CVector2(0.0f, -600.0f)) == -1);
+    level.mRes[55] = 0.5f;
+    CHECK(level.getTotalResValue() == 250.0f);
+    CHECK(level.consumeRes(CVector2(0.0f, 0.0f), 125.0f) == 125.0f);   // 0.5 - 0.25
+    CHECK(level.mRes[55] == 0.25f && level.mResChanged);
+    CHECK(level.consumeRes(CVector2(0.0f, 0.0f), 250.0f) == 125.0f);   // all that was left
+    CHECK(level.mRes[55] == 0.0f);
+    CHECK(level.consumeRes(CVector2(0.0f, 0.0f), 10.0f) == 0.0f);
+    // [!] getResValue(x, y) checks only x < W and y < H and the flat index:
+    // x = -1 reads the last cell of the previous row.
+    level.mRes[9] = 0.5f;
+    CHECK(level.getResValue(-1, 1) == 250.0f);
+    CHECK(level.getResValue(10, 0) == 0.0f);
+    level.addResourceDot(CVector2(-450.0f, -450.0f), 1.0f);
+    CHECK(level.mRes[90] == 1.0f && level.getResValue(CVector2(-450.0f, -450.0f)) == 500.0f);
+}
