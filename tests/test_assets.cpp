@@ -9,7 +9,6 @@
 #include "../src/core/CMemoryFile.h"
 #include "../src/core/CUtils.h"
 #include "../src/core/FloatBits.h"
-#include "../src/game/CLevel.h"
 #include "../src/render/CGLSLProgram.h"
 #include "../src/render/CMesh.h"
 #include "test_main.h"
@@ -127,29 +126,4 @@ TEST(all_original_shaders_split) {
         std::string vs, fs;
         CHECK_MSG(py::CGLSLProgram::splitGfx(readData(n), vs, fs), "%s", n);
     }
-}
-
-TEST(level_script_map1) {
-    if (!haveData("map1English.txt")) return;
-    if (!py::CConfig::get().has("Player1Color")) py::CConfig::get().load(py::CUtils::dataPath("config.txt"));
-    py::CLevel lvl;
-    CHECK(lvl.parseScript(readData("map1English.txt")));
-    CHECK(lvl.mapName() == "Icy Isle");
-    CHECK(lvl.mapWidth() == 1000.0f && lvl.mapHeight() == 1000.0f);
-    CHECK(lvl.assets().size() == 168);
-    CHECK(lvl.sectors().size() == 10);
-    CHECK(lvl.sectors()[0].owner == 1 && lvl.sectors()[9].owner == 2);
-    CHECK(lvl.loads().at("mapmesh") == "map1.DAE.mesh");
-    CHECK(lvl.detailTextures()[1] == "map_tx_snow.png");
-    CHECK(lvl.waterActive());
-    // lightdirection 1.0 -0.3 -1.0 -> negated and normalised
-    const py::Vec3 d = lvl.lightDirection();
-    const double n = std::sqrt(1.0 + 0.09 + 1.0);
-    CHECK(std::fabs(d.x - (-1.0 / n)) < 1e-6 && std::fabs(d.y - (0.3 / n)) < 1e-6 && std::fabs(d.z - (1.0 / n)) < 1e-6);
-    CHECK(lvl.lightColor().x == 1.5f);
-    // first asset: "create asset silo position -379.802 -421.227 0.0 quat 0.0 0.0 -0.00468705 0.999989 scale 1 1 1"
-    const auto& a = lvl.assets()[0];
-    CHECK(a.name == "silo" && a.position.x == -379.802f && a.position.z == 0.0f);
-    CHECK(a.rotation.w == 0.999989f && a.rotation.z == -0.00468705f && a.scale.y == 1.0f);
-    CHECK(lvl.playerColor(1).x == 1.0f && lvl.playerColor(1).y == 0.0f);   // Player1Color 1 0 0
 }

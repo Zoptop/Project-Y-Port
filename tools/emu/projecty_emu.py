@@ -24,7 +24,8 @@ from pathlib import Path
 
 import unicorn
 from unicorn.arm_const import (UC_ARM_REG_LR, UC_ARM_REG_PC, UC_ARM_REG_R0, UC_ARM_REG_R1,
-                               UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_SP, UC_ARM_REG_CPSR)
+                               UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_SP, UC_ARM_REG_CPSR,
+                               UC_ARM_REG_C1_C0_2, UC_ARM_REG_FPEXC)
 
 PAGE = 0x1000
 STUB_BASE = 0x10000000      # one 4-byte "bx lr" per imported function
@@ -104,6 +105,10 @@ class Emu:
         data = Path(so_path).read_bytes()
         self.elf = Elf32(data)
         self.uc = uc = unicorn.Uc(unicorn.UC_ARCH_ARM, unicorn.UC_MODE_ARM)
+        # Enable VFP/NEON: the statically linked libstdc++ (number parsing in
+        # istream, locale init) and a few initialisers use hardware VFP.
+        uc.reg_write(UC_ARM_REG_C1_C0_2, uc.reg_read(UC_ARM_REG_C1_C0_2) | (0xF << 20))
+        uc.reg_write(UC_ARM_REG_FPEXC, 0x40000000)
         top = 0
         for off, vaddr, filesz, memsz in self.elf.loads():
             top = max(top, vaddr + memsz)
@@ -139,10 +144,13 @@ class Emu:
         self.syms_by_index = syms
 
         # relocations
+        self.import_relocs = {}   # imported symbol name -> [(offset, type)]
         for off, typ, symidx in self.elf.relocs():
             if typ == R_ARM_RELATIVE:
                 continue   # base 0: nothing to add
             name, value, size, shndx = syms[symidx]
+            if not (shndx != 0 and value):
+                self.import_relocs.setdefault(name, []).append((off, typ))
             target = value if (shndx != 0 and value) else self.imports.get(symidx, 0)
             if typ == R_ARM_ABS32:
                 cur = struct.unpack("<I", uc.mem_read(off, 4))[0]
@@ -151,6 +159,7 @@ class Emu:
                 uc.mem_write(off, struct.pack("<I", target))
 
         self._install_default_stubs()
+        self._install_libc_data()
         uc.hook_add(unicorn.UC_HOOK_CODE, self._on_stub, begin=STUB_BASE, end=STUB_BASE + STUB_SIZE - 1)
 
     # ------------------------------------------------------------ stubs
@@ -215,6 +224,35 @@ class Emu:
             if name in h:
                 self._stub_handlers[addr] = h[name]
 
+    def set_data_import(self, name: str, data: bytes) -> int:
+        """Back an imported *data* symbol (e.g. libc's _ctype_) with real
+        memory: the GOT/data relocations that referenced the stub now point
+        to `data`. Returns its address."""
+        addr = self.malloc(len(data))
+        self.uc.mem_write(addr, data)
+        for off, typ in self.import_relocs.get(name, []):
+            if typ == R_ARM_ABS32:
+                continue   # (none for the data imports used here)
+            self.uc.mem_write(off, struct.pack("<I", addr))
+        return addr
+
+    def _install_libc_data(self):
+        # bionic: `const char* _ctype_` points at the OpenBSD _C_ctype_ table
+        # (1 + 256 entries; _U 1, _L 2, _N 4, _S 8, _P 16, _C 32, _X 64, _B 128).
+        # libstdc++'s ctype<char> uses it (e.g. the istream sentry's isspace).
+        U, L, N, S, P, C, X, B = 1, 2, 4, 8, 16, 32, 64, 128
+        t = [0]
+        t += [C] * 9 + [C | S] * 5 + [C] * 18
+        t += [S | B] + [P] * 15 + [N] * 10 + [P] * 6
+        t += [P] + [U | X] * 6 + [U] * 20 + [P] * 5
+        t += [P] + [L | X] * 6 + [L] * 20 + [P] * 4 + [C]
+        t += [0] * 128
+        assert len(t) == 257
+        table = self.malloc(257)
+        self.uc.mem_write(table, bytes(t))
+        if "_ctype_" in self.import_relocs:
+            self.set_data_import("_ctype_", struct.pack("<I", table))
+
     def set_stub(self, name: str, fn):
         """fn(emu, [r0,r1,r2,r3]) -> r0"""
         for addr, n in self.stub_name.items():
@@ -231,6 +269,17 @@ class Emu:
         if name is None:
             return
         args = [uc.reg_read(r) for r in (UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3)]
+        if name == "pthread_once":
+            # pthread_once(once, routine): run the routine (tail call, returns to our caller)
+            if struct.unpack("<I", uc.mem_read(args[0], 4))[0] == 0:
+                uc.mem_write(args[0], struct.pack("<I", 1))
+                target = args[1]
+                cpsr = uc.reg_read(UC_ARM_REG_CPSR)
+                uc.reg_write(UC_ARM_REG_CPSR, (cpsr | 0x20) if target & 1 else (cpsr & ~0x20))
+                uc.reg_write(UC_ARM_REG_PC, target & ~1)
+                return
+            uc.reg_write(UC_ARM_REG_R0, 0)
+            return
         handler = self._stub_handlers.get(address)
         if handler is None:
             self.unhandled[name] += 1

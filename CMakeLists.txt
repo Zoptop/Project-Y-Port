@@ -83,8 +83,24 @@ add_library(projecty_engine STATIC
   src/render/CMesh.cpp
   src/render/CGLSLProgram.cpp
   src/render/CCamera.cpp
+  src/game/CBuilding.cpp
+  src/game/CEngine.cpp
+  src/game/CGame.cpp
+  src/game/CGameFeatures.cpp
+  src/game/CGameObject.cpp
+  src/game/CGamePreview.cpp
   src/game/CLevel.cpp
+  src/game/CPlayer.cpp
+  src/game/CScript.cpp
+  src/game/CScriptManager.cpp
+  src/game/CScriptTypes.cpp
+  src/game/CSector.cpp
+  src/game/CUnit.cpp
 )
+if(MSVC)
+  # the map/script readers use sscanf like the original
+  target_compile_definitions(projecty_engine PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 target_include_directories(projecty_engine PUBLIC src)
 target_include_directories(projecty_engine SYSTEM PUBLIC third_party)
 target_link_libraries(projecty_engine PUBLIC projecty_core)
@@ -101,10 +117,17 @@ if(PROJECTY_BUILD_TESTS)
     tests/test_fdlibm.cpp
     tests/test_core.cpp
     tests/test_assets.cpp
+    tests/test_level.cpp
   )
   target_link_libraries(projecty_tests PRIVATE projecty_engine)
   projecty_strict_float(projecty_tests)
   add_test(NAME projecty_tests COMMAND projecty_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+  # Dumps a map as the port loads it (also compared against the original
+  # engine by tools/emu/check_scripts.py)
+  add_executable(level_probe tools/level_probe.cpp)
+  target_link_libraries(level_probe PRIVATE projecty_engine)
+  projecty_strict_float(level_probe)
 endif()
 
 # ---------------------------------------------------------------------------

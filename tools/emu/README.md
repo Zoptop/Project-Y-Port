@@ -31,4 +31,11 @@ python3 tools/emu/check_math.py libProjectY.so build/fdlibm_probe   # 12 fdlibm 
 python3 tools/emu/check_core.py libProjectY.so build/core_probe     # sin/tan tables, CRng/CRngSafe streams
 ```
 
-Both currently report 0 mismatches.
+```
+ninja -C build level_probe
+python3 tools/emu/check_scripts.py libProjectY.so build/level_probe data   # every map script line through the original CScriptManager::addScript
+```
+
+All three currently report 0 mismatches.
+
+`check_scripts.py` runs the game's static initialisers (`.init_array`) so the statically linked libstdc++ (strings, maps, `istringstream`) works, emulates the few libc functions it needs (`sscanf`, `strtod`, `memchr`, `strcmp`, ...) and backs libc's `_ctype_` data import with the bionic table.

@@ -24,7 +24,10 @@
 #include "core/CMemoryFile.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
+#include "game/CEngine.h"
+#include "game/CGame.h"
 #include "game/CLevel.h"
+#include "game/CScriptManager.h"
 #include "platform/GLFunctions.h"
 #include "render/CCamera.h"
 #include "render/CGLSLProgram.h"
@@ -144,6 +147,16 @@ int checkAllShaders() {
     return failed;
 }
 
+// "set numplayers N" of a map script (2 if missing).
+unsigned mapPlayerCount(int id) {
+    std::string text;
+    if (!CMemoryFile::readAll("map" + std::to_string(id) + "English.txt", text)) return 2;
+    const size_t p = text.find("set numplayers");
+    if (p == std::string::npos) return 2;
+    const int n = std::atoi(text.c_str() + p + 14);
+    return n >= 1 && n <= 4 ? static_cast<unsigned>(n) : 2u;
+}
+
 std::vector<int> availableMaps() {
     std::vector<int> ids;
     for (int id : {201, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312,
@@ -224,22 +237,36 @@ int main(int argc, char** argv) {
     // --- level ---
     const std::vector<int> maps = availableMaps();
     int mapId = opt.map;
-    auto level = std::make_unique<CLevel>();
+    std::unique_ptr<CGame> game;
+    CLevel* level = nullptr;
     CCameraLevel cam;
     auto loadLevel = [&](int id) {
+        CEngine* engine = CEngine::getSingletonPtr();
+        engine->mGame = nullptr;
+        game.reset();
+        level = nullptr;
         CMeshManager::get().clear();
         CTextureManager::get().clear();
         CGLSLProgramManager::get().clear();
-        level = std::make_unique<CLevel>();
-        if (!level->load(id)) {
+        // Viewer setup: the map's own player count (the menu decides this in
+        // the game), slot 1 human, the rest AI; campaign maps are "scripted".
+        engine->setupSkirmish(static_cast<unsigned>(id), mapPlayerCount(id));
+        engine->mGameType = id >= 200 ? 1 : 0;
+        game = std::make_unique<CGame>();
+        engine->mGame = game.get();
+        if (!game->init(false)) {
             CUtils::log("map %d failed to load", id);
             return false;
         }
+        level = game->getLevel();
         cam = CCameraLevel();
         cam.setMapSize(level->mapWidth(), level->mapHeight());
         cam.setTarget(0, 0);
-        SDL_SetWindowTitle(window, ("ProjectY " + version + " - " + level->mapName() + " (map " +
-                                    std::to_string(id) + ")").c_str());
+        std::string name = level->mapName();
+        while (!name.empty() && (name.back() == '\r' || name.back() == ' ')) name.pop_back();
+        CUtils::log("map %d: %zu game objects, %zu scripts", id, game->objectList().size(),
+                    level->getScriptManager()->scripts().size());
+        SDL_SetWindowTitle(window, ("ProjectY " + version + " - " + name + " (map " + std::to_string(id) + ")").c_str());
         return true;
     };
     if (!loadLevel(mapId)) {
@@ -344,6 +371,7 @@ int main(int argc, char** argv) {
         gl::ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         level->draw(cam, gameTime);
+        game->drawPreview(cam);
 
         ++frame;
         const bool last = opt.frames > 0 && frame >= opt.frames;
@@ -353,7 +381,8 @@ int main(int argc, char** argv) {
     }
 
     CUtils::log("shutting down");
-    level.reset();
+    CEngine::getSingletonPtr()->mGame = nullptr;
+    game.reset();
     CMeshManager::get().clear();
     CTextureManager::get().clear();
     CGLSLProgramManager::get().clear();

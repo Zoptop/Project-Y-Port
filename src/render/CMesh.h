@@ -68,7 +68,13 @@ public:
     CMesh* getMesh(const std::string& name, bool lit, bool keepCPU);
     void clear();
 
+    // Headless: meshes are parsed (submesh tables, CPU data) but never
+    // uploaded, so map loading works without an OpenGL context (tests, tools).
+    static void setHeadless(bool on) { sHeadless = on; }
+    static bool headless() { return sHeadless; }
+
 private:
+    static bool sHeadless;
     std::map<std::string, std::unique_ptr<CMesh>> mMeshes;
 };
 

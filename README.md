@@ -11,8 +11,8 @@ A personal, faithful PC port of **ProjectY** (Luminence Labs, Android, 2015, v1.
 | 0 | Project skeleton: CMake, SDL2 window + OpenGL context, data folder, config and strings loading, original frame timing | done (Windows build verified in CI) |
 | 1 | Bit-exact maths core: fdlibm float, `CMath` (OGRE-derived) + trig tables, `CRng`/`CRngSafe` | done, verified |
 | 2 | Assets and renderer: meshes, textures, GLSL shaders, camera, terrain/water | done (map viewer; all 46 original shaders compile) |
-| 3 | Level loading and map scripts | next |
-| 4 | Simulation: units, buildings, weapons, navmesh | |
+| 3 | Level loading and map scripts | done (all 29 maps load; script parsing verified against the original engine) |
+| 4 | Simulation: units, buildings, weapons, navmesh | next |
 | 5 | Mouse/keyboard input, HUD, menus | |
 | 6 | AI | |
 | 7 | Campaign | |
@@ -61,10 +61,10 @@ Command-line options: `--data <dir>`, `--width N`, `--height N`, `--fullscreen`,
 ```
 src/core/       deterministic engine code (no platform dependencies)
 src/render/     meshes, textures, shaders, camera (CMesh, CTexture, CGLSLProgram, CCameraLevel)
-src/game/       game classes (CLevel so far)
+src/game/       game classes: CEngine (game state), CGame, CPlayer, CLevel, CSector, CScript*, units/buildings (creation only so far)
 third_party/    stb_image / stb_image_write (public domain)
 src/platform/   SDL2 shell replacing the Android Java layer, GL function loading
 tests/          unit tests + cross-platform determinism digest
-tools/          asset extraction, fdlibm generator, differential-test probe, Unicorn emulator harness (tools/emu)
+tools/          asset extraction, fdlibm generator, probes (fdlibm, core, level_probe), Unicorn emulator harness and checks (tools/emu), independent reference implementations (tools/verify)
 docs/           architecture, determinism rules, reverse-engineering notes (docs/re/)
 ```

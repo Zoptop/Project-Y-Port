@@ -64,7 +64,7 @@ bool CMesh::init(const std::string& name, bool lit, bool keepCPU) {
         return false;
     }
     if (!parse(text, lit, keepCPU)) return false;
-    upload();
+    if (!CMeshManager::headless()) upload();
     return true;
 }
 
@@ -201,5 +201,7 @@ CMesh* CMeshManager::getMesh(const std::string& name, bool lit, bool keepCPU) {
 }
 
 void CMeshManager::clear() { mMeshes.clear(); }
+
+bool CMeshManager::sHeadless = false;
 
 }  // namespace py

@@ -37,6 +37,21 @@ public:
 
     const std::map<std::string, std::string>& values() const { return mValues; }
 
+    // ---- per-game switches the original keeps in CConfig (+0x124..+0x15c).
+    // CLevel::initByScript resets them before reading a map; the map script
+    // ("set unitavailability", "set kisend2repair", ...) and the skirmish
+    // presets (applySpecialUnitAvailability) change them.
+    static constexpr int kUnitTypes = 30;
+    static constexpr int kCrateActions = 20;
+    bool mUnitAvailable[kUnitTypes] = {};          // +0x124 + unit type
+    bool mCrateActionAvailable[kCrateActions] = {};  // +0x142 + action
+    bool mKISend2Repair = true;                    // +0x156
+    bool mKIEnterUnits = true;                     // +0x157
+    bool mKIGetsCrates = true;                     // +0x158
+    bool mNeutralUnitAutoDamage = true;            // +0x159
+    bool mAllNonCmdUnitAutoDamage = false;         // +0x15a
+    float mAllNonCmdUnitAutoDamageValue = 0.0f;    // +0x15c
+
 private:
     std::map<std::string, std::string> mValues;
 };
