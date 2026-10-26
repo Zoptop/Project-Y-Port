@@ -487,6 +487,7 @@ public:
 // [!] findClosestEnemyFast writes nothing while the carrier is alone in its
 // far-grid cell (fewer than 2 ids), not even the distance.
 TEST(weapon_find_closest_alone_writes_nothing) {
+    if (!haveMap1()) return;   // config.txt values
     BareGame g;
     TestUnit* c = g.add(1101, 0.0f, 0.0f);
     CWeaponMiniLaser w;
@@ -509,6 +510,7 @@ TEST(weapon_find_closest_alone_writes_nothing) {
 // [!] Without a target from the unit, LaserSingleShot calls itself again with
 // the closest enemy: the cooldown is counted down twice in that step.
 TEST(weapon_laser_single_shot_double_countdown) {
+    if (!haveMap1()) return;   // config.txt values
     BareGame g;
     TestUnit* c = g.add(1101, 0.0f, 0.0f);
     TestUnit* t = g.add(1102, 20.0f, 0.0f);
@@ -537,6 +539,7 @@ TEST(projectile_shield_crossing) {
 
 // A laser blast hits a commander (a brain) only while it drives a vehicle.
 TEST(projectile_laser_blast_commander_rule) {
+    if (!haveMap1()) return;   // config.txt values
     BareGame g;
     TestUnit* brain = g.add(1102, 50.0f, 0.0f);
     TestUnit* vehicle = g.add(1103, 0.0f, 50.0f);
@@ -581,6 +584,7 @@ TEST(weapon_hacker_stun_resets) {
 }
 
 TEST(weapon_vision_tower_radar) {
+    if (!haveMap1()) return;   // config.txt values
     BareGame g;
     TestUnit* c = g.add(1101, 12.5f, -4.0f);
     RadarPlayer p1(1), p2(2);

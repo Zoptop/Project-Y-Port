@@ -134,6 +134,7 @@ TEST(player_tech_prerequisites) {
 }
 
 TEST(player_research_time_and_cost) {
+    if (!haveMap(1)) return;   // config.txt values
     auto p = barePlayer();
     // config TechBuildTime19 150, speed factor 1 (option 3); bonus 13 factors
     // 0.85 (tech 25, 0x3f59999a), 0.7 (26), 0.5 (27): float32 products by hand
