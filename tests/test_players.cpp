@@ -363,12 +363,17 @@ int compareGrid(const char* what, CPlayerKI* ki, const uint32_t* expected, size_
 }
 
 void zeroLayers(CPlayerKI* ki) {
-    for (int i = 0; i < static_cast<int>(ki->influenceMap().size()); ++i) ki->cell(i) = CPlayerKI::CInfluenceMapCell();
+    // every float layer (the oracle leaves the passable byte as it is)
+    for (int i = 0; i < static_cast<int>(ki->influenceMap().size()); ++i) {
+        const bool passable = ki->cell(i).passable;
+        ki->cell(i) = CPlayerKI::CInfluenceMapCell();
+        ki->cell(i).passable = passable;
+    }
 }
 
-template <size_t NU, size_t NS, size_t NI, size_t NO, size_t NF, size_t NV>
+template <size_t NB, size_t NU, size_t NS, size_t NI, size_t NO, size_t NF, size_t NV>
 void checkAgainstOriginal(int map, unsigned players, unsigned W, unsigned H, const uint32_t* blocked, size_t nGrid,
-                          const uint32_t (&units)[NU][8], const uint32_t* unitsGrid, const uint32_t* goalGrid,
+                          const uint32_t (&buildings)[NB][5], const uint32_t (&units)[NU][8], const uint32_t* unitsGrid, const uint32_t* goalGrid,
                           const uint32_t* const* synthIn, const uint32_t* const* synthGrid,
                           const uint32_t (&splats)[NS][6], const uint32_t* splatGrid, const uint32_t (&index)[NI][3],
                           unsigned fowW, unsigned fowH, const uint32_t (&fowops)[NO][8], const uint32_t (&fowfinal)[NF],
@@ -426,7 +431,28 @@ void checkAgainstOriginal(int map, unsigned players, unsigned W, unsigned H, con
     }
     compareGrid("updateInfluenceUnits", ki, unitsGrid, nGrid);
 
-    // 3. goal (flags at Life/Lifedot 0 in the original = the port's placeholders)
+    // 3. goal (flags at Life/Lifedot 0 in the original = the port's placeholders).
+    // The buildings must be the original's: those it has must match; extra
+    // ones of the port's level loading are removed (reported, see CLevel).
+    int extra = 0;
+    for (unsigned id : g->objectList()) {
+        CBuilding* b = g->getAsBuilding(id);
+        if (!b) continue;
+        const uint32_t* r = nullptr;
+        for (const auto& x : buildings)
+            if (x[0] == id) r = x;
+        if (!r) {
+            ++extra;
+            g->deleteGameObject(id);
+            continue;
+        }
+        CHECK(static_cast<uint32_t>(b->mType) == r[1] && b->mOwner && b->mOwner->mId == r[2] &&
+              fbits(b->mPosition.x) == r[3] && fbits(b->mPosition.y) == r[4]);
+    }
+    for (const auto& x : buildings) CHECK_MSG(g->getAsBuilding(x[0]) != nullptr, "building %u missing", x[0]);
+    if (extra)
+        std::printf("    (map %d: the port's level has %d buildings the original does not create; removed)\n", map,
+                    extra);
     for (size_t i = 0; i < nGrid / 10; ++i) ki->cell(static_cast<int>(i)).influence = bitsf(unitsGrid[i * 10 + 5]);
     ki->updateInfluenceGoal();
     compareGrid("updateInfluenceGoal", ki, goalGrid, nGrid);
@@ -492,8 +518,9 @@ struct SquadRound {
 };
 
 // 8. squads and strategy on the original's unit data (see ai_oracle.py)
-template <size_t NM, size_t NU>
-void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&made)[NM][4],
+template <size_t NB, size_t NS0, size_t NM, size_t NU>
+void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&buildings)[NB][5],
+                                const uint32_t (&startUnits)[NS0][8], const uint32_t (&made)[NM][4],
                                 const uint32_t (&units)[NU][8], const uint32_t* infl, const uint32_t* sums,
                                 const SquadRound* rounds, int nRounds) {
     if (!haveMap(map)) return;
@@ -501,6 +528,23 @@ void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&made
     auto* ki = dynamic_cast<CPlayerKI*>(g->getPlayer(2));
     if (!ki) return;
     ki->oneTimeInit();
+    // objects the port's level creates and the original does not (see the
+    // goal check) are removed, and the unit ids continue where the original's do
+    int extra = 0;
+    for (unsigned id : g->objectList()) {
+        bool known = false;
+        for (const auto& b : buildings) known = known || b[0] == id;
+        for (const auto& u : startUnits) known = known || u[0] == id;
+        if (!known && g->getGameObject(id)) {
+            if (CUnit* u = g->getAsUnit(id)) u->mOwner->removeUnit(id);
+            g->deleteGameObject(id);
+            ++extra;
+        }
+    }
+    if (extra) {
+        std::printf("    (map %d: removed %d objects the original does not create)\n", map, extra);
+        g->mNextGameObjectID = made[0][0];
+    }
     for (const auto& m : made) {
         CUnit* u = CUnitFactory::getSingletonPtr()->createUnit(static_cast<int>(m[1]), 2,
                                                                CVector2(bitsf(m[2]), bitsf(m[3])), 0.0f, false, 0);
@@ -565,7 +609,7 @@ void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&made
         using namespace players_oracle;                                                                             \
         const uint32_t* synthIn[4] = {m##M##_synth0_in, m##M##_synth1_in, m##M##_synth2_in, m##M##_synth3_in};      \
         const uint32_t* synthGrid[4] = {m##M##_synth0, m##M##_synth1, m##M##_synth2, m##M##_synth3};                \
-        checkAgainstOriginal(M, m##M##_players, m##M##_W, m##M##_H, m##M##_blocked, sizeof(m##M##_blocked) / 4, m##M##_units,       \
+        checkAgainstOriginal(M, m##M##_players, m##M##_W, m##M##_H, m##M##_blocked, sizeof(m##M##_blocked) / 4, m##M##_buildings, m##M##_units,       \
                              m##M##_unitgrid, m##M##_goal, synthIn, synthGrid, m##M##_splats, m##M##_splat,            \
                              m##M##_index, m##M##_fowW, m##M##_fowH, m##M##_fowops, m##M##_fowfinal, m##M##_vis); \
     }                                                                                                               \
@@ -582,7 +626,7 @@ void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&made
             {m##M##_sq_round3, m##M##_sq_round3_squads, m##M##_sq_round3_n},                                        \
             {m##M##_sq_round4, m##M##_sq_round4_squads, m##M##_sq_round4_n},                                        \
             {m##M##_sq_round5, m##M##_sq_round5_squads, m##M##_sq_round5_n}};                                       \
-        checkSquadsAgainstOriginal(M, m##M##_players, m##M##_sq_made, m##M##_sq_units, m##M##_sq_infl,              \
+        checkSquadsAgainstOriginal(M, m##M##_players, m##M##_buildings, m##M##_units, m##M##_sq_made, m##M##_sq_units, m##M##_sq_infl,              \
                                    m##M##_sq_sum, rounds, 6);                                                       \
     }
 #else

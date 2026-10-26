@@ -146,6 +146,19 @@ def main():
         o.call(KI + '20updateInfluenceUnitsEv', ki.ai)
         emit_grid('unitgrid', ki.grid()[2])
 
+        # buildings (the goal layer's input)
+        blds = []
+        for oid, obj in objects(o):
+            if e.read_u32(obj + 0xd0) == 2:
+                owner = e.read_u32(obj + 0x1f8)
+                blds.append([oid, e.read_u32(obj + 0xd4), e.read_u32(owner + 0x1c) if owner else 0xffffffff,
+                             e.read_u32(obj + 0x90), e.read_u32(obj + 0x94)])
+        out.append('// buildings: id, type, owner, x, y')
+        out.append('const uint32_t %sbuildings[][5] = {' % P)
+        for b in blds:
+            out.append('    {' + ', '.join('0x%08x' % v for v in b) + '},')
+        out.append('};')
+
         # 3. goal with every flag at Life 0 / Lifedot 0
         for oid, obj in objects(o):
             if e.read_u32(obj + 0xd0) == 2 and e.read_u32(obj + 0xd4) == 1:
@@ -264,6 +277,19 @@ def main():
         # (+0x13a4), synthetic INFLUENCE / SUM layers; rounds of updateSquads +
         # updateStrategy in different modes. The unit fields the squad logic
         # reads are recorded so the test can give the port's units the same.
+        # The AI's commands go through the game's command manager (game+0x178),
+        # which the headless start does not create: give it the single-player one.
+        cm = e.read_u32(o.game + 0x178)
+        try:
+            ok = cm != 0 and e.read_u32(e.read_u32(cm)) != 0
+        except Exception:
+            ok = False
+        if not ok:
+            cm = e.malloc(0x40)
+            e.uc.mem_write(cm, b'\0' * 0x40)
+            o.call('_ZN8ProjectY20CCommandManagerLocalC1Ev', cm)
+            o.w32(o.game + 0x178, cm)
+            print('installed CCommandManagerLocal', file=sys.stderr)
         fac = o.call('_ZN8ProjectY12CUnitFactory15getSingletonPtrEv')
         made = []
         for k in range(16):
