@@ -38,6 +38,7 @@ class CMesh;
 class CTexture;
 class CGLSLProgram;
 class CCameraLevel;
+class CNav;
 class CScriptManager;
 class CSector;
 
@@ -90,6 +91,7 @@ public:
     unsigned sectorCount() const { return mNumSectors; }
     CMesh* getMapMesh() const { return mMapMesh; }
     CScriptManager* getScriptManager() const { return mScriptManager.get(); }
+    CNav* getNav() const { return mNav.get(); }   // null until "load navbasemesh"
     const std::string& detailTexture(int i) const { return mDetailTextureNames[i]; }   // 0..2 = MAP1..3
     const std::map<std::string, std::string>& loadedFiles() const { return mLoaded; }   // "load" lines
 
@@ -98,6 +100,7 @@ public:
     std::map<unsigned, std::unique_ptr<CSector>> mSectors;   // +0x14
     unsigned mNumSectors = 0;                                // +0x24
     int mHQMode = 1;                                         // +0x54
+    std::unique_ptr<CNav> mNav;                              // +0x64
     std::vector<CVector2> mStaticPotential;                  // +0x5c  potW*potH, index y*potW + x
     Vec3 mLightColor{1, 1, 1};                               // +0x84
     Vec3 mLightDir{0, 0, -1};                                // +0x90

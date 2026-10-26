@@ -74,6 +74,32 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 # ---------------------------------------------------------------------------
+# Detour + DetourTileCache at upstream f6c8d9c (2012-03-10), the version the
+# original links, with the game's patches (libm -> fdlibm, 32-bit allocator
+# budget). See third_party/recastnavigation/PROJECTY_PATCHES.md.
+# ---------------------------------------------------------------------------
+add_library(projecty_detour STATIC
+  third_party/recastnavigation/Detour/Source/DetourAlloc.cpp
+  third_party/recastnavigation/Detour/Source/DetourCommon.cpp
+  third_party/recastnavigation/Detour/Source/DetourNavMesh.cpp
+  third_party/recastnavigation/Detour/Source/DetourNavMeshBuilder.cpp
+  third_party/recastnavigation/Detour/Source/DetourNavMeshQuery.cpp
+  third_party/recastnavigation/Detour/Source/DetourNode.cpp
+  third_party/recastnavigation/DetourTileCache/Source/DetourTileCache.cpp
+  third_party/recastnavigation/DetourTileCache/Source/DetourTileCacheBuilder.cpp
+  third_party/recastnavigation/fastlz/fastlz.c
+)
+target_include_directories(projecty_detour SYSTEM PUBLIC
+  third_party/recastnavigation/Detour/Include
+  third_party/recastnavigation/DetourTileCache/Include
+  third_party/recastnavigation/fastlz)
+target_link_libraries(projecty_detour PUBLIC projecty_core)
+projecty_strict_float(projecty_detour)
+if(MSVC)
+  target_compile_definitions(projecty_detour PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+# ---------------------------------------------------------------------------
 # Engine library: rendering + game code (OpenGL entry points are loaded at
 # runtime, so this links without an OpenGL SDK)
 # ---------------------------------------------------------------------------
@@ -90,6 +116,7 @@ add_library(projecty_engine STATIC
   src/game/CGameObject.cpp
   src/game/CGamePreview.cpp
   src/game/CLevel.cpp
+  src/game/CNav.cpp
   src/game/CPlayer.cpp
   src/game/CScript.cpp
   src/game/CScriptManager.cpp
@@ -103,7 +130,7 @@ if(MSVC)
 endif()
 target_include_directories(projecty_engine PUBLIC src)
 target_include_directories(projecty_engine SYSTEM PUBLIC third_party)
-target_link_libraries(projecty_engine PUBLIC projecty_core)
+target_link_libraries(projecty_engine PUBLIC projecty_core projecty_detour)
 projecty_strict_float(projecty_engine)
 projecty_warnings(projecty_engine)
 
@@ -118,6 +145,7 @@ if(PROJECTY_BUILD_TESTS)
     tests/test_core.cpp
     tests/test_assets.cpp
     tests/test_level.cpp
+    tests/test_nav.cpp
   )
   target_link_libraries(projecty_tests PRIVATE projecty_engine)
   projecty_strict_float(projecty_tests)
@@ -128,6 +156,11 @@ if(PROJECTY_BUILD_TESTS)
   add_executable(level_probe tools/level_probe.cpp)
   target_link_libraries(level_probe PRIVATE projecty_engine)
   projecty_strict_float(level_probe)
+
+  # Runs a navmesh scenario on the port (compared with tools/emu/nav_oracle.py)
+  add_executable(nav_probe tools/nav_probe.cpp)
+  target_link_libraries(nav_probe PRIVATE projecty_engine)
+  projecty_strict_float(nav_probe)
 endif()
 
 # ---------------------------------------------------------------------------

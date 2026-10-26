@@ -1,0 +1,210 @@
+diff --git a/Detour/Source/DetourCommon.cpp b/Detour/Source/DetourCommon.cpp
+index e003bf6..d4bbee3 100644
+--- a/Detour/Source/DetourCommon.cpp
++++ b/Detour/Source/DetourCommon.cpp
+@@ -17,13 +17,14 @@
+ //
+ 
+ #include <math.h>
++#include "core/fdlibm.h" // ProjectY: the game routes libm through CMath (fdlibm)
+ #include "DetourCommon.h"
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////
+ 
+ float dtSqrt(float x)
+ {
+-	return sqrtf(x);
++	return py::fdlibm::sqrtf(x);
+ }
+ 
+ void dtClosestPtPointTriangle(float* closest, const float* p,
+@@ -134,7 +135,7 @@ bool dtIntersectSegmentPoly2D(const float* p0, const float* p1,
+ 		dtVsub(diff, p0, &verts[j*3]);
+ 		const float n = dtVperp2D(edge, diff);
+ 		const float d = dtVperp2D(dir, edge);
+-		if (fabsf(d) < EPS)
++		if (py::fdlibm::fabsf(d) < EPS)
+ 		{
+ 			// S is nearly parallel to this edge
+ 			if (n < 0)
+diff --git a/Detour/Source/DetourNavMesh.cpp b/Detour/Source/DetourNavMesh.cpp
+index a77b80d..94a3240 100644
+--- a/Detour/Source/DetourNavMesh.cpp
++++ b/Detour/Source/DetourNavMesh.cpp
+@@ -17,6 +17,7 @@
+ //
+ 
+ #include <math.h>
++#include "core/fdlibm.h" // ProjectY: the game routes libm through CMath (fdlibm)
+ #include <float.h>
+ #include <string.h>
+ #include <stdio.h>
+@@ -1053,8 +1054,8 @@ const dtMeshTile* dtNavMesh::getTile(int i) const
+ 
+ void dtNavMesh::calcTileLoc(const float* pos, int* tx, int* ty) const
+ {
+-	*tx = (int)floorf((pos[0]-m_orig[0]) / m_tileWidth);
+-	*ty = (int)floorf((pos[2]-m_orig[2]) / m_tileHeight);
++	*tx = (int)py::fdlibm::floorf((pos[0]-m_orig[0]) / m_tileWidth);
++	*ty = (int)py::fdlibm::floorf((pos[2]-m_orig[2]) / m_tileHeight);
+ }
+ 
+ dtStatus dtNavMesh::getTileAndPolyByRef(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const
+diff --git a/Detour/Source/DetourNavMeshBuilder.cpp b/Detour/Source/DetourNavMeshBuilder.cpp
+index d5d5bd8..49cbe11 100644
+--- a/Detour/Source/DetourNavMeshBuilder.cpp
++++ b/Detour/Source/DetourNavMeshBuilder.cpp
+@@ -17,6 +17,7 @@
+ //
+ 
+ #include <math.h>
++#include "core/fdlibm.h" // ProjectY: the game routes libm through CMath (fdlibm)
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -201,8 +202,8 @@ static int createBVTree(const unsigned short* verts, const int /*nverts*/,
+ 			if (z > it.bmax[2]) it.bmax[2] = z;
+ 		}
+ 		// Remap y
+-		it.bmin[1] = (unsigned short)floorf((float)it.bmin[1]*ch/cs);
+-		it.bmax[1] = (unsigned short)ceilf((float)it.bmax[1]*ch/cs);
++		it.bmin[1] = (unsigned short)py::fdlibm::floorf((float)it.bmin[1]*ch/cs);
++		it.bmax[1] = (unsigned short)py::fdlibm::ceilf((float)it.bmax[1]*ch/cs);
+ 	}
+ 	
+ 	int curNode = 0;
+diff --git a/Detour/Source/DetourNavMeshQuery.cpp b/Detour/Source/DetourNavMeshQuery.cpp
+index 1606b90..6a21a5f 100644
+--- a/Detour/Source/DetourNavMeshQuery.cpp
++++ b/Detour/Source/DetourNavMeshQuery.cpp
+@@ -17,6 +17,7 @@
+ //
+ 
+ #include <math.h>
++#include "core/fdlibm.h" // ProjectY: the game routes libm through CMath (fdlibm)
+ #include <float.h>
+ #include <string.h>
+ #include "DetourNavMeshQuery.h"
+@@ -3272,7 +3273,7 @@ dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* cen
+ 	dtVsub(hitNormal, centerPos, hitPos);
+ 	dtVnormalize(hitNormal);
+ 	
+-	*hitDist = sqrtf(radiusSqr);
++	*hitDist = py::fdlibm::sqrtf(radiusSqr);
+ 	
+ 	return status;
+ }
+diff --git a/DetourTileCache/Include/DetourTileCacheBuilder.h b/DetourTileCache/Include/DetourTileCacheBuilder.h
+index e2b7984..e9cf985 100644
+--- a/DetourTileCache/Include/DetourTileCacheBuilder.h
++++ b/DetourTileCache/Include/DetourTileCacheBuilder.h
+@@ -91,6 +91,15 @@ struct dtTileCacheAlloc
+ 	{
+ 		dtFree(ptr);
+ 	}
++
++	// ProjectY: allocation of a struct that contains pointers. 'size' is the
++	// real (host) size, 'size32' the size the 32-bit original allocated.
++	// Allocators with a byte budget (CNavLinearAllocator) must account
++	// size32 so that out-of-memory happens exactly where it did on ARM.
++	virtual void* alloc32(const int size, const int /*size32*/)
++	{
++		return alloc(size);
++	}
+ };
+ 
+ struct dtTileCacheCompressor
+diff --git a/DetourTileCache/Source/DetourTileCache.cpp b/DetourTileCache/Source/DetourTileCache.cpp
+index 3a213a9..ef18436 100644
+--- a/DetourTileCache/Source/DetourTileCache.cpp
++++ b/DetourTileCache/Source/DetourTileCache.cpp
+@@ -6,6 +6,7 @@
+ #include "DetourAlloc.h"
+ #include "DetourAssert.h"
+ #include <math.h>
++#include "core/fdlibm.h" // ProjectY: the game routes libm through CMath (fdlibm)
+ #include <string.h>
+ #include <new>
+ 
+@@ -409,10 +410,10 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
+ 	
+ 	const float tw = m_params.width * m_params.cs;
+ 	const float th = m_params.height * m_params.cs;
+-	const int tx0 = (int)floorf((bmin[0]-m_params.orig[0]) / tw);
+-	const int tx1 = (int)floorf((bmax[0]-m_params.orig[0]) / tw);
+-	const int ty0 = (int)floorf((bmin[2]-m_params.orig[2]) / th);
+-	const int ty1 = (int)floorf((bmax[2]-m_params.orig[2]) / th);
++	const int tx0 = (int)py::fdlibm::floorf((bmin[0]-m_params.orig[0]) / tw);
++	const int tx1 = (int)py::fdlibm::floorf((bmax[0]-m_params.orig[0]) / tw);
++	const int ty0 = (int)py::fdlibm::floorf((bmin[2]-m_params.orig[2]) / th);
++	const int ty1 = (int)py::fdlibm::floorf((bmax[2]-m_params.orig[2]) / th);
+ 	
+ 	for (int ty = ty0; ty <= ty1; ++ty)
+ 	{
+diff --git a/DetourTileCache/Source/DetourTileCacheBuilder.cpp b/DetourTileCache/Source/DetourTileCacheBuilder.cpp
+index ca336a0..33f176c 100644
+--- a/DetourTileCache/Source/DetourTileCacheBuilder.cpp
++++ b/DetourTileCache/Source/DetourTileCacheBuilder.cpp
+@@ -22,6 +22,7 @@
+ #include "DetourTileCacheBuilder.h"
+ #include <string.h>
+ #include <math.h>
++#include "core/fdlibm.h" // ProjectY: the game routes libm through CMath (fdlibm)
+ 
+ 
+ template<class T> class dtFixedArray
+@@ -60,7 +61,7 @@ dtTileCacheContourSet* dtAllocTileCacheContourSet(dtTileCacheAlloc* alloc)
+ {
+ 	dtAssert(alloc);
+ 
+-	dtTileCacheContourSet* cset = (dtTileCacheContourSet*)alloc->alloc(sizeof(dtTileCacheContourSet));
++	dtTileCacheContourSet* cset = (dtTileCacheContourSet*)alloc->alloc32(sizeof(dtTileCacheContourSet), 8 /*32-bit sizeof*/);
+ 	memset(cset, 0, sizeof(dtTileCacheContourSet));
+ 	return cset;
+ }
+@@ -80,7 +81,7 @@ dtTileCachePolyMesh* dtAllocTileCachePolyMesh(dtTileCacheAlloc* alloc)
+ {
+ 	dtAssert(alloc);
+ 
+-	dtTileCachePolyMesh* lmesh = (dtTileCachePolyMesh*)alloc->alloc(sizeof(dtTileCachePolyMesh));
++	dtTileCachePolyMesh* lmesh = (dtTileCachePolyMesh*)alloc->alloc32(sizeof(dtTileCachePolyMesh), 0x1c /*32-bit sizeof*/);
+ 	memset(lmesh, 0, sizeof(dtTileCachePolyMesh));
+ 	return lmesh;
+ }
+@@ -749,7 +750,7 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc,
+ 	const int h = (int)layer.header->height;
+ 	
+ 	lcset.nconts = layer.regCount;
+-	lcset.conts = (dtTileCacheContour*)alloc->alloc(sizeof(dtTileCacheContour)*lcset.nconts);
++	lcset.conts = (dtTileCacheContour*)alloc->alloc32(sizeof(dtTileCacheContour)*lcset.nconts, 0xc*lcset.nconts /*32-bit sizeof*/);
+ 	if (!lcset.conts)
+ 		return DT_FAILURE | DT_OUT_OF_MEMORY;
+ 	memset(lcset.conts, 0, sizeof(dtTileCacheContour)*lcset.nconts);
+@@ -1968,12 +1969,12 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
+ 	const float px = (pos[0]-orig[0])*ics;
+ 	const float pz = (pos[2]-orig[2])*ics;
+ 	
+-	int minx = (int)floorf((bmin[0]-orig[0])*ics);
+-	int miny = (int)floorf((bmin[1]-orig[1])*ich);
+-	int minz = (int)floorf((bmin[2]-orig[2])*ics);
+-	int maxx = (int)floorf((bmax[0]-orig[0])*ics);
+-	int maxy = (int)floorf((bmax[1]-orig[1])*ich);
+-	int maxz = (int)floorf((bmax[2]-orig[2])*ics);
++	int minx = (int)py::fdlibm::floorf((bmin[0]-orig[0])*ics);
++	int miny = (int)py::fdlibm::floorf((bmin[1]-orig[1])*ich);
++	int minz = (int)py::fdlibm::floorf((bmin[2]-orig[2])*ics);
++	int maxx = (int)py::fdlibm::floorf((bmax[0]-orig[0])*ics);
++	int maxy = (int)py::fdlibm::floorf((bmax[1]-orig[1])*ich);
++	int maxz = (int)py::fdlibm::floorf((bmax[2]-orig[2])*ics);
+ 
+ 	if (maxx < 0) return DT_SUCCESS;
+ 	if (minx >= w) return DT_SUCCESS;
+@@ -2079,7 +2080,7 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
+ 	const int gridSize = (int)compressedHeader->width * (int)compressedHeader->height;
+ 	const int bufferSize = layerSize + headerSize + gridSize*4;
+ 	
+-	unsigned char* buffer = (unsigned char*)alloc->alloc(bufferSize);
++	unsigned char* buffer = (unsigned char*)alloc->alloc32(bufferSize, 0x18 + headerSize + gridSize*4 /*32-bit dtAlign4(sizeof(dtTileCacheLayer))*/);
+ 	if (!buffer)
+ 		return DT_FAILURE | DT_OUT_OF_MEMORY;
+ 	memset(buffer, 0, bufferSize);

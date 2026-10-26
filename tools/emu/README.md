@@ -56,3 +56,11 @@ python3 tools/emu/game_oracle.py --data data --map 1 --steps 100 --detail 0 50
 - writing options and stats.
 
 Map 1 initialises in about 40 s; a simulation step then takes about 0.03 s.
+
+## Navmesh oracle
+
+`nav_oracle.py` builds an original `CNav` directly (no game start, a few
+seconds per map) and runs a scenario of path and nearest-poly queries and
+obstacle edits. `tools/verify/compare_nav.py` runs the same scenario through
+`build/nav_probe` and compares the results line by line for every
+`navmesh*.dat`. See docs/re/navmesh_phase4.md.

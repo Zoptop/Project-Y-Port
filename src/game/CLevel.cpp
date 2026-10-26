@@ -10,6 +10,7 @@
 #include "core/CRng.h"
 #include "core/CUtils.h"
 #include "core/FloatBits.h"
+#include "game/CNav.h"
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
@@ -575,7 +576,8 @@ bool CLevel::initByScript(const std::string& file, bool fromSavegame) {
             }
             if (key == "navbasemesh") {
                 std::sscanf(s, "%*s %*s " PY_S, arg);
-                // TODO(phase 4): new CNav; CNav::initnav(file) (Recast/Detour tile cache)
+                mNav = std::make_unique<CNav>();
+                mNav->initnav(arg);
                 mLoaded[key] = arg;
             }
             // "load navmesh" has no branch in the original: silently ignored.
