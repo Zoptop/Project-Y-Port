@@ -12,6 +12,8 @@
 
 #include <cstdint>
 
+#include "core/CUtils.h"
+
 namespace py {
 
 class CEngine;
@@ -36,6 +38,9 @@ public:
     unsigned mSceneId = 0;                   // +0x38 "create SceneObject %i"
     int mSceneType = 0;                      // +0x54 "mType"
     CEngine* mEngine = nullptr;              // +0x58
+    // Allocation order (heap-address order under the oracle's bump allocator):
+    // orders the original's pointer-keyed sets (CPlayerKI's std::set<CUnit*>).
+    uint64_t mAllocSerial = py::allocSerial();
 };
 
 }  // namespace py

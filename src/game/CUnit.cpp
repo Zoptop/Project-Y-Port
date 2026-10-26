@@ -451,5 +451,7 @@ void CUnit::enterVehicle(unsigned vehicleId) {
 bool CUnit::landmineTriggered() const { return false; }   // TODO(4.4 units): CUnitLandmine +0x1524
 CSector* CUnit::turretSector() const { return nullptr; }  // TODO(4.4 units): CUnitTurret +0x1524
 Real CUnit::cloakValue() const { return 0.0f; }          // TODO(4.4 units): CUnitCloakSuit +0x153c
+unsigned CUnit::brainRankPoints() const { return 0; }    // TODO(4.4 units): CUnitRoboBrain +0x1590
+bool CUnit::brainIsAddRankPossible(unsigned) { return true; }   // TODO(4.4 units): CUnitRoboBrain::isAddRankPossible
 
 }  // namespace py

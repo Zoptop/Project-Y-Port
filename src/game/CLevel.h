@@ -153,6 +153,10 @@ public:
     float mSizeScale = 1.0f;                                 // +0x190 1.5/2.5/3/4 by map width
     std::string mMMName = "mm", mMMBorderName = "mmborder";  // +0x194/+0x198
     std::vector<CGridCell> mGrid, mGridFar;                  // +0x68/+0x6c
+    // resources mode (game type 3) resource grid, "setup res map" (TODO: generateResources)
+    int mResW = 0, mResH = 0;                                // +0x1b0/+0x1b4 = FOW texture size
+    float mResScaleX = 0.0f, mResScaleY = 0.0f;              // +0x1b8/+0x1bc = FOW scale
+    std::vector<float> mResAmount;                           // +0x1c4 amount per cell, index y*W + x
 
 private:
     void initUnitLookupGrid();

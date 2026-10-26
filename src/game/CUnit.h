@@ -151,6 +151,8 @@ public:
     bool landmineTriggered() const;   // CUnitLandmine +0x1524
     CSector* turretSector() const;    // CUnitTurret +0x1524
     Real cloakValue() const;          // CUnitCloakSuit +0x153c
+    unsigned brainRankPoints() const; // CUnitRoboBrain +0x1590 unspent rank points (CPlayerKI)
+    bool brainIsAddRankPossible(unsigned rank);   // CUnitRoboBrain::isAddRankPossible (CPlayerKI)
 
     // ---- fields
     unsigned mDriverEntryVehicle = 0;    // +0x230 (copied to +0x22c in the ctor)
@@ -238,6 +240,7 @@ public:
     Real mBrainDrawAdjustedYaw = 0.0f;   // +0x138c
     CVector3 mVec1394;                   // +0x1394
     Real mWeaponDPS = 0.0f;              // +0x13a0 sum of weapon DPS (AI influence)
+    Real mInfluence = 0.0f;              // +0x13a4 getInfluenceAndFalloff each timeUpdate (AI squads, spec ops)
     bool mInitDone = false;              // +0x13c0
     unsigned mDefendedUnit = 0;          // +0x13dc
     unsigned mLoadedVal1488 = 0, mLoadedVal148c = 0;   // +0x1488/+0x148c

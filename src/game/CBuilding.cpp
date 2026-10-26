@@ -235,4 +235,12 @@ void CBuilding::initProductionLarge(Real rotation, unsigned sectorId) {
     if (!mEngine->mLoadingSavegame) mTurretIds[0] = spawnTurret(pos, rotation, sectorId)->mId;
 }
 
+// Subclass fields read through a CBuilding* (see CBuilding.h): placeholders
+// until the building classes are ported.
+Real CBuilding::flagLife() const { return 0.0f; }        // TODO(4.x buildings): CBuildingFlagpost +0x350
+Real CBuilding::flagLifedot() const { return 0.0f; }     // TODO(4.x buildings): CBuildingFlagpost +0x354
+int CBuilding::specOpSelected() const { return 0; }      // TODO(4.x buildings): CBuildingSpecop +0x374
+bool CBuilding::labAutoResearch() const { return false; }   // TODO(4.x buildings): CBuildingScienceLab +0x3dc
+int CBuilding::labGetRandomTech() { return -1; }         // TODO(4.x buildings): CBuildingScienceLab::getRandomTech
+
 }  // namespace py

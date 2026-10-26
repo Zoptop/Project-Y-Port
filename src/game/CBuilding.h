@@ -62,6 +62,14 @@ public:
     Real getProductionTime(unsigned unitType);         // Ghidra 0x1356e4
     Real getOperationTime();                           // Ghidra 0x135a50
 
+    // Fields of building classes read through a CBuilding* in the original
+    // (subclass members, accessed by offset): defined in the subclasses' .cpp.
+    Real flagLife() const;            // CBuildingFlagpost +0x350 "Life"
+    Real flagLifedot() const;         // CBuildingFlagpost +0x354 "Lifedot"
+    int specOpSelected() const;       // CBuildingSpecop +0x374 selected operation (0..4)
+    bool labAutoResearch() const;     // CBuildingScienceLab +0x3dc
+    int labGetRandomTech();           // CBuildingScienceLab::getRandomTech (Ghidra 0x144454), -1 = none
+
     // ---- fields
     CSector* mSector = nullptr;          // +0x238 "mSectorPtr"
     std::list<unsigned> mContainedBrains;   // +0x23c brains inside ("mContainedBrainsSize" = size)
