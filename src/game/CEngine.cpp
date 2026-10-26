@@ -1,5 +1,9 @@
 #include "CEngine.h"
 
+#include "core/FloatBits.h"
+#include "core/Real.h"
+#include "game/CCommandManager.h"
+#include "game/CGame.h"
 #include "core/CConfig.h"
 
 namespace py {
@@ -36,6 +40,35 @@ void CEngine::setupSkirmish(unsigned mapId, unsigned players) {
         p.type = i == 0 ? 1 : (i == 1 ? 0 : 2);
         p.team = static_cast<unsigned>(i);
     }
+}
+
+// Ghidra 0x1674dc (the timing part of CEngine::draw)
+void CEngine::updateFrameTime(float nowMs, bool ingame) {
+    const Real speed = ingame ? Real(mGameSpeedFactor) : Real(1.0f);
+    mFrameTime = nowMs;
+    Real dt = (Real(nowMs) - Real(mLastFrameTime)) / 1000.0f;
+    if (dt > bitsf(0x3e4ccccd)) dt = bitsf(0x3e4ccccd);
+    const Real step = speed * dt;
+    mFrameDt = step;
+    if (!mPaused) mGameTime = step + Real(mGameTime);
+    mRealGameTime = step + Real(mRealGameTime);
+    const Real t = step + Real(mFpsTime);
+    mFpsTime = t;
+    const Real frames = Real(mFpsFrames) + 1.0f;
+    mFpsFrames = frames;
+    if (t > 1.0f) {
+        mFps = frames / (t + bitsf(0x358637bd)) * speed;
+        mFpsFrames = 0.0f;
+        mFpsTime = 0.0f;
+    }
+    mLastFrameTime = nowMs;
+}
+
+// CEngine::draw -> CInterfaceIngame::timeUpdate (Ghidra 0x19dcd0) -> the
+// command manager (CCommandManagerLocal::timeUpdate in single player).
+void CEngine::timeUpdateSingleplayer(float nowMs) {
+    updateFrameTime(nowMs, true);
+    if (mGame && mGame->getCommandManager()) mGame->getCommandManager()->timeUpdate();
 }
 
 }  // namespace py

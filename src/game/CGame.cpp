@@ -66,6 +66,7 @@ bool CGame::init(bool fromSavegame, bool headless) {
     std::snprintf(file, sizeof(file), "map%u%s.txt", e->mMapId, e->mLanguage.c_str());
     const bool ok = mLevel->initByScript(file, fromSavegame);
     for (auto& p : mPlayers) p.second->initTeamMembers();
+    e->mRealGameTime = 0.0f;
     if (!fromSavegame) {
         e->mGameTime = 0.0f;
         mStarted = true;

@@ -40,13 +40,28 @@ public:
     // (slot 0 = neutral, 1 = local human, the rest AI).
     void setupSkirmish(unsigned mapId, unsigned players);
 
+    // Frame timing (the start of CEngine::draw, Ghidra 0x1674dc). `nowMs` is
+    // CUtils::getTimer(). Sets mFrameDt = min((now - last) / 1000, 0.2) x the
+    // game speed (in game), advances mGameTime unless paused, and the FPS
+    // counter. In single player the step that follows uses this dt
+    // (CInterfaceIngame::timeUpdate -> CCommandManagerLocal::timeUpdate).
+    void updateFrameTime(float nowMs, bool ingame);
+    // Single-player frame: updateFrameTime, then one CCommandManager step.
+    void timeUpdateSingleplayer(float nowMs);
+
     // ---- fields (original offsets)
     static constexpr int kMaxPlayers = 5;
     CPlayerSetup mPlayerSetup[kMaxPlayers];   // +0x4c
     unsigned mNumPlayers = 2;          // +0x128  (players 1..n; 0 is neutral)
     CGame* mGame = nullptr;            // +0x178
+    float mLastFrameTime = 0.0f;       // +0x180  timer (ms) of the previous frame
+    float mFpsFrames = 0.0f;           // +0x184
+    float mFpsTime = 0.0f;             // +0x188
+    float mFps = 0.0f;                 // +0x190
     float mGameTime = 0.0f;            // +0x198  seconds, advances while not paused
+    float mRealGameTime = 0.0f;        // +0x19c  seconds, also while paused (0 at game init)
     float mFrameDt = 0.0f;             // +0x1a8  "mDeltaT": the step's dt during CGame::timeUpdate
+    float mFrameTime = 0.0f;           // +0x1ac  timer (ms) of this frame
     int mNetworkMode = 0;              // +0x1b0  2 = network game
     std::string mLanguage = "English"; // +0x1b4
     int mProductionSpeed = 3;          // +0x1b8  "ProductionsSpeedFactor" option

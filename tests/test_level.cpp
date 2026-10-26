@@ -356,3 +356,20 @@ TEST(command_manager_local) {
     CHECK(u->mMaxVelocityLimiter == 0.5f);
     CEngine::getSingletonPtr()->mGame = nullptr;
 }
+
+// CEngine::draw frame timing (0x1674dc): dt = (now - last) / 1000 capped at
+// 0.2 s, times the game speed; game time stops while paused. Bits by numpy.
+TEST(engine_frame_time) {
+    CEngine* e = freshEngine();
+    e->updateFrameTime(100.0f, true);
+    CHECK_MSG(fbits(e->mFrameDt) == 0x3dcccccdu, "%08x", fbits(e->mFrameDt));
+    e->updateFrameTime(600.0f, true);    // 0.5 s -> 0.2 s
+    CHECK(fbits(e->mFrameDt) == 0x3e4ccccdu);
+    CHECK_MSG(fbits(e->mGameTime) == 0x3e99999au, "%08x", fbits(e->mGameTime));
+    e->mPaused = true;
+    e->mGameSpeedFactor = 0.5f;
+    e->updateFrameTime(1600.0f, true);   // 0.2 x 0.5, game time held
+    CHECK(fbits(e->mFrameDt) == 0x3dcccccdu && fbits(e->mGameTime) == 0x3e99999au);
+    e->updateFrameTime(1700.0f, false);  // menus run at speed 1
+    CHECK(fbits(e->mFrameDt) == 0x3dcccccdu);
+}
