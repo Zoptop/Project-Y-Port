@@ -35,6 +35,7 @@
 
 namespace py {
 
+class CBuildingFlagpost;
 class CMesh;
 class CTexture;
 class CGLSLProgram;
@@ -130,6 +131,7 @@ public:
     std::vector<CMapAsset> mAssets;                          // +0x04
     std::map<unsigned, std::unique_ptr<CSector>> mSectors;   // +0x14
     unsigned mNumSectors = 0;                                // +0x24
+    std::vector<CBuildingFlagpost*> mFlagposts;              // +0x28 in creation order (CBuildingFlagpost::init)
     int mHQMode = 1;                                         // +0x54
     std::unique_ptr<CNav> mNav;                              // +0x64
     std::vector<CVector2> mStaticPotential;                  // +0x5c  potW*potH, index y*potW + x
