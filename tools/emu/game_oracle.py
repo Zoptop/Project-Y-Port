@@ -30,6 +30,7 @@ class Oracle:
         self.libc = LibC(emu, data, log=(lambda s: print('  [log]', s)) if verbose else None)
         self._symtab()
         self._platform_hooks()
+        self._checksum_hooks()
         ia = emu.elf.by_name['.init_array']
         for i in range(ia['size'] // 4):
             fn = emu.read_u32(ia['addr'] + 4 * i)
@@ -73,12 +74,45 @@ class Oracle:
                 except Exception:
                     pass
 
+    def _checksum_hooks(self):
+        """Replace the leaf CUtils::updateChecksum overloads by Python versions
+        that do the same and, while self.trace is a list, record every value
+        (with the calling function) - the field-by-field view of calcChecksum."""
+        e = self.emu
+        self.trace = None
+        chk = e.addr('_ZN8ProjectY6CUtils9mChecksumE')
+
+        def add(kind, v):
+            v &= 0xffffffff
+            self.w32(chk, e.read_u32(chk) + v)
+            if self.trace is not None:
+                self.trace.append((self.where(e.uc.reg_read(UC_ARM_REG_LR)), kind, v))
+            return 0
+
+        for suffix, kind in (('Ef', 'f'), ('Ei', 'i'), ('Ej', 'u'), ('El', 'l')):
+            e.hook_function('_ZN8ProjectY6CUtils14updateChecksum' + suffix,
+                            (lambda k: lambda emu, a: add(k, a[0]))(kind))
+        e.hook_function('_ZN8ProjectY6CUtils14updateChecksumEb', lambda emu, a: add('b', 1 if a[0] & 0xff else 2))
+
+        def vbool(emu, a):
+            p, off, endp, endoff = (e.read_u32(a[0] + 4 * i) for i in range(4))
+            bits = []
+            while p != endp or off != endoff:
+                bits.append((e.read_u32(p) >> off) & 1)
+                off += 1
+                if off == 32:
+                    p, off = p + 4, 0
+            return add('vb' + ''.join(map(str, bits)), sum(1 if b else 2 for b in bits))
+        e.hook_function('_ZN8ProjectY6CUtils14updateChecksumERSt6vectorIbSaIbEE', vbool)
+
     # ------------------------------------------------------------ game
     def w32(self, addr, v):
         self.emu.uc.mem_write(addr, struct.pack('<I', v & 0xffffffff))
 
     def w8(self, addr, v):
         self.emu.uc.mem_write(addr, bytes([v & 0xff]))
+
+    SEED_W, SEED_Z = 0x1234, 0x5678   # both RNGs; the menu seeds them from time()
 
     def start_game(self, engine, map_id, players, fow=0, game_type=0):
         """Skirmish setup like the menu (player slots at engine+0x4c+i*0x2c:
@@ -99,6 +133,15 @@ class Oracle:
         self.w8(engine + 0x258, 0)          # crates off
         self.w32(engine + 0x1d4, 0)         # sector setup preset
         self.w32(engine + 0x1d8, 0)         # unit availability preset
+        for cls in ('CRng', 'CRngSafe'):
+            mw = e.addr('_ZN8ProjectY%d%s2mWE' % (len(cls), cls))
+            mz = e.addr('_ZN8ProjectY%d%s2mZE' % (len(cls), cls))
+
+            def seed(emu, a, mw=mw, mz=mz):
+                self.w32(mw, self.SEED_W)
+                self.w32(mz, self.SEED_Z)
+                return 0
+            e.hook_function('_ZN8ProjectY%d%s21SetSeedFromSystemTimeEv' % (len(cls), cls), seed)
         menu = e.read_u32(engine + 0x16c)
         self.w32(menu + 0x70, 720)
         self.w32(menu + 0x74, 1280)
@@ -127,8 +170,11 @@ class Oracle:
         e = self.emu
         chk = e.addr('_ZN8ProjectY6CUtils9mChecksumE')
         self.w32(chk, 0)
+        if self.trace is not None:
+            self.trace = []
         fn = e.read_u32(e.read_u32(obj) + off)
         self.call(fn, obj)
+        self._last_trace = self.trace
         return e.read_u32(chk)
 
     def _list(self, head: int):
@@ -150,33 +196,49 @@ class Oracle:
         return out
 
     def checksum_detail(self):
-        """The parts of CGame::calcChecksum (0x17bc80), in its order."""
+        """The parts of CGame::calcChecksum (0x17bc80), in its order:
+        (kind, id, description). After checksum_trace() each row also gets
+        the list of updateChecksum calls that produced it."""
         e, g = self.emu, self.game
         out = [('counters', '', 'buildingId=%d unitId=%d projectileId=%d weaponId=%d' % tuple(
             e.read_u32(g + o) for o in (0x124, 0x108, 0x140, 0x15c)))]
+        self._traces = [[('CGame::calcChecksum', 'i', e.read_u32(g + o)) for o in (0x124, 0x108, 0x140, 0x15c)]]
         objects = e.read_u32(g + 0x48)
         for oid in self._list(g + 0x78):
             obj = e.read_u32(objects + 4 * oid) if oid < (e.read_u32(g + 0x4c) - objects) // 4 else 0
             if obj:
                 out.append(('obj', oid, '%s %08x' % (self.class_of(obj), self._vcall_checksum(obj, 0x24))))
+                self._traces.append(self._last_trace)
         p, end = e.read_u32(g + 0x98), e.read_u32(g + 0x9c)
         while p != end:
             pr = e.read_u32(p)
             if pr:
                 out.append(('projectile', pr, '%s %08x' % (self.class_of(pr), self._vcall_checksum(pr, 0x28))))
+                self._traces.append(self._last_trace)
             p += 4
         for so in self._list(g + 0x3c):
             if so:
                 out.append(('scene', so, '%s %08x' % (self.class_of(so), self._vcall_checksum(so, 0x24))))
+                self._traces.append(self._last_trace)
         for pid, pl in self._map_values(g + 0x10):
             out.append(('player', pid, '%s %08x' % (self.class_of(pl), self._vcall_checksum(pl, 0x7c))))
+            self._traces.append(self._last_trace)
         level = e.read_u32(g + 0xa4)
         chk = e.addr('_ZN8ProjectY6CUtils9mChecksumE')
         for sid, sec in self._map_values(level + 0x14):
             self.w32(chk, 0)
+            if self.trace is not None:
+                self.trace = []
             self.call('_ZN8ProjectY7CSector12calcChecksumEv', sec)
             out.append(('sector', sid, '%08x' % e.read_u32(chk)))
+            self._traces.append(self.trace)
         return out
+
+    def checksum_trace(self):
+        self.trace = []
+        rows = self.checksum_detail()
+        self.trace = None
+        return [r + (t,) for r, t in zip(rows, self._traces)]
 
     def step(self, step: int):
         """One lockstep step, like CCommandManagerNetworked::timeUpdate."""
@@ -233,6 +295,7 @@ def main():
     ap.add_argument('--players', type=int, default=2)
     ap.add_argument('--fow', type=int, default=0)
     ap.add_argument('--detail', type=int, nargs='*', help='steps to dump per-object checksums for')
+    ap.add_argument('--trace', type=int, nargs='*', help='steps to dump every updateChecksum value for')
     a = ap.parse_args()
     o = Oracle(a.so, a.data, a.v)
     e = o.emu
@@ -251,6 +314,11 @@ def main():
         if a.detail and step in a.detail:
             for row in o.checksum_detail():
                 print('  %-10s %-6s %s' % row)
+        if a.trace and step in a.trace:
+            for kind, ident, desc, tr in o.checksum_trace():
+                print('  %-10s %-6s %s' % (kind, ident, desc))
+                for caller, k, v in tr or ():
+                    print('      %-8s %08x  %s' % (k, v, caller))
         o.step(step + 1)
     print('engine init done; unhandled:', dict(e.unhandled.most_common(12)))
 
