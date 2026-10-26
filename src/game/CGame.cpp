@@ -57,7 +57,7 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mRngAfterTU = 0;
     mNumPlayers = e->mNumPlayers;
     mFeatures.reset();
-    // TODO(4.x): CCraterManager (+0xb8)
+    mCraterManager = std::make_unique<CCraterManager>();   // +0xb8
     updateAIFactorsFromDifficulty();
     for (unsigned i = 0; i <= mNumPlayers; ++i) createPlayerFromPlayerSetup(i);
     mLevel = std::make_unique<CLevel>();
@@ -99,7 +99,7 @@ bool CGame::init(bool fromSavegame, bool headless) {
 void CGame::timeUpdate(Real /*dt*/, Real /*gameTime*/) {
     mRngBeforeTU = CRngSafe::GetUint();
     if (CNav* nav = mLevel->getNav()) nav->updateTileCache(0.0f);
-    notPorted("CCraterManager::timeUpdate");   // TODO(4.x)
+    if (mCraterManager) mCraterManager->timeUpdate();
 
     for (auto it = mSceneObjects.begin(); it != mSceneObjects.end();) {
         if ((*it)->mReadyToDelete) {

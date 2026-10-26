@@ -39,6 +39,7 @@ public:
     std::map<unsigned, CBuilding*> mBuildings;   // +0x04  by building id
     bool mHasHQ = false;                         // +0x34
     CPlayer* mOwner = nullptr;                   // +0x50
+    CBuilding* mFlagpost = nullptr;              // +0x5c set by CBuildingFlagpost::init
     unsigned mId = 0;                            // +0x54
     uint32_t mSchematicFirst = 0, mSchematicCount = 0;   // +0x60/+0x64 "schematic<id>"
     uint32_t mBorderFirst = 0, mBorderCount = 0;         // +0x68/+0x6c "border<id>"

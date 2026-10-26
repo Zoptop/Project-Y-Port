@@ -95,14 +95,14 @@ float streamToFloat(const std::string& s) {
 CScript::CScript(const std::string& params) : mEngine(CEngine::getSingletonPtr()), mParamString(params) {}
 
 // Ghidra 0x38802c
-void CScript::enableRun() { mRunAt = mEngine->mGameTime + mDelay; }
+void CScript::enableRun() { mRunAt = Real(mEngine->mGameTime) + mDelay; }
 
 // Ghidra 0x3881e4
 void CScript::run() {
     if (!mLoopable)
         mFinished = true;
     else
-        mRunAt = mEngine->mGameTime + mDelay;
+        mRunAt = Real(mEngine->mGameTime) + mDelay;
 }
 
 // Ghidra 0x38963c

@@ -21,6 +21,7 @@
 #include "core/CVector2.h"
 #include "core/CVector3.h"
 #include "core/Real.h"
+#include "game/CCraterManager.h"
 #include "game/CGameFeatures.h"
 
 namespace py {
@@ -86,6 +87,18 @@ public:
     const std::vector<CProjectile*>& projectiles() const { return mProjectiles; }
     const std::list<CSceneObject*>& sceneObjects() const { return mSceneObjects; }
 
+    // ---- bombers and what they drop (CGameBombers.cpp): new scene objects,
+    // appended to the scene list after their init
+    void addBomb(Real yaw, Real pitch, const CVector3& position, Real velocity, CPlayer* owner);   // Ghidra 0x1789f0
+    void addDropCrate(Real yaw, Real pitch, const CVector3& position, Real velocity);              // Ghidra 0x178a84
+    void addDropMine(Real yaw, Real pitch, const CVector3& position, Real velocity, CPlayer* owner);   // Ghidra 0x178b10
+    // Ghidra 0x178ba4. dropType: EBomberDropType (CBomber.h); callerScript -1
+    // = none; droppedUnitId -1 = the dropped units take the next free ids.
+    void addBomber(CVector2 target, CPlayer* owner, int dropType, unsigned dropParam1, unsigned dropParam2,
+                   int callerScript, int droppedUnitId);
+    // Created by init (Ghidra 0x17cf28, after the factories); visual only.
+    CCraterManager* getCraterManager() const { return mCraterManager.get(); }
+
     // ---- queries used by the game code (Ghidra addresses in CGame.cpp)
     // player null: any non-neutral owner; type 0: any type.
     CUnit* getClosestUnit(const CVector2& pos, CPlayer* player, unsigned type, bool skipCommanders,
@@ -118,6 +131,7 @@ public:
     std::vector<CProjectile*> mProjectiles;                  // +0x98
     std::unique_ptr<CLevel> mLevel;                          // +0xa4
     CEngine* mEngine = nullptr;                              // +0xac
+    std::unique_ptr<CCraterManager> mCraterManager;          // +0xb8
     CPlayer* mNeutralPlayer = nullptr;                       // +0xbc
     unsigned mNextGameObjectID = 1101;                       // +0x108 "mNextGameObjectID"
     unsigned mNextGameObjectBuildingID = 1001;               // +0x124
