@@ -50,6 +50,7 @@ public:
     virtual void setTeam(unsigned team) { mTeam = team; }      // +0x54
     virtual bool hasTech(unsigned tech);                       // +0x58 Ghidra 0x3738d4
     virtual bool isTechResearchable(unsigned tech);            // +0x5c
+    virtual std::vector<int> getResearchableTechs();           // +0x60 (ETechs)
     virtual void addTech(unsigned tech);                       // +0x68
     virtual Real getTechResearchTime(unsigned tech);           // +0x6c
     virtual void techResearched(unsigned tech, CBuilding* lab);   // +0x70

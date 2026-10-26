@@ -1,0 +1,25 @@
+// CBuildingUploadTerminal.h - port of ProjectY::CBuildingUploadTerminal
+// (0x348 bytes), a campaign objective building. Its dish turns (drawing
+// only; "RadarYaw").
+//
+// Ghidra: CBuildingUploadTerminal 0x14d104, init 0x14d13c, timeUpdate 0x14d264.
+#pragma once
+
+#include "game/CBuilding.h"
+
+namespace py {
+
+class CBuildingUploadTerminal : public CBuilding {
+public:
+    CBuildingUploadTerminal() = default;            // Ghidra 0x14d104
+    void timeUpdate() override;                     // +0x08 Ghidra 0x14d264
+    void timeUpdateSimple() override;               // +0x0c Ghidra 0x14dd34
+    void holdState() override { mRadarYawHeld = mRadarYaw; }      // +0x1c Ghidra 0x14d0cc
+    void restoreState() override { mRadarYaw = mRadarYawHeld; }   // +0x20 Ghidra 0x14d0e8
+    void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x14d13c
+
+    Real mRadarYaw = 0.0f;               // +0x338 "RadarYaw"
+    Real mRadarYawHeld = 0.0f;           // +0x33c
+};
+
+}  // namespace py

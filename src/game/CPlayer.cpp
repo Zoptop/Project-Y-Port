@@ -173,6 +173,10 @@ void CPlayer::addTech(unsigned tech) {
     notPorted("CPlayer::addTech");
     if (tech < kNumTechs) mHasTech[tech] = true;
 }
+std::vector<int> CPlayer::getResearchableTechs() {
+    notPorted("CPlayer::getResearchableTechs");
+    return {};
+}
 Real CPlayer::getTechResearchTime(unsigned) {
     notPorted("CPlayer::getTechResearchTime");
     return 0.0f;

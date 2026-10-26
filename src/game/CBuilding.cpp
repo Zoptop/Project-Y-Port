@@ -1,13 +1,13 @@
 // CBuilding.cpp - see CBuilding.h.
 //
-// PORT STATUS: the base class is complete except where marked TODO; the
-// building classes (CBuildingHQ, ...) are not split out yet - the HQ and
-// large factory turrets are created here from init (phase 3 code).
+// PORT STATUS: complete (drawing, info screen and save/load are not ported).
 #include "game/CBuilding.h"
 
-#include <memory>
-#include <set>
-#include <stdexcept>
+#include "game/CBuildingFlagpost.h"
+#include "game/CBuildingScienceLab.h"
+#include "game/CBuildingShieldGen.h"
+#include "game/CBuildingSpecop.h"
+
 #include <string>
 
 #include "core/CConfig.h"
@@ -67,9 +67,6 @@ void CBuilding::init(const CVector2& position, Real rotation, unsigned sectorId,
         }
     }
 
-    // TODO(4.4 buildings): CBuildingHQ / CBuildingProductionLarge classes.
-    if (mType == BUILDING_HQ) initHQ(rotation, sectorId);
-    if (mType == BUILDING_PRODUCTION_LARGE) initProductionLarge(rotation, sectorId);
 }
 
 // Ghidra 0x136360
@@ -163,83 +160,119 @@ void CBuilding::enableNavObstacle() {
 
 void CBuilding::destroy() { mDestroyed = true; }   // Ghidra 0x134aa0
 
-Real CBuilding::getResourceCostOp(unsigned, bool) {
-    notPorted("CBuilding::getResourceCostOp");   // TODO(4.4 buildings)
-    return 0.0f;
+// ------------------------------------------------------------------ subclass fields (see CBuilding.h)
+
+Real CBuilding::flagLife() const {
+    return mType == BUILDING_FLAGPOST ? static_cast<const CBuildingFlagpost*>(this)->mLife : Real(0.0f);
 }
-Real CBuilding::getResourceCost(unsigned) {
-    notPorted("CBuilding::getResourceCost");
-    return 0.0f;
+Real CBuilding::flagLifedot() const {
+    return mType == BUILDING_FLAGPOST ? static_cast<const CBuildingFlagpost*>(this)->mLifedot : Real(0.0f);
 }
-Real CBuilding::getProductionTime(unsigned) {
-    notPorted("CBuilding::getProductionTime");
-    return 0.0f;
+int CBuilding::specOpSelected() const {
+    return mType == BUILDING_SPECOP ? static_cast<const CBuildingSpecop*>(this)->mOpType : 0;
 }
-Real CBuilding::getOperationTime() {
-    notPorted("CBuilding::getOperationTime");
-    return 0.0f;
+bool CBuilding::labAutoResearch() const {
+    return mType == BUILDING_SCIENCELAB && static_cast<const CBuildingScienceLab*>(this)->mRandomResearchEnabled;
+}
+bool CBuilding::shieldEnabled() const {
+    return mType == BUILDING_SHIELDGEN && static_cast<const CBuildingShieldGen*>(this)->isShieldEnabled();
+}
+Real CBuilding::shieldRadiusSq() const {
+    return mType == BUILDING_SHIELDGEN ? static_cast<const CBuildingShieldGen*>(this)->mShieldRadiusSq : Real(0.0f);
+}
+int CBuilding::labGetRandomTech() {
+    return mType == BUILDING_SCIENCELAB ? static_cast<CBuildingScienceLab*>(this)->getRandomTech() : -1;
 }
 
-// ------------------------------------------------------------------ phase 3 (to move into the classes)
+// ------------------------------------------------------------------ costs and times
 
-// Building offset (ox, oy) rotated by `rotation`, added to the position.
-CVector2 CBuilding::turretPosition(const char* configKey, Real rotation) const {
-    float o[2] = {0.0f, 0.0f};
-    CConfig::get().getFloats(configKey, o, 2);
-    const Real c = CMath::SinTable(rotation + CMath::HALF_PI);
-    const Real s = CMath::SinTable(rotation);
-    const Real ox = o[0], oy = o[1];
-    const Real dx = ox * c - oy * s;
-    const Real dy = ox * s + oy * c;
-    return {mPosition.x + dx, mPosition.y + dy};
-}
+namespace {
 
-CUnit* CBuilding::spawnTurret(const CVector2& pos, Real rotation, unsigned sectorId) {
-    CGame* game = mEngine->mGame;
-    CPlayer* owner = game->getLevel()->getSector(sectorId)->mOwner;
-    CUnit* t = CUnitFactory::getSingletonPtr()->createUnit(UNIT_TURRET, owner->mId, pos.x, pos.y, rotation,
-                                                            owner->mType != CPlayer::TYPE_NEUTRAL, sectorId);
-    t->mPosition.z = t->mPosition.z + bitsf(0x40966666u);   // + 4.7
-    return t;
-}
-
-// Ghidra 0x13b78c (subset)
-void CBuilding::initHQ(Real rotation, unsigned sectorId) {
-    const CVector2 left = turretPosition("BuildingHQLeftTurretOffset", rotation);
-    const CVector2 right = turretPosition("BuildingHQRightTurretOffset", rotation);
-    if (!mEngine->mLoadingSavegame) {
-        mTurretIds[0] = spawnTurret(left, rotation, sectorId)->mId;
-        mTurretIds[1] = spawnTurret(right, rotation, sectorId)->mId;
+// Config key suffix per unit type (getResourceCost / getProductionTime);
+// nullptr = no case in the original's switch.
+const char* unitCostName(unsigned unitType) {
+    switch (unitType) {
+    case UNIT_ROBOBRAIN: return "Robobrain";
+    case UNIT_SPIDER: return "Spider";
+    case UNIT_SCORPION: return "Scorpion";
+    case UNIT_TANK: return "Tank";
+    case UNIT_BOMBSUIT: return "Bombbrain";
+    case UNIT_REPAIR: return "Repair";
+    case UNIT_SOLDIERSUIT: return "Soldierbrain";
+    case UNIT_HEAVYTANK: return "HeavyTank";
+    case UNIT_SPOTTER: return "Spotter";
+    case UNIT_EMPTANK: return "EMPTank";
+    case UNIT_MINEDROPPER: return "MineDropper";
+    case UNIT_SHIELDTANK: return "ShieldTank";
+    case UNIT_COMMANDER: return "Commander";
+    case UNIT_AMPLIFIER: return "Amplifier";
+    case UNIT_SNIPERSUIT: return "SniperSuit";
+    case UNIT_CLOAKSUIT: return "CloakSuit";
+    case UNIT_HACKERSUIT: return "HackerSuit";
+    case UNIT_THINKERBRAIN: return "ThinkerBrain";
+    case UNIT_UBERBRAIN: return "UberBrain";
+    case UNIT_HARVESTER: return "Harvester";
+    default: return nullptr;   // turret, crate, beacon, landmine, out of range
     }
-    CPlayer* owner = mEngine->mGame->getLevel()->getSector(sectorId)->mOwner;
-    owner->mStartPosition = position2();
 }
 
-// Ghidra 0x141ff8 (subset): pick the unit type it produces, then the turret.
-void CBuilding::initProductionLarge(Real rotation, unsigned sectorId) {
-    const bool* avail = CConfig::get().mUnitAvailable;
-    int u = mSubType;
-    if (u != 5 && u != 8 && u != 10 && !(mEngine->mGameType == 3 && u == 24)) u = 5;
-    for (int guard = 0; !avail[u]; ++guard) {
-        if (guard > 8) {   // all of 5/8/10 off: the original loops forever (unreachable:
-            CUtils::log("CBuildingProductionLarge: no producible unit type");   // see getBuildingTypeAlternative)
-            break;
-        }
-        if (u == 24) u = 5;
-        else if (u == 5) u = 10;
-        else if (u == 10) u = 8;
-        else u = 5;   // 8 unavailable
+const char* opName(unsigned opType) {
+    switch (opType) {
+    case SPECOP_AIRSTRIKE: return "Airstrike";
+    case SPECOP_CRATEDROP: return "CrateDrop";
+    case SPECOP_DROPSOLDIERS: return "DropSoldiers";
+    case SPECOP_MINEDROP: return "MineDrop";
+    case SPECOP_MEDEVAC: return "Medevac";
+    default: return nullptr;
     }
-    mProductionType = u;
-    const CVector2 pos = turretPosition("BuildingProductionLargeLeftTurretOffset", rotation);
-    if (!mEngine->mLoadingSavegame) mTurretIds[0] = spawnTurret(pos, rotation, sectorId)->mId;
 }
 
-bool CBuilding::shieldEnabled() const { return false; }   // TODO(4.4 buildings): CBuildingShieldGen +0x364
-Real CBuilding::shieldRadiusSq() const { return 0.0f; }   // TODO(4.4 buildings): CBuildingShieldGen +0x344
+// [!] For a type without a case the original returns an uninitialised stack
+// float. The shipped maps never get there (see test_buildings.cpp); the port
+// reads 0 and logs.
+Real readConfig(const char* prefix, const char* name) {
+    Real v = 0.0f;
+    if (!name) {
+        CUtils::log("ERROR: %s of an unknown type: uninitialised in the original", prefix);
+        return v;
+    }
+    CConfig::get().updateConfigValue(v, std::string(prefix) + name);
+    return v;
+}
+
+Real aiBuildTimeFactor() { return CEngine::getSingletonPtr()->mGame->mAICostFactor; }   // +0x164 "AIBuildTimeFactor"
+
+}  // namespace
+
+// Ghidra 0x134ecc: config OpResourceCost<op> (x AIBuildTimeFactor for the AI).
+Real CBuilding::getResourceCostOp(unsigned opType, bool isAI) {
+    const Real cost = readConfig("OpResourceCost", opName(opType));
+    if (isAI) return cost * aiBuildTimeFactor();
+    return cost;
+}
+
+// Ghidra 0x135394: config ResourceCost<unit> (x AIBuildTimeFactor for the AI).
+Real CBuilding::getResourceCost(unsigned unitType, bool isAI) {
+    const Real cost = readConfig("ResourceCost", unitCostName(unitType));
+    if (isAI) return cost * aiBuildTimeFactor();
+    return cost;
+}
+
+// Ghidra 0x1356e4: speedFactor x ProductionTime<unit> (x AIBuildTimeFactor for the AI).
+Real CBuilding::getProductionTime(unsigned unitType, bool isAI) {
+    const Real t = readConfig("ProductionTime", unitCostName(unitType));
+    const Real scaled = Real(CEngine::getSingletonPtr()->getSpeedFactor()) * t;
+    if (isAI) return scaled * aiBuildTimeFactor();
+    return scaled;
+}
+
+// Ghidra 0x135a50: speedFactor x OpTime<op> (x AIBuildTimeFactor for the AI).
+Real CBuilding::getOperationTime(unsigned opType, bool isAI) {
+    const Real t = readConfig("OpTime", opName(opType));
+    const Real scaled = Real(CEngine::getSingletonPtr()->getSpeedFactor()) * t;
+    if (isAI) return scaled * aiBuildTimeFactor();
+    return scaled;
+}
 
 }  // namespace py
 
-namespace py {
-Real CBuilding::flagpostLifedot() const { return 0.0f; }     // TODO(4.x buildings): CBuildingFlagpost +0x354
-}  // namespace py
