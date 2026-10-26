@@ -145,7 +145,7 @@ class Oracle:
         menu = e.read_u32(engine + 0x16c)
         self.w32(menu + 0x70, 720)
         self.w32(menu + 0x74, 1280)
-        self.call('_ZN8ProjectY14CInterfaceMenu20initSingleplayerGameEv', menu)
+        self.call('_ZN8ProjectY14CInterfaceMenu20initSingleplayerGameEv', menu, max_insns=20_000_000_000)
         self.game = e.read_u32(engine + 0x178)
 
     def checksum(self) -> int:

@@ -349,6 +349,9 @@ class Emu:
         cpsr = uc.reg_read(UC_ARM_REG_CPSR)
         uc.reg_write(UC_ARM_REG_CPSR, (cpsr | 0x20) if thumb else (cpsr & ~0x20))
         uc.emu_start(addr, RET_MAGIC, count=max_insns)
+        # emu_start returns silently when the instruction budget runs out
+        if (uc.reg_read(UC_ARM_REG_PC) & ~1) != (RET_MAGIC & ~1):
+            raise RuntimeError("instruction budget (%d) exhausted before %s returned" % (max_insns, target))
         return uc.reg_read(UC_ARM_REG_R0)
 
     def call_f(self, target, *fargs: float) -> float:
