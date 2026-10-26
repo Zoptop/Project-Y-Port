@@ -1,5 +1,5 @@
 // CBuilding.h - port of ProjectY::CBuilding (base, 0x338 bytes) and
-// CBuildingFactory. Building classes: CBuilding*.h (one per type).
+// CBuildingFactory. Building classes: CBuilding<Name>.h (one per type).
 //
 // A building belongs to a sector and to the sector's owner. Brains run it
 // from inside (mContainedBrains); production buildings derive from
@@ -29,6 +29,9 @@ enum EBuildingType {
     BUILDING_REFINERY
 };
 
+// Special operations (CBuildingSpecop::mOpType, getOperationTime/getResourceCostOp).
+enum ESpecOpType { SPECOP_AIRSTRIKE = 0, SPECOP_CRATEDROP, SPECOP_DROPSOLDIERS, SPECOP_MINEDROP, SPECOP_MEDEVAC };
+
 class CBuilding : public CGameObject {
 public:
     CBuilding();                                       // Ghidra 0x135210
@@ -39,9 +42,9 @@ public:
     void calcChecksum() override;                      // +0x24 Ghidra 0x136360
     void ownerChanged(CPlayer* newOwner) override;     // +0x44 Ghidra 0x136148
     void callCommander(CPlayer* player, bool force) override;   // +0x4c Ghidra 0x134fec
-    bool isCommandable(CGameObject* by) override;      // +0x58 Ghidra 0x1350ac..
-    bool isCommandable(CPlayer* player) override;      // +0x5c
-    bool isCommanded() override;                       // +0x88
+    bool isCommandable(CGameObject* by) override;      // +0x58 Ghidra 0x135010
+    bool isCommandable(CPlayer* player) override;      // +0x5c Ghidra 0x1350ec
+    bool isCommanded() override;                       // +0x88 Ghidra 0x134a88
     void removeCommander() override {}                 // +0x8c
 
     // ---- CBuilding virtuals (vtable slot)
@@ -50,32 +53,29 @@ public:
     virtual void doOp(const CVector2&) {}              // +0xd0 special operation (SpecOp)
     virtual void setRallypoint(CGameObject* target, unsigned group, const CVector2& position);   // +0xd4
     virtual void enter(unsigned) {}                    // +0xd8 a brain enters
-    virtual bool isResourceDropOff(CPlayer* player, int);   // +0xdc
+    virtual bool isResourceDropOff(CPlayer* player, int resourceType);   // +0xdc
     virtual void disableNavObstacle() {}               // +0xe0
     virtual void enableNavObstacle();                  // +0xe4 Ghidra 0x13516c
-    virtual void destroy();                            // +0xe8
-    virtual int getBrainCapBonus() { return 0; }       // +0xec
-    virtual Real getResourceCostOp(unsigned unitType, bool);   // +0xf0
+    virtual void destroy();                            // +0xe8 Ghidra 0x134aa0
+    virtual int getBrainCapBonus() { return mBrainCapBonus; }   // +0xec Ghidra 0x134a08
+    virtual Real getResourceCostOp(unsigned opType, bool isAI);  // +0xf0 Ghidra 0x134ecc
 
-    // ---- non-virtual
-    Real getResourceCost(unsigned unitType);           // Ghidra 0x135394
-    Real getProductionTime(unsigned unitType);         // Ghidra 0x1356e4
-    Real getOperationTime();                           // Ghidra 0x135a50
-    // CBuildingShieldGen members read through a CBuilding* (projectiles):
-    // defined with the subclass.
-    bool shieldEnabled() const;                        // CBuildingShieldGen::isShieldEnabled, +0x364
-    Real shieldRadiusSq() const;                       // CBuildingShieldGen +0x344
+    // ---- static (config lookups by unit type / op type; x AIBuildTimeFactor for the AI)
+    static Real getResourceCost(unsigned unitType, bool isAI);     // Ghidra 0x135394
+    static Real getProductionTime(unsigned unitType, bool isAI);   // Ghidra 0x1356e4
+    static Real getOperationTime(unsigned opType, bool isAI);      // Ghidra 0x135a50
 
-    // Fields other classes read through a CBuilding* (subclass members,
-    // accessed by offset in the original): defined in the subclasses' .cpp.
-
-    // Fields of building classes read through a CBuilding* in the original
-    // (subclass members, accessed by offset): defined in the subclasses' .cpp.
+    // Fields of building classes that other code reads through a CBuilding*
+    // (by offset in the original). They return the subclass's field when the
+    // building has that type, else 0 / false / -1 (the original would read
+    // whatever lies at that offset).
     Real flagLife() const;            // CBuildingFlagpost +0x350 "Life"
     Real flagLifedot() const;         // CBuildingFlagpost +0x354 "Lifedot"
-    int specOpSelected() const;       // CBuildingSpecop +0x374 selected operation (0..4)
-    bool labAutoResearch() const;     // CBuildingScienceLab +0x3dc
+    int specOpSelected() const;       // CBuildingSpecop +0x374 "OpType" (0..4)
+    bool labAutoResearch() const;     // CBuildingScienceLab +0x3dc "RandomResearchEnabled"
     int labGetRandomTech();           // CBuildingScienceLab::getRandomTech (Ghidra 0x144454), -1 = none
+    bool shieldEnabled() const;       // CBuildingShieldGen::isShieldEnabled, +0x364 (projectiles, bombs)
+    Real shieldRadiusSq() const;      // CBuildingShieldGen +0x344
 
     // ---- fields
     CSector* mSector = nullptr;          // +0x238 "mSectorPtr"
@@ -85,32 +85,30 @@ public:
     CVector2 mRallyPosition;             // +0x2b0
     bool mRallyPointSet = false;         // +0x2d0
     int mNavObstacleRef = -1;            // +0x2d4 dtObstacleRef (-1 = none)
-    Real mProductionCountdown = 0.0f;    // +0x2f0
-    Real mProductionTime = 0.0f;         // +0x30c
+    Real mProductionCountdown = 0.0f;    // +0x2f0 production / research / op countdown
+    Real mProductionTime = 0.0f;         // +0x30c its start value
     bool mDestroyed = false;             // +0x328
-    int mBrainCapBonus = 0;              // +0x32c
-    bool mFlag330 = false;               // +0x330
-    unsigned mVal334 = 0;                // +0x334
-    int mSubType = 0;                    // the "subtype" of the map's create line
+    int mBrainCapBonus = 0;              // +0x32c "Building<name>BrainCapBonus"
+    bool mNotEnoughResources = false;    // +0x330 resources mode: production stalled this step
+    Real mResourceConsumption = 0.0f;    // +0x334 resources mode: cost per second this step
+    // +0x36c of the production buildings, read through a CBuilding* by the
+    // building trigger script (CScriptTypes.cpp): CBuildingProduction
+    // "NextUnitType" and CBuildingScienceLab "NextTech" are references to it.
+    // (In a CBuildingSpecop the original reads a std::map internal there.)
+    int mProductionType = 0;
 
-    // phase 3 code, to move into CBuildingHQ / CBuildingProductionLarge
-    int mProductionType = 0;             // +0x36c ProductionLarge: unit type it builds
-    unsigned mTurretIds[2] = {0xffffffffu, 0xffffffffu};   // +0x3ec/+0x3f0 HQ / ProductionLarge turrets
-
-private:
-    void initHQ(Real rotation, unsigned sectorId);
-    void initProductionLarge(Real rotation, unsigned sectorId);
-    CVector2 turretPosition(const char* configKey, Real rotation) const;
-    CUnit* spawnTurret(const CVector2& pos, Real rotation, unsigned sectorId);
+    // Port only: the "subtype" of the map's create line (the original keeps
+    // it only where a class stores it, e.g. CBuildingProduction::mUnitType).
+    int mSubType = 0;
 };
 
 class CBuildingFactory {
 public:
     static CBuildingFactory* getSingletonPtr();
-    // Ghidra 0x128acc: new building of `type`, id set, init.
+    // Ghidra 0x138acc: new building of `type`, id set, init.
     CBuilding* createBuilding(unsigned id, int type, const CVector2& position, Real rotation, unsigned sectorId,
                               int subtype);
-    // Ghidra 0x128ccc: takes CGame::getNewGameObjectBuildingID first
+    // Ghidra 0x138ccc: takes CGame::getNewGameObjectBuildingID first
     CBuilding* createBuilding(int type, const CVector2& position, Real rotation, unsigned sectorId, int subtype);
 };
 
