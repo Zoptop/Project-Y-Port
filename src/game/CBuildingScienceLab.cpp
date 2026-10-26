@@ -11,6 +11,7 @@
 #include "core/CRng.h"
 #include "core/CUtils.h"
 #include "core/FloatBits.h"
+#include "game/CCommandManager.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CPlayer.h"
@@ -150,9 +151,9 @@ void CBuildingScienceLab::processDialButton(int button) {
         if (mCurrentTech != -1 && mNextTech != 1) return;
         const int tech = getRandomTech();
         if (tech == -1) return;
-        // TODO(4.x commands): the original queues dial button 0x28 + tech for
-        // this building through the command queue (CGame +0x178, vtable +0x30)
-        notPorted("CBuildingScienceLab random research command");
+        // dial button 0x28 + tech for this lab, through the command manager
+        mEngine->mGame->getCommandManager()->cmdProcessDialButton(mOwner->mId, mId,
+                                                                   static_cast<unsigned>(tech + 0x28));
         return;
     }
     case 0x4a:

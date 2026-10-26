@@ -3,6 +3,7 @@
 
 #include "core/CUtils.h"
 #include "game/CEngine.h"
+#include "game/CPlayer.h"
 
 namespace py {
 
@@ -20,8 +21,7 @@ void CUnitBeacon::init(unsigned playerId, const CVector2& position, Real rotatio
 // (CPlayer::drawFOWCircleTeam(position, getVisibilityRange()), vtable +0x30).
 void CUnitBeacon::timeUpdate() {
     if (mEngine->mUseFOW) {
-        (void)getVisibilityRange();
-        notPorted("CPlayer::drawFOWCircleTeam (beacon)");   // TODO(4.x FOW)
+        mOwner->drawFOWCircleTeam(position2(), getVisibilityRange());
     }
 }
 

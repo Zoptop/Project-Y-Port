@@ -5,6 +5,7 @@
 #include "core/CMath.h"
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
+#include "game/CCraterManager.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -156,7 +157,7 @@ void CUnitSpotter::timeUpdate() {
         const Real range = mRangeFactor * 150.0f;
         const CVector2 uav(mUAVposition.x, mUAVposition.y);
         if (mEngine->mUseFOW) {
-            notPorted("CPlayer::drawFOWCircleTeam (spotter UAV)");   // TODO(4.x FOW): mOwner, uav, range
+            mOwner->drawFOWCircleTeam(uav, range);
             CGame* game = mEngine->mGame;
             CGridCell* cell = game->getLevel()->getGridCellFar(uav);
             if (cell && cell->units.size() > 1) {
@@ -187,8 +188,9 @@ void CUnitSpotter::timeUpdate() {
         fall(dt);
         if (Real(mUAVposition.z) < 0.0f) {
             mUAVstate = UAV_DESTROYED;
-            // (explosion sound and particles)
-            notPorted("CGame::createEUPs / CCraterManager::addCrater (spotter UAV)");   // TODO(4.x craters)
+            // (explosion sound, particles and exploded pieces: visual)
+            if (CCraterManager* cm = mEngine->mGame->getCraterManager())
+                cm->addCrater(CVector3(mUAVposition.x, mUAVposition.y, 0.0f), 6.0f, false);
             return;
         }
         break;
