@@ -47,9 +47,9 @@ float sqrtf(float x) {
     GET_FLOAT_WORD(ix, x);
     hx = ix & 0x7fffffff;
 
-    if (hx >= 0x7f800000u) return x * x + x;      // sqrt(NaN)=NaN, sqrt(+inf)=+inf, sqrt(-inf)=NaN
+    if (hx >= 0x7f800000u) return sf_add(sf_mul(x, x), x);      // sqrt(NaN)=NaN, sqrt(+inf)=+inf, sqrt(-inf)=NaN
     if (hx == 0) return x;                         // sqrt(+-0) = +-0
-    if (ix < 0) return (x - x) / (x - x);          // sqrt(-ve) = NaN
+    if (ix < 0) return sf_div(sf_sub(x, x), sf_sub(x, x));   // sqrt(-ve) = NaN
 
     m = (ix >> 23);
     if (m == 0) {                                  // subnormal x
@@ -98,7 +98,7 @@ float scalbnf(float x, int n) {
         k = ((ix & 0x7f800000) >> 23) - 25;
         if (n < -50000) return tiny * x;
     }
-    if (k == 0xff) return x + x;
+    if (k == 0xff) return sf_add(x, x);
     k = k + n;
     if (k > 0xfe) return huge * copysignf(huge, x);
     if (k > 0) {
@@ -137,7 +137,7 @@ float floorf(float x) {
             }
         }
     } else {
-        if (j0 == 0x80) return x + x;
+        if (j0 == 0x80) return sf_add(x, x);
         return x;
     }
     SET_FLOAT_WORD(x, i0);
@@ -167,7 +167,7 @@ float ceilf(float x) {
             }
         }
     } else {
-        if (j0 == 0x80) return x + x;
+        if (j0 == 0x80) return sf_add(x, x);
         return x;
     }
     SET_FLOAT_WORD(x, i0);
@@ -184,7 +184,7 @@ float fmodf(float x, float y) {
     hx ^= sx;
     hy &= 0x7fffffff;
 
-    if (hy == 0 || hx >= 0x7f800000 || hy > 0x7f800000) return (x * y) / (x * y);
+    if (hy == 0 || hx >= 0x7f800000 || hy > 0x7f800000) return sf_div(sf_mul(x, y), sf_mul(x, y));
     if (hx < hy) return x;
     if (hx == hy) return Zero[static_cast<uint32_t>(sx) >> 31];
 
@@ -253,13 +253,13 @@ float logf(float x) {
     GET_FLOAT_WORD(ix, x);
     k = 0;
     if (ix < 0x00800000) {                         // x < 2**-126
-        if ((ix & 0x7fffffff) == 0) return -two25 / vzero;   // log(+-0)=-inf
-        if (ix < 0) return (x - x) / vzero;                   // log(-#) = NaN
+        if ((ix & 0x7fffffff) == 0) return sf_div(-two25, vzero);   // log(+-0)=-inf
+        if (ix < 0) return sf_div(sf_sub(x, x), vzero);                   // log(-#) = NaN
         k -= 25;
         x *= two25;                                          // subnormal, scale up x
         GET_FLOAT_WORD(ix, x);
     }
-    if (ix >= 0x7f800000) return x + x;
+    if (ix >= 0x7f800000) return sf_add(x, x);
     k += (ix >> 23) - 127;
     ix &= 0x007fffff;
     i = (ix + (0x95f64 << 3)) & 0x800000;
@@ -313,7 +313,7 @@ float expf(float x) {
     hx &= 0x7fffffffu;
 
     if (hx >= 0x42b17218u) {                       // |x| >= 88.722839
-        if (hx > 0x7f800000u) return x + x;        // NaN
+        if (hx > 0x7f800000u) return sf_add(x, x);        // NaN
         if (hx == 0x7f800000u) return (xsb == 0) ? x : 0.0f;
         if (x > o_threshold) return huge * huge;   // overflow
         if (x < u_threshold) return twom100 * twom100;   // underflow
@@ -372,7 +372,7 @@ float powf(float x, float y) {
 
     if (iy == 0) return one;                       // y==zero: x**0 = 1
     if (hx == 0x3f800000) return one;              // 1**y = 1, even if y is NaN
-    if (ix > 0x7f800000 || iy > 0x7f800000) return x + y;   // NaN
+    if (ix > 0x7f800000 || iy > 0x7f800000) return sf_add(x, y);   // NaN
 
     // yisint = 0: y not an integer, 1: odd integer, 2: even integer (only if x < 0)
     yisint = 0;
@@ -408,7 +408,7 @@ float powf(float x, float y) {
         if (hy < 0) z = one / z;                   // z = (1/|x|)
         if (hx < 0) {
             if (((ix - 0x3f800000) | yisint) == 0) {
-                z = (z - z) / (z - z);             // (-1)**non-int is NaN
+                z = sf_div(sf_sub(z, z), sf_sub(z, z));   // (-1)**non-int is NaN
             } else if (yisint == 1) {
                 z = -z;                            // (x<0)**odd = -(|x|**odd)
             }
@@ -418,7 +418,7 @@ float powf(float x, float y) {
 
     // (x<0)**(non-int) is NaN
     if ((((static_cast<uint32_t>(hx) >> 31) - 1) | static_cast<uint32_t>(yisint)) == 0) {
-        return (x - x) / (x - x);
+        return sf_div(sf_sub(x, x), sf_sub(x, x));
     }
 
     // |y| is huge
@@ -951,7 +951,7 @@ int32_t rem_pio2f(float x, float* y) {
     }
     // all other (large) arguments
     if (ix >= 0x7f800000) {                        // x is inf or NaN
-        y[0] = y[1] = x - x;
+        y[0] = y[1] = sf_sub(x, x);
         return 0;
     }
     // set z = scalbn(|x|,ilogb(x)-7)
@@ -981,7 +981,7 @@ float sinf(float x) {
     GET_FLOAT_WORD(ix, x);
     ix &= 0x7fffffff;
     if (ix <= 0x3f490fd8) return kernel_sinf(x, z, 0);
-    if (ix >= 0x7f800000) return x - x;
+    if (ix >= 0x7f800000) return sf_sub(x, x);
     n = rem_pio2f(x, y);
     switch (n & 3) {
         case 0: return kernel_sinf(y[0], y[1], 1);
@@ -997,7 +997,7 @@ float cosf(float x) {
     GET_FLOAT_WORD(ix, x);
     ix &= 0x7fffffff;
     if (ix <= 0x3f490fd8) return kernel_cosf(x, z);
-    if (ix >= 0x7f800000) return x - x;
+    if (ix >= 0x7f800000) return sf_sub(x, x);
     n = rem_pio2f(x, y);
     switch (n & 3) {
         case 0: return kernel_cosf(y[0], y[1]);
@@ -1013,7 +1013,7 @@ float tanf(float x) {
     GET_FLOAT_WORD(ix, x);
     ix &= 0x7fffffff;
     if (ix <= 0x3f490fda) return kernel_tanf(x, z, 1);
-    if (ix >= 0x7f800000) return x - x;
+    if (ix >= 0x7f800000) return sf_sub(x, x);
     n = rem_pio2f(x, y);
     return kernel_tanf(y[0], y[1], 1 - ((n & 1) << 1));   // 1 -- n even, -1 -- n odd
 }
@@ -1037,7 +1037,7 @@ float asinf(float x) {
         return x * pio2_hi + x * pio2_lo;          // asin(1)=+-pi/2 with inexact
     }
     if (ix > 0x3f800000) {                         // |x|>= 1
-        return (x - x) / (x - x);                  // asin(|x|>1) is NaN
+        return sf_div(sf_sub(x, x), sf_sub(x, x));   // asin(|x|>1) is NaN
     }
     if (ix < 0x3f000000) {                         // |x|<0.5
         if (ix < 0x32000000) {                     // if |x| < 2**-27
@@ -1084,7 +1084,7 @@ float acosf(float x) {
         return pi_acos + 2.0f * pio2_lo;           // acos(-1)= pi
     }
     if (ix > 0x3f800000) {                         // |x| >= 1
-        return (x - x) / (x - x);                  // acos(|x|>1) is NaN
+        return sf_div(sf_sub(x, x), sf_sub(x, x));   // acos(|x|>1) is NaN
     }
     if (ix < 0x3f000000) {                         // |x| < 0.5
         if (ix <= 0x23000000) return pio2_hi + pio2_lo;   // if|x|<2**-57
@@ -1132,7 +1132,7 @@ float atanf(float x) {
     GET_FLOAT_WORD(hx, x);
     ix = hx & 0x7fffffff;
     if (ix >= 0x50800000) {                        // if |x| >= 2^34
-        if (ix > 0x7f800000) return x + x;         // NaN
+        if (ix > 0x7f800000) return sf_add(x, x);         // NaN
         if (hx > 0) return atanhi[3] + atanlo[3];
         return -atanhi[3] - atanlo[3];
     }
@@ -1181,7 +1181,7 @@ float atan2f(float y, float x) {
     ix = hx & 0x7fffffff;
     GET_FLOAT_WORD(hy, y);
     iy = hy & 0x7fffffff;
-    if (ix > 0x7f800000 || iy > 0x7f800000) return x + y;   // x or y is NaN
+    if (ix > 0x7f800000 || iy > 0x7f800000) return sf_add(x, y);   // x or y is NaN
     if (hx == 0x3f800000) return atanf(y);                 // x=1.0
     m = ((hy >> 31) & 1) | ((hx >> 30) & 2);               // 2*sign(x)+sign(y)
 

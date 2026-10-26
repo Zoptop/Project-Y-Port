@@ -16,6 +16,7 @@ ProjectY's multiplayer is deterministic lockstep: every client simulates the who
 | `-ffp-contract=off -fno-fast-math` (GCC/Clang), `/fp:precise /fp:contract-` (MSVC), SSE2 on 32-bit x86 | `CMakeLists.txt` → `projecty_strict_float()` |
 | fdlibm ported routine by routine from the decompiled code; constants are exact hex floats generated from the binary's bit patterns | `src/core/fdlibm.cpp.in`, `tools/gen_fdlibm.py` |
 | Float→int conversions saturate like libgcc (`f2i`, `f2u`) | `src/core/FloatBits.h` |
+| NaN results get the original's exact bit patterns: `sf_add`/`sf_sub`/`sf_mul`/`sf_div` replicate libgcc's special-value paths (x86 and ARM64 hardware each make different NaNs, and NaN bits reach the lockstep checksum) | `src/core/FloatBits.h`, used at every NaN-producing site in fdlibm |
 | Never call `<cmath>` in simulation code; use `CMath` / `fdlibm` | convention |
 | Keep operation order exactly as in the decompiled function | convention, reviewed per port |
 
@@ -25,7 +26,10 @@ ProjectY's multiplayer is deterministic lockstep: every client simulates the who
    - `sqrtf`, `floorf`, `ceilf`, `fmodf` and `scalbnf` are correctly rounded by definition, so they must match the CPU or standard library bit for bit.
    - 9 million random inputs are tested.
 2. **The transcendentals are checked by an independent re-translation.**
-   - A second implementation (Python/NumPy float32), written only from the decompiled code without looking at the C++ port, is compared bit for bit on hundreds of thousands of inputs per function.
+   - A second implementation (Python/NumPy float32), written only from the decompiled code and disassembly without looking at the C++ port, is compared bit for bit on about 2.1 million inputs across all 10 functions.
+   - The inputs cover every branch threshold (±300 ulp around each), every float near a multiple of π/2, pow's overflow and underflow boundaries, and NaN/inf/±0 grids. A line-coverage run showed every reachable branch was exercised.
+   - Result: identical on every non-NaN output. The first run also exposed the NaN bit-pattern differences, which `sf_*` now fixes (see the table above and the `nan_bits_follow_original_libgcc_rules` test).
+   - The reference was shown to catch subtle drift: swapping in textbook fdlibm's `powf` gives 3,354 mismatches in 20,000 inputs.
 3. **A golden digest catches compiler drift.**
    - `tests/test_core.cpp: determinism_digest` hashes the trig tables, every fdlibm function over 20,000 inputs, and both RNG streams.
    - It must equal `tests/golden.h` on every compiler and platform.

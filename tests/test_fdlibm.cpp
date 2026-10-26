@@ -200,3 +200,42 @@ TEST(fdlibm_special_values) {
     CHECK(fd::fmodf(5.5f, 2.0f) == 1.5f);
     CHECK(fd::fmodf(-5.5f, 2.0f) == -1.5f);
 }
+
+TEST(nan_bits_follow_original_libgcc_rules) {
+    // Expected values: libgcc ARM soft-float special paths (disassembly of
+    // __aeabi_fadd 0x4057ec / __mulsf3 0x405a00 / __divsf3 0x405b60) and the
+    // independent re-translation of the game's fdlibm (docs/DETERMINISM.md).
+    // x86 hardware would give 0xffc00000 ("default NaN") in most of these.
+    using py::sf_add;
+    using py::sf_div;
+    using py::sf_mul;
+    using py::sf_sub;
+    const float pinf = bitsf(0x7f800000u), ninf = bitsf(0xff800000u);
+    CHECK(fbits(sf_div(0.0f, 0.0f)) == 0x7fc00000u);
+    CHECK(fbits(sf_div(-0.0f, 0.0f)) == 0xffc00000u);
+    CHECK(fbits(sf_sub(pinf, pinf)) == 0x7fc00000u);
+    CHECK(fbits(sf_sub(ninf, ninf)) == 0xffc00000u);
+    CHECK(fbits(sf_add(pinf, pinf)) == 0x7f800000u);
+    CHECK(fbits(sf_add(pinf, bitsf(0x7f800001u))) == 0x7fc00000u);   // inf + NaN keeps the inf, quietened
+    CHECK(fbits(sf_add(bitsf(0xff812345u), 1.0f)) == 0xffc12345u);
+    CHECK(fbits(sf_mul(0.0f, pinf)) == 0x7fc00000u);
+    CHECK(fbits(sf_mul(ninf, 0.0f)) == 0xffc00000u);
+    CHECK(fbits(sf_div(pinf, ninf)) == 0xffc00000u);
+    CHECK(fbits(sf_div(1.0f, 0.0f)) == 0x7f800000u);
+    CHECK(fbits(sf_div(-1.0f, 0.0f)) == 0xff800000u);
+    CHECK(fbits(sf_div(1.0f, ninf)) == 0x80000000u);
+    // ordinary operands are untouched
+    CHECK(sf_add(1.5f, 2.25f) == 3.75f && sf_div(1.0f, 3.0f) == 1.0f / 3.0f);
+
+    // whole-function results (independent reference)
+    CHECK(fbits(fd::sinf(pinf)) == 0x7fc00000u);
+    CHECK(fbits(fd::cosf(pinf)) == 0x7fc00000u);
+    CHECK(fbits(fd::tanf(pinf)) == 0x7fc00000u);
+    CHECK(fbits(fd::asinf(bitsf(0x6692906fu))) == 0x7fc00000u);
+    CHECK(fbits(fd::acosf(2.0f)) == 0x7fc00000u);
+    CHECK(fbits(fd::logf(bitsf(0xeb5c26b6u))) == 0x7fc00000u);
+    CHECK(fbits(fd::powf(bitsf(0xc0f7fde1u), bitsf(0x3fd5ec91u))) == 0x7fc00000u);
+    CHECK(fbits(fd::powf(pinf, bitsf(0x7f800001u))) == 0x7fc00000u);
+    CHECK(fbits(fd::atan2f(bitsf(0x7f800001u), pinf)) == 0x7fc00000u);
+    CHECK(fbits(fd::atan2f(bitsf(0xff812345u), pinf)) == 0x7fc00000u);
+}
