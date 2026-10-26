@@ -6,6 +6,7 @@
 #include "core/CRng.h"
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
+#include "game/CBuilding.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -243,6 +244,14 @@ void CUnitTurret::processDialButton(int button) {
         }
     }
     CUnit::processDialButton(button);
+}
+
+// Ghidra 0x3d0684
+Real CUnitTurret::getFOWVisibility(CPlayer* player, int mode, bool* visible) {
+    const Real own = CGameObject::getFOWVisibility(player, mode, visible);
+    CBuilding* parent = mEngine->mGame->getAsBuilding(mParentBuilding);
+    const Real p = parent ? parent->getFOWVisibility(player, mode, visible) : Real(0.0f);
+    return p > own ? p : own;
 }
 
 }  // namespace py

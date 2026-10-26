@@ -82,6 +82,9 @@ public:
     virtual bool isDefendable(CGameObject*) { return false; }   // +0xbc
     virtual void resetMods() {}                       // +0xc0
     virtual void distributeMods() {}                  // +0xc4
+    // +0xc8 Ghidra 0x181898: CGame::getFOWvisibility at the object's position
+    // (EFOWVisibilityMode `mode`).
+    virtual Real getFOWVisibility(CPlayer* player, int mode, bool* visible);
 
     // ---- non-virtual
     void loadConfigSettings(const char* name);        // Ghidra 0x1826b8

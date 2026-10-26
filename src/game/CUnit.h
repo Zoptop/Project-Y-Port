@@ -176,6 +176,8 @@ public:
     Real tankTransformState() const;  // CUnitTank +0x154c "TransformState" (CWeaponTankGun)
     bool shieldEnabled() const;       // CUnitShieldTank::isShieldEnabled, +0x1550 (projectiles)
     Real shieldRadiusSq() const;      // CUnitShieldTank +0x1530 (projectiles)
+    unsigned brainRankPoints() const; // CUnitRoboBrain +0x1590 unspent rank points (CPlayerKI)
+    bool brainIsAddRankPossible(unsigned rank);   // CUnitRoboBrain::isAddRankPossible (CPlayerKI)
 
     // ---- fields
     // (+0x220..+0x237 is one of the checksum-history maps; an earlier

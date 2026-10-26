@@ -37,9 +37,8 @@ public:
     Real getArmorfactorVsLaser() override;               // Ghidra 0x3ce940
     Real getArmorfactorVsProjectile() override;          // Ghidra 0x3ce984
 
-    // CGameObject::getFOWVisibility (vtable +0xc8) is not in the port's
-    // CGameObject yet. TODO(4.x FOW): override it (Ghidra 0x3d0684: the
-    // maximum of the turret's own visibility and its parent building's).
+    // Ghidra 0x3d0684: the larger of its own and its parent building's.
+    Real getFOWVisibility(CPlayer* player, int mode, bool* visible) override;
 
     void activateNewWeapon();          // Ghidra 0x3ceea8
     void buildWeapon(unsigned type);   // Ghidra 0x3cef78

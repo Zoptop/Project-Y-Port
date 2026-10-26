@@ -19,7 +19,7 @@ bool CUnitLandmine::isAttackable(CGameObject* attacker) {
         attacker->mType == UNIT_HACKERSUIT)
         return false;
     if (!mEngine->mUseFOW || attacker->mOwner->mType != 0) return true;
-    return mEngine->mGame->getFOWvisibility(attacker->mOwner, 0, mPosition.x, mPosition.y, 2, nullptr) > 0.0f;
+    return mEngine->mGame->getFOWvisibility(attacker->mOwner, nullptr, position2(), 2, nullptr) > 0.0f;
 }
 
 // Ghidra 0x3be5bc. [!] Only checked with at least two units in the mine's

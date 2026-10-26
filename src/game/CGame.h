@@ -111,7 +111,8 @@ public:
     CBuilding* getClosestBuildingWithCap(const CVector2& pos, CPlayer* player, uint32_t caps, unsigned excludeId,
                                          unsigned arg);
     CBuilding* getAvailableAirstrikeBuilding(CPlayer* player);
-    Real getFOWvisibility(CPlayer* player, int mode, Real x, Real y, int range, bool* visible);
+    // EFOWVisibilityMode `mode`; `other` only matters for mode 1.
+    Real getFOWvisibility(CPlayer* player, CPlayer* other, const CVector2& pos, int mode, bool* visible);   // Ghidra 0x179f04
     void checkGameEndingCondition(bool surrender, CPlayer* player);
 
     CLevel* getLevel() const { return mLevel.get(); }

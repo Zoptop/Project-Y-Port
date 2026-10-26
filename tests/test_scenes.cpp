@@ -410,9 +410,9 @@ TEST(script_aioption) {
     auto* ki = static_cast<CPlayerKI*>(g->getPlayer(2));
     CHECK(ki->isAI());
     addScript(g, "script aioption player(2) type(3) param1(12.5) param2(-7)")->run();
-    CHECK(ki->mTargetType == 2 && ki->mTargetPosition.x == 12.5f && ki->mTargetPosition.y == -7.0f);
+    CHECK(ki->mTargetMode == 2 && ki->mTargetPosition.x == 12.5f && ki->mTargetPosition.y == -7.0f);
     addScript(g, "script aioption player(2) type(1) param1(4.9)")->run();
-    CHECK(ki->mTargetType == 0 && ki->mTargetSector == 4u);   // __fixunssfsi truncates
+    CHECK(ki->mTargetMode == 0 && ki->mTargetSector == 4u);   // __fixunssfsi truncates
     addScript(g, "script aioption player(2) type(4) param1(3)")->run();
     CHECK(ki->mKIMode == 3);
     addScript(g, "script aioption player(1) type(3) param1(1) param2(1)")->run();   // human: ignored

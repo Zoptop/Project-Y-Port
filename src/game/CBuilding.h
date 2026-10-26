@@ -68,7 +68,14 @@ public:
 
     // Fields other classes read through a CBuilding* (subclass members,
     // accessed by offset in the original): defined in the subclasses' .cpp.
-    Real flagpostLifedot() const;      // CBuildingFlagpost +0x354 "Lifedot" (<0 losing, >0 gaining)
+
+    // Fields of building classes read through a CBuilding* in the original
+    // (subclass members, accessed by offset): defined in the subclasses' .cpp.
+    Real flagLife() const;            // CBuildingFlagpost +0x350 "Life"
+    Real flagLifedot() const;         // CBuildingFlagpost +0x354 "Lifedot"
+    int specOpSelected() const;       // CBuildingSpecop +0x374 selected operation (0..4)
+    bool labAutoResearch() const;     // CBuildingScienceLab +0x3dc
+    int labGetRandomTech();           // CBuildingScienceLab::getRandomTech (Ghidra 0x144454), -1 = none
 
     // ---- fields
     CSector* mSector = nullptr;          // +0x238 "mSectorPtr"

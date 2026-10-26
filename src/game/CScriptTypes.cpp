@@ -217,7 +217,7 @@ void CScriptSectorFlagTrigger::parseParams() { // Ghidra 0x390128
 void CScriptSectorFlagTrigger::run() {
     // [!] the original dereferences a missing sector or flagpost
     if (!mSector || !mSector->mFlagpost) return;
-    const Real lifedot = mSector->mFlagpost->flagpostLifedot();
+    const Real lifedot = mSector->mFlagpost->flagLifedot();
     CPlayer* owner = mSector->mOwner;
     bool fire;
     if (mTriggerType == 1)

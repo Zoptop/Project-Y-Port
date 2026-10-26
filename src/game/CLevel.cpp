@@ -597,9 +597,19 @@ bool CLevel::initByScript(const std::string& file, bool fromSavegame) {
                     mFowTexH = f2i(mFowH * 32.0f / 1000.0f);
                     mFowScaleX = mFowW / mMapW;
                     mFowScaleY = mFowH / mMapH;
-                    // TODO(FOW): with UseFOW every player runs initFOWTexture,
-                    // updateFOWtexture, initRadarMap; resources mode copies
-                    // the grid and loads map_tx_res.png.
+                    // With UseFOW every player (0..numPlayers) creates its FOW and
+                    // radar grids (vtable +0x20, +0x24, +0xa0).
+                    if (e->mUseFOW) {
+                        for (unsigned i = 0; i <= game->mNumPlayers; ++i) {
+                            // [!] players 0..numplayers of the map: the original
+                            // crashes when the game has fewer players
+                            CPlayer* p = game->getPlayer(i);
+                            if (!p) continue;
+                            p->initFOWTexture();
+                            p->updateFOWtexture();
+                            p->initRadarMap();
+                        }
+                    }
                     if (e->mGameType == 3) {
                         CUtils::log("setup res map");
                         mResScaleY = mFowScaleY;

@@ -307,9 +307,68 @@ CBuilding* CGame::getAvailableAirstrikeBuilding(CPlayer* player) {
     return nullptr;
 }
 
-Real CGame::getFOWvisibility(CPlayer*, int, Real, Real, int, bool*) {
-    notPorted("CGame::getFOWvisibility");
-    return 1.0f;
+// Ghidra 0x179f04. How well `player` sees pos (CPlayer::getVisibilityValue,
+// vtable +0x34; the AI always sees everything). Without fog of war: 1 (and
+// *visible = true). Modes: 0 the value; 1 also 1 for player == other;
+// 2 the value when above 0.25, else 0; 3 the mean of pos and the four points
+// 10 m away, when above 0.25, else 0; 4 that mean; 5 their maximum.
+// [!] The neighbours' unchanged coordinate gets "+ 0" (-0 becomes +0).
+Real CGame::getFOWvisibility(CPlayer* player, CPlayer* other, const CVector2& pos, int mode, bool* visible) {
+    if (!mEngine->mUseFOW) {
+        if (visible) *visible = true;
+        return 1.0f;
+    }
+    CVector2 p = pos;
+    auto at = [&](const CVector2& q) { return player->getVisibilityValue(q, visible); };
+    auto mean5 = [&]() {
+        Real v = at(p);
+        v = v + at(CVector2(p.x + 10.0f, pos.y + 0.0f));
+        v = v + at(CVector2(p.x + 0.0f, pos.y + 10.0f));
+        v = v + at(CVector2(p.x - 10.0f, pos.y + 0.0f));
+        v = v + at(CVector2(p.x + 0.0f, pos.y - 10.0f));
+        return v / 5.0f;
+    };
+    switch (mode) {
+    case 0:
+        if (player) return at(p);
+        break;
+    case 1:
+        if (player == other) return 1.0f;
+        if (player) return at(p);
+        break;
+    case 2: {
+        if (!player) return 0.0f;
+        const Real v = at(p);
+        if (!(v <= 0.25f)) return v;
+        break;
+    }
+    case 3: {
+        if (!player) return 0.0f;
+        const Real v = mean5();
+        if (!(v <= 0.25f)) return v;
+        break;
+    }
+    case 4:
+        if (player) return mean5();
+        break;
+    case 5:
+        if (player) {
+            const Real c = at(p);
+            const Real a = at(CVector2(p.x + 10.0f, pos.y + 0.0f));
+            Real m = c < a ? a : c;
+            const Real b = at(CVector2(p.x + 0.0f, pos.y + 10.0f));
+            if (b > m) m = b;
+            const Real d = at(CVector2(p.x - 10.0f, pos.y + 0.0f));
+            if (d > m) m = d;
+            const Real e = at(CVector2(p.x + 0.0f, pos.y - 10.0f));
+            if (e > m) m = e;
+            return m;
+        }
+        break;
+    default:
+        break;
+    }
+    return 0.0f;
 }
 // Ghidra 0x17dbc4 (the overlay texts, camera and sound for the local
 // players are interface code). A surrendering player loses; when the

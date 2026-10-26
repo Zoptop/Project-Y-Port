@@ -181,4 +181,9 @@ CUnit* CGameObject::getClosestAvailableCommander(CPlayer* player, bool includeMo
     return best;
 }
 
+// Ghidra 0x181898
+Real CGameObject::getFOWVisibility(CPlayer* player, int mode, bool* visible) {
+    return mEngine->mGame->getFOWvisibility(player, nullptr, position2(), mode, visible);
+}
+
 }  // namespace py

@@ -3,6 +3,7 @@
 #include "game/CUnit.h"
 #include "game/CUnitCloakSuit.h"
 #include "game/CUnitLandmine.h"
+#include "game/CUnitRoboBrain.h"
 #include "game/CUnitShieldTank.h"
 #include "game/CUnitTank.h"
 #include "game/CUnitTurret.h"
@@ -43,6 +44,18 @@ Real CUnit::shieldRadiusSq() const {
 Real CUnit::tankTransformState() const {
     const auto* tank = dynamic_cast<const CUnitTank*>(this);
     return tank ? tank->mTransformState : Real(0.0f);
+}
+
+// CUnitRoboBrain +0x1590 "LevelUpsPending" (CPlayerKI). 0 for other units.
+unsigned CUnit::brainRankPoints() const {
+    const auto* brain = dynamic_cast<const CUnitRoboBrain*>(this);
+    return brain ? brain->mLevelUpsPending : 0u;
+}
+
+// CUnitRoboBrain::isAddRankPossible (CPlayerKI calls it on brains only).
+bool CUnit::brainIsAddRankPossible(unsigned rank) {
+    auto* brain = dynamic_cast<CUnitRoboBrain*>(this);
+    return brain ? brain->isAddRankPossible(rank) : false;
 }
 
 }  // namespace py

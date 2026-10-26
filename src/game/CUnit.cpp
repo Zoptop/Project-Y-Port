@@ -172,7 +172,7 @@ bool CUnit::isAttackable(CGameObject* attacker) {
               isAlive() && mOwner != mEngine->mGame->getNeutralPlayer() && !isCommander() &&
               !(attacker->mType == UNIT_HACKERSUIT && !isHackable());
     if (ok && mEngine->mUseFOW && attacker->mOwner->mType == 0) {
-        ok = mEngine->mGame->getFOWvisibility(attacker->mOwner, 0, mPosition.x, mPosition.y, 2, nullptr) > 0.0f;
+        ok = mEngine->mGame->getFOWvisibility(attacker->mOwner, nullptr, position2(), 2, nullptr) > 0.0f;
     }
     return ok ? true : isCommandable(attacker);
 }
