@@ -141,6 +141,7 @@ class Emu:
                 uc.mem_write(next_stub, bytes.fromhex("1eff2fe1"))   # bx lr
                 next_stub += 4
         uc.mem_write(RET_MAGIC, bytes.fromhex("1eff2fe1"))
+        self.next_stub = next_stub
         self.syms_by_index = syms
 
         # relocations
@@ -252,6 +253,41 @@ class Emu:
         self.uc.mem_write(table, bytes(t))
         if "_ctype_" in self.import_relocs:
             self.set_data_import("_ctype_", struct.pack("<I", table))
+
+    def arg(self, i: int) -> int:
+        """i-th integer argument of the function being intercepted (r0-r3, then the stack)."""
+        regs = (UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3)
+        if i < 4:
+            return self.uc.reg_read(regs[i])
+        return self.read_u32(self.uc.reg_read(UC_ARM_REG_SP) + 4 * (i - 4))
+
+    def hook_function(self, target, fn, name: str = None):
+        """Replace an internal (ARM-mode) function of the library by a Python
+        handler fn(emu, [r0..r3]) -> r0. Use emu.arg(i) for stack arguments."""
+        addr = self.addr(target) if isinstance(target, str) else target
+        if addr & 1:
+            raise ValueError("Thumb functions are not supported: %x" % addr)
+        slot = self.next_stub
+        self.next_stub += 4
+        if self.next_stub >= RET_MAGIC:
+            raise MemoryError("out of stub slots")
+        self.uc.mem_write(slot, bytes.fromhex("1eff2fe1"))   # bx lr
+        self.stub_name[slot] = name or (target if isinstance(target, str) else "fn_%x" % addr)
+        self._stub_handlers[slot] = fn
+        # ldr pc, [pc, #-4]; .word slot
+        self.uc.mem_write(addr, struct.pack("<II", 0xe51ff004, slot))
+        return slot
+
+    def cstr(self, p: int, limit: int = 1 << 20) -> bytes:
+        out = bytearray()
+        while len(out) < limit:
+            chunk = bytes(self.uc.mem_read(p + len(out), 64))
+            i = chunk.find(b"\0")
+            if i >= 0:
+                out += chunk[:i]
+                break
+            out += chunk
+        return bytes(out)
 
     def set_stub(self, name: str, fn):
         """fn(emu, [r0,r1,r2,r3]) -> r0"""

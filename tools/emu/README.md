@@ -39,3 +39,20 @@ python3 tools/emu/check_scripts.py libProjectY.so build/level_probe data   # eve
 All three currently report 0 mismatches.
 
 `check_scripts.py` runs the game's static initialisers (`.init_array`) so the statically linked libstdc++ (strings, maps, `istringstream`) works, emulates the few libc functions it needs (`sscanf`, `strtod`, `memchr`, `strcmp`, ...) and backs libc's `_ctype_` data import with the bionic table.
+
+## The original game, headless (`game_oracle.py`)
+
+`game_oracle.py` runs the complete original engine under emulation: `CEngine::init` (config, strings, managers, menu), then `CInterfaceMenu::initSingleplayerGame` with a skirmish setup, so `CGame::init` loads the map with all buildings, units, the navmesh and the scripts. After that it steps `CGame::timeUpdate` at the lockstep fixed step (`0x3DCCCC00`) and prints `CGame::calcChecksum` before each step, exactly as `CCommandManagerNetworked` does. `--detail` breaks a step's checksum down per object, projectile, player and sector, labelled with each object's class from its vtable.
+
+```
+python3 tools/emu/game_oracle.py --data data --map 1 --steps 100 --detail 0 50
+```
+
+`libc_emu.py` provides what the engine imports: strings, printf/scanf, number parsing, a read-only file system over `data/`, time, and GL entry points that succeed. Some engine functions are replaced (`Emu.hook_function`) because they cannot run headless or don't affect the simulation:
+- JNI and device queries;
+- texture decoding (zeroed texture objects);
+- sound (Cricket Audio, `CSoundManager`, `CSoundMoodAnalyzer`);
+- MD5 validation of map downloads (always valid);
+- writing options and stats.
+
+Map 1 initialises in about 40 s; a simulation step then takes about 0.03 s.
