@@ -61,6 +61,10 @@ public:
     Real getResourceCost(unsigned unitType);           // Ghidra 0x135394
     Real getProductionTime(unsigned unitType);         // Ghidra 0x1356e4
     Real getOperationTime();                           // Ghidra 0x135a50
+    // CBuildingShieldGen members read through a CBuilding* (projectiles):
+    // defined with the subclass.
+    bool shieldEnabled() const;                        // CBuildingShieldGen::isShieldEnabled, +0x364
+    Real shieldRadiusSq() const;                       // CBuildingShieldGen +0x344
 
     // ---- fields
     CSector* mSector = nullptr;          // +0x238 "mSectorPtr"

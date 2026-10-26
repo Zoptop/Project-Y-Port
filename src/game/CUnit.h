@@ -151,6 +151,9 @@ public:
     bool landmineTriggered() const;   // CUnitLandmine +0x1524
     CSector* turretSector() const;    // CUnitTurret +0x1524
     Real cloakValue() const;          // CUnitCloakSuit +0x153c
+    Real tankTransformState() const;  // CUnitTank +0x154c "TransformState" (CWeaponTankGun)
+    bool shieldEnabled() const;       // CUnitShieldTank::isShieldEnabled, +0x1550 (projectiles)
+    Real shieldRadiusSq() const;      // CUnitShieldTank +0x1530 (projectiles)
 
     // ---- fields
     unsigned mDriverEntryVehicle = 0;    // +0x230 (copied to +0x22c in the ctor)
