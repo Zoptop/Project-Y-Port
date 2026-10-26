@@ -223,15 +223,15 @@ void CGame::deleteWeapon(unsigned id) {
 
 // ------------------------------------------------------------------ TODO(4.3 CGame)
 
-CUnit* CGame::getClosestUnit(const CVector2&, CPlayer*, int, unsigned, bool) {
+CUnit* CGame::getClosestUnit(const CVector2&, CPlayer*, unsigned, bool, unsigned) {
     notPorted("CGame::getClosestUnit");
     return nullptr;
 }
-CBuilding* CGame::getClosestBuilding(const CVector2&, CPlayer*, int, int, bool) {
+CBuilding* CGame::getClosestBuilding(const CVector2&, CPlayer*, unsigned, unsigned, bool) {
     notPorted("CGame::getClosestBuilding");
     return nullptr;
 }
-CBuilding* CGame::getClosestBuildingWithCap(const CVector2&, CPlayer*, uint32_t, bool) {
+CBuilding* CGame::getClosestBuildingWithCap(const CVector2&, CPlayer*, uint32_t, unsigned, unsigned) {
     notPorted("CGame::getClosestBuildingWithCap");
     return nullptr;
 }

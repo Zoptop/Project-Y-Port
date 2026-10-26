@@ -188,4 +188,22 @@ void CPlayer::removeRadar(unsigned) { notPorted("CPlayer::removeRadar"); }
 void CPlayer::lost(bool) { notPorted("CPlayer::lost"); }
 void CPlayer::won() { notPorted("CPlayer::won"); }
 
+// Ghidra 0x374368 (used by the counttrigger script)
+int CPlayer::getGameobjectCount(unsigned objType, unsigned subType) {
+    CGame* game = mEngine->mGame;
+    int n = 0;
+    if (objType == 1) {
+        for (unsigned id : mUnits) {
+            CUnit* u = game->getAsUnit(id);
+            if (u && u->mOwner == this && static_cast<unsigned>(u->mType) == subType) ++n;
+        }
+    } else if (objType == 2) {
+        for (unsigned id : game->objectList()) {
+            CBuilding* b = game->getAsBuilding(id);
+            if (b && b->mOwner == this && static_cast<unsigned>(b->mType) == subType) ++n;
+        }
+    }
+    return n;
+}
+
 }  // namespace py

@@ -236,3 +236,9 @@ void CBuilding::initProductionLarge(Real rotation, unsigned sectorId) {
 }
 
 }  // namespace py
+
+namespace py {
+bool CBuilding::shieldGenEnabled() const { return false; }   // TODO(4.x buildings): CBuildingShieldGen +0x364
+Real CBuilding::shieldGenRadiusSq() const { return 0.0f; }   // TODO(4.x buildings): CBuildingShieldGen +0x344
+Real CBuilding::flagpostLifedot() const { return 0.0f; }     // TODO(4.x buildings): CBuildingFlagpost +0x354
+}  // namespace py

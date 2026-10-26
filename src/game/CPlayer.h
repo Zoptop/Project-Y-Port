@@ -66,6 +66,9 @@ public:
     // for a unit of weight class / damage type / building flag.
     Real getBonus(int bonus, int weightClass, int damageType, bool building, bool flag);
     void lost(bool surrender);
+    // Ghidra 0x374368: own units (objType 1, from mUnits) or buildings
+    // (objType 2, from the game's object list) of type subType; else 0.
+    int getGameobjectCount(unsigned objType, unsigned subType);
     void won();
     const std::string& getName() const { return mName; }
 
@@ -106,6 +109,15 @@ public:
         : CPlayer(name, type, color, id, team), mNetworkFlag(networkFlag) {}
     bool isAI() const override { return true; }
     int mKIMode = 0;                    // +0x14c "set kimode", "set kimainmode", aioption type 4
+    // Script targets (aioption types 1..3), Ghidra 0x2d8018..0x2d806c
+    void setTargetSector(unsigned id) { mTargetSector = id; mTargetType = 0; }
+    void setTargetUnit(unsigned id) { mTargetUnit = id; mTargetType = 1; }
+    void setTargetPosition(const CVector2& p) { mTargetType = 2; mTargetPosition = p; }
+    void setMainMode(unsigned mode) { mKIMode = static_cast<int>(mode); }
+    int mTargetType = 0;                // +0x1c4 0 sector, 1 unit, 2 position
+    unsigned mTargetSector = 0;         // +0x1c8
+    unsigned mTargetUnit = 0;           // +0x1cc
+    CVector2 mTargetPosition;           // +0x1d0
     int mNetworkFlag = 0;
 };
 

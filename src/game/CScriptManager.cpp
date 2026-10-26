@@ -5,11 +5,13 @@
 
 #include "core/CUtils.h"
 #include "core/FloatBits.h"
+#include "core/Real.h"
 #include "game/CEngine.h"
 
 namespace py {
 
 CScriptManager* CScriptManager::sCurrent = nullptr;
+IScriptUI* CScriptManager::sUI = nullptr;
 
 CScriptManager* CScriptManager::current() { return sCurrent; }
 
@@ -86,7 +88,7 @@ CScript* CScriptManager::getScript(int id) const {
 
 // Ghidra 0x38dcb8
 void CScriptManager::update() {
-    const float now = mEngine->mGameTime;
+    const Real now = mEngine->mGameTime;
     if (now < mNextTick) return;
     mNextTick = now + bitsf(0x3e570a3du);   // 0.21f
     for (auto& entry : mScripts) {

@@ -151,6 +151,8 @@ public:
     bool landmineTriggered() const;   // CUnitLandmine +0x1524
     CSector* turretSector() const;    // CUnitTurret +0x1524
     Real cloakValue() const;          // CUnitCloakSuit +0x153c
+    bool shieldTankShieldEnabled() const;   // CUnitShieldTank +0x1550 (isShieldEnabled, Ghidra 0x3c5c3c)
+    Real shieldTankRadiusSq() const;        // CUnitShieldTank +0x1530 squared shield radius
 
     // ---- fields
     unsigned mDriverEntryVehicle = 0;    // +0x230 (copied to +0x22c in the ctor)
