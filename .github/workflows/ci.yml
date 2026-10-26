@@ -34,10 +34,24 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPROJECTY_BUILD_GAME=${{ matrix.game }}
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build --config Release --parallel 2>&1 | tee build.log || {
+            # Surface compiler errors as annotations (readable without log access)
+            grep -E "error|Error" build.log | grep -v "^ *$" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+            exit 1
+          }
 
       - name: Test (includes the cross-platform determinism digest)
-        run: ctest --test-dir build -C Release --output-on-failure
+        shell: bash
+        run: |
+          set -o pipefail
+          ctest --test-dir build -C Release --output-on-failure 2>&1 | tee test.log || {
+            grep -E "FAIL|digest" test.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+            exit 1
+          }
+          grep "digest =" test.log | while IFS= read -r l; do echo "::notice::${{ matrix.name }} $l"; done
 
       - name: Upload Windows build
         if: runner.os == 'Windows'

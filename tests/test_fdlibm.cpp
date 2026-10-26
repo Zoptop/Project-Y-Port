@@ -4,6 +4,7 @@
 //   the platform bit for bit over a large sweep of inputs.
 // * Transcendentals must be within fdlibm's < 1 ulp guarantee against a
 //   double-precision reference, and handle special values like fdlibm.
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>

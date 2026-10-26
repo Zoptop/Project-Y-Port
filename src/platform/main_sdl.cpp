@@ -11,6 +11,7 @@
 #include <SDL.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #include "core/CConfig.h"

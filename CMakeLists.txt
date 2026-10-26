@@ -27,7 +27,8 @@ endif()
 # ---------------------------------------------------------------------------
 function(projecty_strict_float target)
   if(MSVC)
-    target_compile_options(${target} PRIVATE /fp:precise /fp:contract-)
+    # VS2022: /fp:precise never contracts into FMA (that needs an explicit /fp:contract).
+    target_compile_options(${target} PRIVATE /fp:precise)
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
       target_compile_options(${target} PRIVATE /arch:SSE2)
     endif()
