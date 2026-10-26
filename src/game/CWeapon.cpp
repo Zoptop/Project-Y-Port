@@ -14,13 +14,6 @@
 
 namespace py {
 
-namespace {
-void notPorted(const char* fn) {
-    static std::set<std::string> seen;
-    if (seen.insert(fn).second) CUtils::log("NOT PORTED YET: %s", fn);
-}
-}  // namespace
-
 // Ghidra 0x3d4b5c
 CWeapon::CWeapon() : mEngine(CEngine::getSingletonPtr()) {}
 
@@ -59,17 +52,6 @@ CUnit* CWeapon::findClosestEnemyFast(Real*, Real*) {
 void CWeapon::calcChecksum() {
     if (mUnit) CUtils::updateChecksum(mUnit->mId);
     CUtils::updateChecksum(mId);
-}
-
-CWeaponFactory* CWeaponFactory::getSingletonPtr() {
-    static CWeaponFactory sFactory;
-    return &sFactory;
-}
-
-// Ghidra 0x3d89d4. TODO(4.4 weapons): the weapon classes.
-unsigned CWeaponFactory::createWeapon(int type, CUnit*, const CVector3&, unsigned) {
-    CUtils::log("NOT PORTED YET: CWeaponFactory::createWeapon type %d", type);
-    return 0;
 }
 
 }  // namespace py

@@ -1,5 +1,7 @@
 #include "CUtils.h"
 
+#include <set>
+
 #include <chrono>
 #include <cstdio>
 #include <mutex>
@@ -73,6 +75,16 @@ void CUtils::updateChecksum(const std::vector<bool>& v) {
         sum += b ? 1u : 2u;
     }
     if (mChecksumTrace) mChecksumTrace->push_back({'v', sum});
+}
+
+void notPorted(const char* what) {
+    static std::set<std::string> seen;
+    if (seen.insert(what).second) CUtils::log("NOT PORTED YET: %s", what);
+}
+
+uint64_t allocSerial() {
+    static uint64_t next = 1;
+    return next++;
 }
 
 }  // namespace py

@@ -13,13 +13,6 @@
 
 namespace py {
 
-namespace {
-void notPorted(const char* fn) {
-    static std::set<std::string> seen;
-    if (seen.insert(fn).second) CUtils::log("NOT PORTED YET: %s", fn);
-}
-}  // namespace
-
 // Ghidra 0x375124
 CPlayer::CPlayer(const std::string& name, int type, const Vec3& color, unsigned id, unsigned team)
     : mName(name), mType(type), mColor(color), mId(id), mEngine(CEngine::getSingletonPtr()), mTeam(team) {

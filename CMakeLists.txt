@@ -109,29 +109,14 @@ endif()
 # Engine library: rendering + game code (OpenGL entry points are loaded at
 # runtime, so this links without an OpenGL SDK)
 # ---------------------------------------------------------------------------
+file(GLOB PROJECTY_GAME_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/game/*.cpp)
 add_library(projecty_engine STATIC
   src/platform/GLFunctions.cpp
   src/render/CTexture.cpp
   src/render/CMesh.cpp
   src/render/CGLSLProgram.cpp
   src/render/CCamera.cpp
-  src/game/CBuilding.cpp
-  src/game/CEngine.cpp
-  src/game/CGame.cpp
-  src/game/CGameFeatures.cpp
-  src/game/CGameObject.cpp
-  src/game/CGamePreview.cpp
-  src/game/CLevel.cpp
-  src/game/CNav.cpp
-  src/game/CPlayer.cpp
-  src/game/CProjectile.cpp
-  src/game/CSceneObject.cpp
-  src/game/CScript.cpp
-  src/game/CScriptManager.cpp
-  src/game/CScriptTypes.cpp
-  src/game/CSector.cpp
-  src/game/CUnit.cpp
-  src/game/CWeapon.cpp
+  ${PROJECTY_GAME_SOURCES}
 )
 if(MSVC)
   # the map/script readers use sscanf like the original
@@ -148,15 +133,8 @@ projecty_warnings(projecty_engine)
 # ---------------------------------------------------------------------------
 if(PROJECTY_BUILD_TESTS)
   enable_testing()
-  add_executable(projecty_tests
-    tests/test_main.cpp
-    tests/test_fdlibm.cpp
-    tests/test_core.cpp
-    tests/test_assets.cpp
-    tests/test_level.cpp
-    tests/test_nav.cpp
-    tests/test_vecmath.cpp
-  )
+  file(GLOB PROJECTY_TEST_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/test_*.cpp)
+  add_executable(projecty_tests ${PROJECTY_TEST_SOURCES})
   target_link_libraries(projecty_tests PRIVATE projecty_engine)
   projecty_strict_float(projecty_tests)
   add_test(NAME projecty_tests COMMAND projecty_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

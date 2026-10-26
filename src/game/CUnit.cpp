@@ -22,13 +22,6 @@
 
 namespace py {
 
-namespace {
-void notPorted(const char* fn) {
-    static std::set<std::string> seen;
-    if (seen.insert(fn).second) CUtils::log("NOT PORTED YET: %s", fn);
-}
-}  // namespace
-
 // Ghidra 0x3a5ae8
 CUnit::CUnit() {
     mCategory = CATEGORY_UNIT;
@@ -458,84 +451,5 @@ void CUnit::enterVehicle(unsigned vehicleId) {
 bool CUnit::landmineTriggered() const { return false; }   // TODO(4.4 units): CUnitLandmine +0x1524
 CSector* CUnit::turretSector() const { return nullptr; }  // TODO(4.4 units): CUnitTurret +0x1524
 Real CUnit::cloakValue() const { return 0.0f; }          // TODO(4.4 units): CUnitCloakSuit +0x153c
-
-// ------------------------------------------------------------------ factory
-
-CUnitFactory* CUnitFactory::getSingletonPtr() {
-    static CUnitFactory sFactory;
-    return &sFactory;
-}
-
-CUnit* CUnitFactory::createUnit(int type, unsigned playerId, const CVector2& position, Real rotation, bool withDriver,
-                                unsigned sectorId) {
-    const unsigned id = CEngine::getSingletonPtr()->mGame->getNewGameObjectID();
-    return createUnit(id, type, playerId, position, rotation, withDriver, sectorId);
-}
-
-namespace {
-// TODO(4.4 units): the unit classes (CUnitTurret, ...). Until then every
-// type is a plain CUnit with its type id.
-CUnit* newUnit(int type) {
-    CUnit* u = new CUnit();
-    u->mType = type;
-    return u;
-}
-}  // namespace
-
-// Ghidra 0x3ab210
-CUnit* CUnitFactory::createUnit(unsigned id, int type, unsigned playerId, const CVector2& position, Real rotation,
-                                bool withDriver, unsigned sectorId) {
-    CGame* game = CEngine::getSingletonPtr()->mGame;
-    if (type < UNIT_ROBOBRAIN || type > UNIT_HARVESTER)   // the original crashes (uninitialised object)
-        throw std::runtime_error("CUnitFactory::createUnit: unknown unit type " + std::to_string(type));
-    CUnit* unit = newUnit(type);
-    unit->mId = id;
-
-    const bool turret = type == UNIT_TURRET;
-    bool sectorDriver = false;   // the "L408" path: turret driver from the sector owner
-    if (!(turret && withDriver)) {
-        unit->init(playerId, position, rotation, sectorId);
-        if (!withDriver) return unit;
-        if (type == UNIT_BEACON) return unit;   // goes to the turret check, which fails
-    } else {
-        if (!game->getLevel()->isCampaignMap()) {
-            unit->init(0, position, rotation, sectorId);   // [!] player 0, no driver
-            return unit;
-        }
-        unit->init(playerId, position, rotation, sectorId);
-    }
-
-    if (type == UNIT_ROBOBRAIN || type == UNIT_TURRET || type == UNIT_CRATE || type == UNIT_LANDMINE ||
-        type == UNIT_THINKERBRAIN)
-        sectorDriver = turret;
-    else if (type == UNIT_UBERBRAIN)
-        return unit;
-    else {
-        CUnit* driver = newUnit(UNIT_ROBOBRAIN);
-        driver->mId = game->getNewGameObjectID();
-        driver->init(playerId, position, rotation, 0);
-        CPlayer* p = game->getPlayer(playerId);
-        if (p && p->isAI()) driver->gainXP(i2f(game->mAIExtraDriverXP), false);
-        driver->enterVehicle(unit->mId);
-        return unit;
-    }
-    if (!sectorDriver) return unit;
-
-    CSector* sector = game->getLevel()->getSector(sectorId);
-    if (!sector) {
-        CUtils::log("ERROR: CUnitFactory::createUnit: getSector NULL");
-        return unit;
-    }
-    CUnit* driver = newUnit(UNIT_ROBOBRAIN);
-    driver->mId = game->getNewGameObjectID();
-    driver->init(sector->mOwner->mId, position, rotation, 0);
-    CPlayer* p = game->getPlayer(playerId);
-    if (p && p->isAI()) {
-        CUtils::log("createUnit ai xtra driver xp %i", driver->mId);
-        driver->gainXP(i2f(game->mAIExtraDriverXP), true);
-    }
-    driver->enterVehicle(unit->mId);
-    return unit;
-}
 
 }  // namespace py

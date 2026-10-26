@@ -13,6 +13,14 @@
 
 namespace py {
 
+// Logs "NOT PORTED YET: <what>" once per name (stubs of unported functions).
+void notPorted(const char* what);
+
+// Next allocation serial number: the order in which the original's bump-
+// allocated objects would have been placed in memory. Used to order the
+// original's pointer-keyed sets reproducibly (see docs/re/sim_phase4.md).
+uint64_t allocSerial();
+
 class CUtils {
 public:
     // printf-style log line (original: __android_log_print + optional file).

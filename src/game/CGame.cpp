@@ -19,13 +19,6 @@
 
 namespace py {
 
-namespace {
-void notPorted(const char* fn) {
-    static std::set<std::string> seen;
-    if (seen.insert(fn).second) CUtils::log("NOT PORTED YET: %s", fn);
-}
-}  // namespace
-
 CGame::CGame() : mEngine(CEngine::getSingletonPtr()) {}
 
 // Ghidra 0x17cabc

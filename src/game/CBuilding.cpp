@@ -25,13 +25,6 @@
 
 namespace py {
 
-namespace {
-void notPorted(const char* fn) {
-    static std::set<std::string> seen;
-    if (seen.insert(fn).second) CUtils::log("NOT PORTED YET: %s", fn);
-}
-}  // namespace
-
 // Ghidra 0x135210
 CBuilding::CBuilding() { mCategory = CATEGORY_BUILDING; }
 
@@ -240,32 +233,6 @@ void CBuilding::initProductionLarge(Real rotation, unsigned sectorId) {
     mProductionType = u;
     const CVector2 pos = turretPosition("BuildingProductionLargeLeftTurretOffset", rotation);
     if (!mEngine->mLoadingSavegame) mTurretIds[0] = spawnTurret(pos, rotation, sectorId)->mId;
-}
-
-// ------------------------------------------------------------------ factory
-
-CBuildingFactory* CBuildingFactory::getSingletonPtr() {
-    static CBuildingFactory sFactory;
-    return &sFactory;
-}
-
-// Ghidra 0x128acc
-CBuilding* CBuildingFactory::createBuilding(unsigned id, int type, const CVector2& position, Real rotation,
-                                            unsigned sectorId, int subtype) {
-    if (type < BUILDING_FLAGPOST || type > BUILDING_REFINERY)   // the original crashes
-        throw std::runtime_error("CBuildingFactory::createBuilding: unknown building type " + std::to_string(type));
-    CBuilding* b = new CBuilding();   // TODO(4.4 buildings): the building classes
-    b->mType = type;
-    b->mId = id;
-    b->init(position, rotation, sectorId, subtype);
-    return b;
-}
-
-// Ghidra 0x128ccc
-CBuilding* CBuildingFactory::createBuilding(int type, const CVector2& position, Real rotation, unsigned sectorId,
-                                            int subtype) {
-    const unsigned id = CEngine::getSingletonPtr()->mGame->getNewGameObjectBuildingID();
-    return createBuilding(id, type, position, rotation, sectorId, subtype);
 }
 
 }  // namespace py
