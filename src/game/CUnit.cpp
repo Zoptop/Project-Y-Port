@@ -451,7 +451,8 @@ void CUnit::enterVehicle(unsigned vehicleId) {
 bool CUnit::landmineTriggered() const { return false; }   // TODO(4.4 units): CUnitLandmine +0x1524
 CSector* CUnit::turretSector() const { return nullptr; }  // TODO(4.4 units): CUnitTurret +0x1524
 Real CUnit::cloakValue() const { return 0.0f; }          // TODO(4.4 units): CUnitCloakSuit +0x153c
-bool CUnit::shieldTankShieldEnabled() const { return false; }   // TODO(4.4 units): CUnitShieldTank +0x1550
-Real CUnit::shieldTankRadiusSq() const { return 0.0f; }         // TODO(4.4 units): CUnitShieldTank +0x1530
+Real CUnit::tankTransformState() const { return 0.0f; }  // TODO(4.4 units): CUnitTank +0x154c
+bool CUnit::shieldEnabled() const { return false; }      // TODO(4.4 units): CUnitShieldTank +0x1550
+Real CUnit::shieldRadiusSq() const { return 0.0f; }      // TODO(4.4 units): CUnitShieldTank +0x1530
 
 }  // namespace py

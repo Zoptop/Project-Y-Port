@@ -61,11 +61,13 @@ public:
     Real getResourceCost(unsigned unitType);           // Ghidra 0x135394
     Real getProductionTime(unsigned unitType);         // Ghidra 0x1356e4
     Real getOperationTime();                           // Ghidra 0x135a50
+    // CBuildingShieldGen members read through a CBuilding* (projectiles):
+    // defined with the subclass.
+    bool shieldEnabled() const;                        // CBuildingShieldGen::isShieldEnabled, +0x364
+    Real shieldRadiusSq() const;                       // CBuildingShieldGen +0x344
 
     // Fields other classes read through a CBuilding* (subclass members,
     // accessed by offset in the original): defined in the subclasses' .cpp.
-    bool shieldGenEnabled() const;     // CBuildingShieldGen +0x364 (isShieldEnabled, Ghidra 0x147c88)
-    Real shieldGenRadiusSq() const;    // CBuildingShieldGen +0x344 squared shield radius
     Real flagpostLifedot() const;      // CBuildingFlagpost +0x354 "Lifedot" (<0 losing, >0 gaining)
 
     // ---- fields

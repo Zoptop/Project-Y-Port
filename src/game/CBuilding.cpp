@@ -235,10 +235,11 @@ void CBuilding::initProductionLarge(Real rotation, unsigned sectorId) {
     if (!mEngine->mLoadingSavegame) mTurretIds[0] = spawnTurret(pos, rotation, sectorId)->mId;
 }
 
+bool CBuilding::shieldEnabled() const { return false; }   // TODO(4.4 buildings): CBuildingShieldGen +0x364
+Real CBuilding::shieldRadiusSq() const { return 0.0f; }   // TODO(4.4 buildings): CBuildingShieldGen +0x344
+
 }  // namespace py
 
 namespace py {
-bool CBuilding::shieldGenEnabled() const { return false; }   // TODO(4.x buildings): CBuildingShieldGen +0x364
-Real CBuilding::shieldGenRadiusSq() const { return 0.0f; }   // TODO(4.x buildings): CBuildingShieldGen +0x344
 Real CBuilding::flagpostLifedot() const { return 0.0f; }     // TODO(4.x buildings): CBuildingFlagpost +0x354
 }  // namespace py

@@ -1,0 +1,34 @@
+// CWeaponTurretGun.h - port of ProjectY::CWeaponTurretGun (0xe4 bytes,
+// weapon type 1): the turret's instant-hit gun. Turns its own yaw towards
+// the target and hits it every step it is within 2 degrees.
+#pragma once
+
+#include <string>
+
+#include "game/CWeapon.h"
+
+namespace py {
+
+class CWeaponTurretGun : public CWeapon {
+public:
+    CWeaponTurretGun();                                                   // Ghidra 0x3e3ccc
+    void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3e3538
+    void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3e48b4
+    void calcChecksum() override;                                         // Ghidra 0x3e4b4c
+    void holdState() override;                                            // Ghidra 0x3e3110
+    void restoreState() override;                                         // Ghidra 0x3e3148
+    void timeUpdateSimple(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3e3180
+    Real getYaw() override { return mYaw; }                               // Ghidra 0x3e30f8
+
+    Real mQuadWidth = 0.0f;              // +0x90 "WeaponTurretGunQuadWidth" (shot quad)
+    Real mYawHeld = 0.0f;                // +0x94
+    Real mYaw = 0.0f;                    // +0xb0 "Yaw", relative to the unit
+    Real mMaxTurnrate = 0.0f;            // +0xb4 "WeaponTurretGunMaxTurnrate"
+    CVector3 mBlastOffset;               // +0xb8 "WeaponTurretGunBlastOffset" (shot quad)
+    CVector2 mShotUVTopleft;             // +0xc4 (shot quad)
+    CVector2 mShotUVSize;                // +0xcc (shot quad)
+    std::string mSoundSourceName;        // +0xd4
+    Real mSoundVolume = 0.0f;            // +0xd8
+};
+
+}  // namespace py

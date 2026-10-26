@@ -70,10 +70,10 @@ void CBomberBomb::timeUpdate() {
 
     bool shielded = false;
     CBuilding* gen = game->getClosestBuilding(next, nullptr, BUILDING_SHIELDGEN, 0, false);
-    if (gen && gen->shieldGenEnabled()) {
+    if (gen && gen->shieldEnabled()) {
         const Real dOld = squaredDistance3(mPosition.x, mPosition.y, mPosition.z, gen->mPosition);
         const Real dNew = squaredDistance3(nx, ny, nz, gen->mPosition);
-        if (crossesShield(gen->shieldGenRadiusSq(), dOld, dNew)) shielded = true;
+        if (crossesShield(gen->shieldRadiusSq(), dOld, dNew)) shielded = true;
     }
     if (!shielded) {
         // [!] every enabled shield tank of the cell is tested (and an enemy
@@ -81,10 +81,10 @@ void CBomberBomb::timeUpdate() {
         if (CGridCell* cell = level->getGridCellFar(next)) {
             for (size_t i = 0; i < cell->units.size(); ++i) {
                 CUnit* t = game->getAsUnit(cell->units[i]);
-                if (!t || t->mType != UNIT_SHIELDTANK || !t->shieldTankShieldEnabled()) continue;
+                if (!t || t->mType != UNIT_SHIELDTANK || !t->shieldEnabled()) continue;
                 const Real dOld = squaredDistance3(mPosition.x, mPosition.y, mPosition.z, t->mPosition);
                 const Real dNew = squaredDistance3(nx, ny, nz, t->mPosition);
-                if (!crossesShield(t->shieldTankRadiusSq(), dOld, dNew)) continue;
+                if (!crossesShield(t->shieldRadiusSq(), dOld, dNew)) continue;
                 if (!t->isFriend(mOwner)) {
                     CUtils::log("CBomberBomb shld getxp tnk %i", t->mId);
                     t->gainXP(mBombShieldXPValue, true);
