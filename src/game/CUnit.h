@@ -83,9 +83,9 @@ public:
     virtual void setUnitOrderTurn(Real yaw);           // +0xd8
     virtual void hit(Real damage, unsigned attackerId, EDamageType type, CPlayer* attackingPlayer,
                      CSceneObject* source);            // +0xdc
-    virtual void heal(Real amount, CUnit* healer);     // +0xe0
-    virtual unsigned findClosestEnemySlow(Real range, bool a, bool b);   // +0xe4
-    virtual unsigned findClosestEnemyFast();           // +0xe8
+    virtual Real heal(Real amount, CUnit* healer);     // +0xe0 returns the amount healed
+    virtual CGameObject* findClosestEnemySlow(Real range, bool a, bool b);   // +0xe4
+    virtual CGameObject* findClosestEnemyFast();           // +0xe8
     virtual void gainXP(Real xp, bool silent);         // +0xec
     virtual void leaveVehicle(bool force);             // +0xf0
     virtual void leaveBuilding();                      // +0xf4
@@ -151,6 +151,8 @@ public:
     bool landmineTriggered() const;   // CUnitLandmine +0x1524
     CSector* turretSector() const;    // CUnitTurret +0x1524
     Real cloakValue() const;          // CUnitCloakSuit +0x153c
+    bool shieldTankShieldEnabled() const;   // CUnitShieldTank +0x1550 (isShieldEnabled, Ghidra 0x3c5c3c)
+    Real shieldTankRadiusSq() const;        // CUnitShieldTank +0x1530 squared shield radius
 
     // ---- fields
     unsigned mDriverEntryVehicle = 0;    // +0x230 (copied to +0x22c in the ctor)
@@ -249,7 +251,7 @@ public:
     CVector2 mChaseStartPosition;        // +0x14d4
     Real mVal14dc = 0.0f;                // +0x14dc (hit / timeUpdate)
     Real mAuraFactor = 1.0f;             // +0x14e0 reset to 1 by resetMods
-    Real mAuraValue = 0.0f;              // +0x14e4 reset to 0 by resetMods
+    unsigned mAuraCommanderId = 0;       // +0x14e4 id of the commander giving the aura (CUnitCommander::distributeMods), 0 by resetMods
     // base modifiers: the driver brain's rank upgrades (syncBonusFromDriver)
     Real mHealthFactorBase = 1.0f;       // +0x14e8 "HealthFactor"
     Real mArmorFactorBase = 1.0f;        // +0x14ec "ArmorFactor"
@@ -268,6 +270,10 @@ public:
 class CUnitFactory {
 public:
     static CUnitFactory* getSingletonPtr();
+    // Ghidra 0x3bbb30: the five auto-upgrade weights of a unit type (map::at:
+    // throws std::out_of_range for a type the table lacks). Loaded on first use
+    // from autoupgrade_default.txt (CUnitFactory ctor 0x3bc5c0, see .cpp).
+    static void getUnitAutoUpgradeProbs(unsigned type, Real& p0, Real& p1, Real& p2, Real& p3, Real& p4);
     // Ghidra 0x3ab210
     CUnit* createUnit(unsigned id, int type, unsigned playerId, const CVector2& position, Real rotation,
                       bool withDriver, unsigned sectorId);

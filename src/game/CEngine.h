@@ -60,6 +60,7 @@ public:
     unsigned mLocalPlayer = 1;         // +0x254
     bool mCratesEnabled = false;       // +0x258
     int mGameType = 0;                 // +0x2d0  0 standard, 1 campaign/scripted, 3 resources
+    bool mUseAutoUpgrade = true;       // +0x2dc  option "UseAutoUpgrade" (ctor: true; loadOptions: false if missing)
     unsigned mCurrentStep = 0;         // +0x310  lockstep step being simulated (0 outside)
 
 private:

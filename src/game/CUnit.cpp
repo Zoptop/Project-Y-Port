@@ -222,7 +222,7 @@ void CUnit::restoreState() {
 // Ghidra 0x3a4b48. Tech bonuses: 0 armor, 5 health, 3 speed, 14 damage, 4 range.
 void CUnit::resetMods() {
     mAuraFactor = 1.0f;
-    mAuraValue = 0.0f;
+    mAuraCommanderId = 0;
     const bool notMoveable = !isMoveable();
     mHealthFactor = mHealthFactorBase;
     mArmorFactor = mArmorFactorBase;
@@ -386,12 +386,15 @@ void CUnit::setScriptedControlled(bool on) {
 }
 void CUnit::setUnitOrderTurn(Real) { notPorted("CUnit::setUnitOrderTurn"); }
 void CUnit::hit(Real, unsigned, EDamageType, CPlayer*, CSceneObject*) { notPorted("CUnit::hit"); }
-void CUnit::heal(Real, CUnit*) { notPorted("CUnit::heal"); }
-unsigned CUnit::findClosestEnemySlow(Real, bool, bool) {
+Real CUnit::heal(Real, CUnit*) {
+    notPorted("CUnit::heal");
+    return 0.0f;
+}
+CGameObject* CUnit::findClosestEnemySlow(Real, bool, bool) {
     notPorted("CUnit::findClosestEnemySlow");
     return 0;
 }
-unsigned CUnit::findClosestEnemyFast() {
+CGameObject* CUnit::findClosestEnemyFast() {
     notPorted("CUnit::findClosestEnemyFast");
     return 0;
 }
@@ -448,8 +451,6 @@ void CUnit::enterVehicle(unsigned vehicleId) {
     if (CUnit* v = mEngine->mGame->getAsUnit(vehicleId)) v->mCommander = mId;
 }
 
-bool CUnit::landmineTriggered() const { return false; }   // TODO(4.4 units): CUnitLandmine +0x1524
-CSector* CUnit::turretSector() const { return nullptr; }  // TODO(4.4 units): CUnitTurret +0x1524
-Real CUnit::cloakValue() const { return 0.0f; }          // TODO(4.4 units): CUnitCloakSuit +0x153c
+// landmineTriggered / turretSector / cloakValue: CUnitAccessors.cpp
 
 }  // namespace py
