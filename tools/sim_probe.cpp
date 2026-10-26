@@ -32,6 +32,7 @@
 #include "game/CSceneObject.h"
 #include "game/CSector.h"
 #include "game/CUnit.h"
+#include "game/CWeapon.h"
 #include "render/CMesh.h"
 
 using namespace py;
@@ -149,7 +150,7 @@ int runQueries(CGame* g, const std::string& file) {
 int main(int argc, char** argv) {
     std::string data = "data";
     int map = 1, players = 2, steps = 10, gameType = 0;
-    bool dumpRes = false;
+    bool dumpRes = false, dumpWeapons = false;
     std::set<int> trace;
     std::string queries;
     for (int i = 1; i < argc; ++i) {
@@ -162,6 +163,7 @@ int main(int argc, char** argv) {
         else if (a == "--queries") queries = next();
         else if (a == "--gametype") gameType = std::atoi(next().c_str());
         else if (a == "--dump-res") dumpRes = true;
+        else if (a == "--dump-weapons") dumpWeapons = true;
         else if (a == "--trace")
             while (i + 1 < argc && argv[i + 1][0] != '-') trace.insert(std::atoi(argv[++i]));
     }
@@ -189,6 +191,17 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (!queries.empty()) return runQueries(game.get(), queries);
+    if (dumpWeapons) {   // each unit's weapons after loading: unit id, weapon id:type ...
+        for (unsigned id : game->objectList()) {
+            CUnit* u = game->getAsUnit(id);
+            if (!u) continue;
+            std::printf("unit %u", id);
+            for (unsigned w : u->mWeaponIds)
+                if (CWeapon* wp = game->getWeapon(w)) std::printf(" %u:%d", w, wp->mType);
+            std::printf("\n");
+        }
+        return 0;
+    }
     if (dumpRes) {   // resource grid after loading (CLevel +0x1c4), as float bits
         const CLevel* L = game->getLevel();
         std::printf("res %d %d\n", L->mResW, L->mResH);

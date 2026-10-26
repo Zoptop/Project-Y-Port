@@ -213,12 +213,12 @@ class Oracle:
         while p != end:
             pr = e.read_u32(p)
             if pr:
-                out.append(('projectile', pr, '%s %08x' % (self.class_of(pr), self._vcall_checksum(pr, 0x28))))
+                out.append(('projectile', e.read_u32(pr + 0x1c), '%s %08x' % (self.class_of(pr), self._vcall_checksum(pr, 0x28))))
                 self._traces.append(self._last_trace)
             p += 4
         for so in self._list(g + 0x3c):
             if so:
-                out.append(('scene', so, '%s %08x' % (self.class_of(so), self._vcall_checksum(so, 0x24))))
+                out.append(('scene', e.read_u32(so + 0x38), '%s %08x' % (self.class_of(so), self._vcall_checksum(so, 0x24))))
                 self._traces.append(self._last_trace)
         for pid, pl in self._map_values(g + 0x10):
             out.append(('player', pid, '%s %08x' % (self.class_of(pl), self._vcall_checksum(pl, 0x7c))))
