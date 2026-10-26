@@ -48,6 +48,7 @@ public:
     unsigned mVehicleId = 0xffffffffu; // the vehicle this brain sits in
     unsigned mDriverId = 0xffffffffu;  // the brain driving this vehicle
     CSector* mTurretSector = nullptr;  // +0x1524 (CUnitTurret)
+    unsigned mParentBuildingId = 0;    // +0x159c (CUnitTurret) building that spawned it
     bool mOnWatch = false;
     float mXP = 0.0f;
 };
@@ -61,6 +62,11 @@ public:
     // Ghidra 0x3ab7f4: takes the next game-object id first
     CUnit* createUnit(int type, unsigned playerId, const CVector2& position, float rotation, bool withDriver,
                       unsigned sectorId);
+    // Ghidra 0x3bb784: same with x, y
+    CUnit* createUnit(int type, unsigned playerId, float x, float y, float rotation, bool withDriver,
+                      unsigned sectorId) {
+        return createUnit(type, playerId, CVector2(x, y), rotation, withDriver, sectorId);
+    }
 };
 
 }  // namespace py

@@ -9,3 +9,15 @@ python3 tools/verify/run_compare.py powf atan2f  # selected functions
 ```
 
 Set `FDLIBM_PROBE` to use a probe binary somewhere else. The inputs include ±300 ulp around every branch threshold, every float within 2^-19 of a multiple of π/2 (`nearpio2.txt`), pow's overflow and underflow boundaries (`pow_boundary.txt`), and NaN/inf/±0 grids.
+
+# Independent level loader
+
+`level_reference.py` reproduces what the original `CLevel::initByScript` creates for a map: sectors, buildings, units and drivers (ids, owners, position/rotation bits), assets and the script count. Like the fdlibm reference, it was written only from the decompile and disassembly. It uses `fdlibm_ref.py` for the float maths; set `PROJECTY_SO` if `libProjectY.so` is not in the default RE folder.
+
+```
+ninja -C build level_probe
+python3 tools/verify/compare_levels.py            # all 29 maps against build/level_probe
+python3 tools/verify/compare_levels.py 301 --max 20
+```
+
+Currently all 29 maps are identical.

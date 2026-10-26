@@ -5,6 +5,15 @@
 // Ghidra: CBuildingFactory::createBuilding 0x128acc (id given) / 0x128ccc
 // (takes CGame::getNewGameObjectBuildingID), CBuilding::init 0x124aac:
 // sector = level->getSector(sectorId), owner = sector's owner.
+//
+// [!] Two building types create units in init (unless a savegame is being
+// loaded): the HQ (CBuildingHQ::init 0x13b78c) two turrets and the large
+// factory (CBuildingProductionLarge::init 0x141ff8) one, via
+// createUnit(4, owner, x, y, rot, owner not neutral, sector) at the config
+// offsets Building*TurretOffset rotated by the building's rotation (with
+// CMath::SinTable), z + 4.7. They take unit ids (and drivers on campaign
+// maps) before the building itself is registered with the game. The HQ also
+// sets the sector owner's start position.
 #pragma once
 
 #include "core/CVector2.h"
@@ -35,8 +44,17 @@ public:
     // vtable +0x84 (TODO phase 4: production / dial buttons)
     virtual void processDialButton(int button) { mLastDialButton = button; }
 
+private:
+    void initHQ(float rotation, unsigned sectorId);
+    void initProductionLarge(float rotation, unsigned sectorId);
+    CVector2 turretPosition(const char* configKey, float rotation) const;
+    class CUnit* spawnTurret(const CVector2& pos, float rotation, unsigned sectorId);
+public:
+
     CSector* mSector = nullptr;   // +0x238
-    int mSubType = 0;
+    int mSubType = 0;             // the "subtype" of the map line
+    int mProductionType = 0;      // +0x36c ProductionLarge: unit type it builds
+    unsigned mTurretIds[2] = {0xffffffffu, 0xffffffffu};   // +0x3ec/+0x3f0 HQ / ProductionLarge turrets
     int mLastDialButton = 0;
 };
 

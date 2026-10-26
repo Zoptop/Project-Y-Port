@@ -239,7 +239,8 @@ TEST(level_map1) {
     CHECK(L->getSector(1)->mOwner->mId == 1 && L->getSector(10)->mOwner->mId == 2);
     CHECK(L->getSector(1)->mHasHQ && !L->getSector(2)->mHasHQ);
     CHECK(L->assets().size() == 168);
-    // 42 building lines, 2 of them refineries (resources mode only); 18 turrets
+    // 42 building lines, 2 of them refineries (resources mode only); 18 turret
+    // lines + 2 HQs x 2 turrets + 2 large factories x 1 turret
     int buildings = 0, units = 0;
     for (unsigned id : game->objectList()) {
         CGameObject* o = game->getGameObject(id);
@@ -251,15 +252,23 @@ TEST(level_map1) {
             CHECK(u->mType == UNIT_TURRET && u->mOwner && u->mOwner->mId == 0 && u->mDriverId == 0xffffffffu);
         }
     }
-    CHECK_MSG(buildings == 40 && units == 18, "%d %d", buildings, units);
+    CHECK_MSG(buildings == 40 && units == 24, "%d %d", buildings, units);
     CHECK(game->getAsBuilding(1001) && game->getAsBuilding(1040) && !game->getAsBuilding(1041));
-    CHECK(game->getAsUnit(1101) && game->getAsUnit(1118) && !game->getAsUnit(1119));
+    CHECK(game->getAsUnit(1101) && game->getAsUnit(1124) && !game->getAsUnit(1125));
+    // building turrets come first (created in CBuildingHQ::init); positions from
+    // the independent reference (tools/verify/level_reference.py)
+    CUnit* t0 = game->getAsUnit(1101);
+    CHECK(fbits(t0->mPosX) == 0x43be4c81u && fbits(t0->mPosY) == 0x43afdc73u && fbits(t0->mRotation) == 0xc02841a6u);
+    CHECK(game->getAsBuilding(t0->mParentBuildingId)->mType == BUILDING_HQ);
+    CHECK(fbits(game->getAsUnit(1106)->mPosX) == 0x42bacec7u);
+    // the HQ sets its sector owner's start position
+    CHECK(fbits(game->getPlayer(2)->mStartPosition.x) == fbits(game->getAsBuilding(t0->mParentBuildingId)->mPosX));
     // first unit: "create unit 4 sector 5 ..." (neutral sector: no watch order)
-    CUnit* u0 = game->getAsUnit(1101);
+    CUnit* u0 = game->getAsUnit(1107);
     CHECK(u0->mPosX == 9.41585f && u0->mPosY == -144.781f && !u0->mOnWatch);
     CHECK(u0->mRotation == CMath::fDeg2Rad * 118.687f);
     // "create unit 4 sector 1 ..." (player 1's sector: watch order)
-    CHECK(game->getAsUnit(1103)->mOnWatch);
+    CHECK(game->getAsUnit(1109)->mOnWatch);
     // 4 unitdrop lines + 2 HQ drops (both HQs are in player sectors) + 1 cratedrop
     CScriptManager* sm = L->getScriptManager();
     CHECK(sm->scripts().size() == 7);

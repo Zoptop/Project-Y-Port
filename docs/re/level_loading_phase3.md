@@ -7,7 +7,7 @@ Addresses are Ghidra addresses (ELF + 0x10000). **[!]** marks original behaviour
 ## Verification
 
 - **Script parsing:** `tools/emu/check_scripts.py` runs the original `CScriptManager::addScript` under the Unicorn emulator for every `script` line of all 29 maps (1,122 lines), the lines the engine generates itself, and about 25 edge cases. It then compares every resulting object with the port's (`build/level_probe --scripts`): generic state, the parameter map, and every subclass field, with floats compared as bit patterns. Result: **0 mismatches** over 1,145 objects.
-- **Map objects (in progress):** `tools/verify/compare_levels.py` compares every sector, game object, asset and script count of all 29 maps against an independent Python implementation (`tools/verify/level_reference.py`). That implementation was written from the decompile only, without looking at the port.
+- **Map objects:** `tools/verify/compare_levels.py` compares every sector, game object (id, type, owner, position and rotation bits, drivers), asset and script count of all 29 maps against an independent Python implementation (`tools/verify/level_reference.py`). That implementation was written from the decompile only, without looking at the port. Result: **all 29 maps identical**. It caught one gap in the first version of the port: the turrets that buildings create themselves (see *Buildings that create units* below).
 - **Unit tests:** `tests/test_level.cpp` checks the grammar, delay scaling, the scheduler timeline, features, building alternatives, map 1 in detail, and that all 29 maps load.
 
 ## Map file reading (`initByScript`, 0x2e1098)
@@ -50,6 +50,17 @@ Addresses are Ghidra addresses (ELF + 0x10000). **[!]** marks original behaviour
   - Seven `sscanf` values means the id comes from the counter; eight means `unitid` is used.
 - **`asset <name> position x y z quat qx qy qz qw scale sx sy sz`:** stored as (w, x, y, z).
   - **[!]** The first asset line applies the skirmish presets: `applySpecialSectorSetup` (not when loading a savegame) and `applySpecialUnitAvailability`. A map without assets never applies them.
+
+### Buildings that create units
+
+**[!]** `CBuildingHQ::init` (0x13b78c) creates two turrets and `CBuildingProductionLarge::init` (0x141ff8) creates one. They are skipped while a savegame is loading (engine+0x1cc).
+
+- **Call:** `createUnit(4, owner, x, y, buildingRot, owner not neutral, sectorId)` (0x3bb784), so the turret follows the turret rules below (skirmish: player 0, no driver).
+- **Position:** the config offset (`BuildingHQLeft/RightTurretOffset`, `BuildingProductionLargeLeftTurretOffset`) is rotated: with c = `SinTable(rot + HALF_PI)` and s = `SinTable(rot)`, x = bx + (ox·c − oy·s) and y = by + (ox·s + oy·c). Then z += 4.7.
+- **Links:** the turret remembers the building's id (+0x159c); the building remembers the turret ids (+0x3ec/+0x3f0).
+- **Id order:** this happens inside the building's init, so the turrets (and their drivers) take unit ids *before* the building is registered with the game. Every later unit id shifts accordingly.
+- **HQ:** also sets the sector owner's start position to the HQ position.
+- **Large factory:** first picks the unit type it produces: its subtype if that is 5, 8 or 10 (or 24 in Resources mode), else 5. While that type is unavailable it falls back 24 → 5 → 10 → 8 → 5. With 5, 8 and 10 all off it would loop forever, but `getBuildingTypeAlternative` has already turned such a factory into a medium factory.
 
 ### Units: `CUnitFactory::createUnit(id, type, player, pos, rot, withDriver, sector)` (0x3bb210)
 
