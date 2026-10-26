@@ -30,7 +30,12 @@ ProjectY's multiplayer is deterministic lockstep: every client simulates the who
    - The inputs cover every branch threshold (±300 ulp around each), every float near a multiple of π/2, pow's overflow and underflow boundaries, and NaN/inf/±0 grids. A line-coverage run showed every reachable branch was exercised.
    - Result: identical on every non-NaN output. The first run also exposed the NaN bit-pattern differences, which `sf_*` now fixes (see the table above and the `nan_bits_follow_original_libgcc_rules` test).
    - The reference was shown to catch subtle drift: swapping in textbook fdlibm's `powf` gives 3,354 mismatches in 20,000 inputs.
-3. **A golden digest catches compiler drift.**
+3. **The port is checked against the original binary itself.**
+   - `tools/emu` runs the original `libProjectY.so` under the Unicorn ARM emulator, including the game's own static initialisers and `CMath(4096)`, and compares the outputs with the port's.
+   - All 12 fdlibm routines match on about 270,000 inputs each run, including random bit patterns (NaN, inf, subnormal).
+   - The 4,096-entry sin and tan tables match, and 10,000 CRng/CRngSafe draws (uniform, normal, exponential) match.
+   - 0 mismatches.
+4. **A golden digest catches compiler drift.**
    - `tests/test_core.cpp: determinism_digest` hashes the trig tables, every fdlibm function over 20,000 inputs, and both RNG streams.
    - It must equal `tests/golden.h` on every compiler and platform.
    - Verified identical so far:
