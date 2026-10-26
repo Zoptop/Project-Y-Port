@@ -52,6 +52,7 @@ public:
     int mProductionSpeed = 3;          // +0x1b8  "ProductionsSpeedFactor" option
     bool mPaused = false;              // +0x1c2
     unsigned mMapId = 1;               // +0x1c4
+    int mDifficulty = 1;               // +0x1c8 "Difficulty" option (AI handicap, 0..6)
     bool mLoadingSavegame = false;     // +0x1cc  set around CEngine::loadGame
     float mGameSpeedFactor = 1.0f;     // +0x1d0
     int mSectorSetupMode = 0;          // +0x1d4  EGameSectorSetupModes (skirmish presets)

@@ -56,7 +56,8 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mRngAfterTU = 0;
     mNumPlayers = e->mNumPlayers;
     mFeatures.reset();
-    // TODO(4.x): CCraterManager (+0xb8), updateAIFactorsFromDifficulty
+    // TODO(4.x): CCraterManager (+0xb8)
+    updateAIFactorsFromDifficulty();
     for (unsigned i = 0; i <= mNumPlayers; ++i) createPlayerFromPlayerSetup(i);
     mLevel = std::make_unique<CLevel>();
     mLevel->setHeadless(headless);
@@ -68,7 +69,7 @@ bool CGame::init(bool fromSavegame, bool headless) {
         e->mGameTime = 0.0f;
         mStarted = true;
     }
-    mFlag180 = false;
+    mStateHeld = false;
     CUtils::log("Game Init done");
     return ok;
 }
@@ -303,6 +304,105 @@ Real CGame::getFOWvisibility(CPlayer*, int, Real, Real, int, bool*) {
     notPorted("CGame::getFOWvisibility");
     return 1.0f;
 }
-void CGame::checkGameEndingCondition(bool, CPlayer*) { notPorted("CGame::checkGameEndingCondition"); }
+// Ghidra 0x17dbc4 (the overlay texts, camera and sound for the local
+// players are interface code). A surrendering player loses; when the
+// players still in the game are all in one team, they win. [!] Team 0 counts
+// as "no team yet": the first player with a nonzero team sets it.
+void CGame::checkGameEndingCondition(bool surrender, CPlayer* player) {
+    if (mGameEndingCondition != 0) return;
+    if (player && surrender) player->lost(true);
+    std::vector<CPlayer*> alive;
+    for (auto& p : mPlayers) {
+        CPlayer* pl = p.second.get();
+        if (pl->isNeutral()) continue;
+        if (!pl->mLost) alive.push_back(pl);
+    }
+    bool winner = true;
+    unsigned team = 0;
+    for (CPlayer* pl : alive) {
+        if (team == 0) {
+            team = pl->mTeam;
+            continue;
+        }
+        if (team != pl->mTeam) winner = false;
+    }
+    if (winner) {
+        CUtils::log("Winner Team: %i", team);
+        for (CPlayer* pl : alive) pl->won();
+    } else {
+        CUtils::log("No Winner Team yet");
+    }
+}
+
+// Ghidra 0x17bb30 (difficulty 0..6; 3 is neutral)
+void CGame::updateAIFactorsFromDifficulty() {
+    Real a, b;
+    switch (mEngine->mDifficulty) {
+    case 0: a = 3.0f; b = bitsf(0x3e99999a); break;
+    case 1: a = 2.0f; b = 0.5f; break;
+    case 2: a = bitsf(0x3fa66666); b = bitsf(0x3f4ccccd); break;
+    case 3:
+        mAIExtraDriverXP = 0;
+        mAICostFactor = mAIFactor168 = mAIFactor16c = 1.0f;
+        return;
+    case 4:
+        mAICostFactor = 0.75f;
+        mAIFactor168 = mAIFactor16c = bitsf(0x3fa66666);
+        mAIExtraDriverXP = 0x2d;
+        return;
+    case 5:
+        mAICostFactor = bitsf(0x3f19999a);
+        mAIFactor168 = mAIFactor16c = 1.5f;
+        mAIExtraDriverXP = 0x55;
+        return;
+    case 6:
+        mAICostFactor = bitsf(0x3ecccccd);
+        mAIFactor168 = mAIFactor16c = 2.0f;
+        mAIExtraDriverXP = 100;
+        return;
+    default:
+        return;
+    }
+    mAICostFactor = a;
+    mAIFactor168 = b;
+    mAIFactor16c = b;
+    mAIExtraDriverXP = 0;
+}
+
+// Ghidra 0x177f4c
+void CGame::holdState() {
+    mStateHeld = true;
+    for (unsigned id : mObjectList)
+        if (CGameObject* o = getGameObject(id)) o->holdState();
+    for (CProjectile* p : mProjectiles)
+        if (p) p->holdState();
+    for (CSceneObject* s : mSceneObjects)
+        if (s) s->holdState();
+}
+
+// Ghidra 0x178008
+void CGame::restoreState() {
+    if (!mStateHeld) return;
+    for (unsigned id : mObjectList)
+        if (CGameObject* o = getGameObject(id)) o->restoreState();
+    for (CProjectile* p : mProjectiles)
+        if (p) p->restoreState();
+    for (CSceneObject* s : mSceneObjects)
+        if (s) s->restoreState();
+}
+
+// Ghidra 0x1784a8
+void CGame::timeUpdateSimple(Real, Real) {
+    mInTimeUpdateSimple = true;
+    for (unsigned id : mObjectList)
+        if (CGameObject* o = getGameObject(id)) o->timeUpdateSimple();
+    for (CProjectile* p : mProjectiles)
+        if (p) p->updateSimple();
+    for (CSceneObject* s : mSceneObjects)
+        if (s) s->timeUpdateSimple();
+    mInTimeUpdateSimple = false;
+}
+
+
 
 }  // namespace py

@@ -48,6 +48,13 @@ public:
     // ---- simulation
     void timeUpdate(Real dt, Real gameTime);   // Ghidra 0x1780c8: one step (dt in engine->mFrameDt)
     void calcChecksum();                       // Ghidra 0x17bc80 (into CUtils::mChecksum)
+    // Render extrapolation between steps (networked games): holdState copies
+    // the authoritative state, timeUpdateSimple moves objects with the frame
+    // dt, restoreState puts the authoritative state back before the next step.
+    void holdState();                          // Ghidra 0x177f4c
+    void restoreState();                       // Ghidra 0x178008
+    void timeUpdateSimple(Real dt, Real gameTime);   // Ghidra 0x1784a8
+    void updateAIFactorsFromDifficulty();      // Ghidra 0x17bb30
 
     // ---- players
     CPlayer* getPlayer(unsigned id) const;     // Ghidra 0x177d58
@@ -115,9 +122,13 @@ public:
     unsigned mNextProjectileID = 1;                          // +0x140
     unsigned mNextWeaponID = 1;                              // +0x15c
     bool mStarted = false;                                   // +0x160 set by init (new game)
+    Real mAICostFactor = 1.0f;                               // +0x164 AI handicap (resource costs)
+    Real mAIFactor168 = 1.0f;                                // +0x168
+    Real mAIFactor16c = 1.0f;                                // +0x16c
     int mAIExtraDriverXP = 0;                                // +0x170 (updateAIFactorsFromDifficulty)
     int mGameEndingCondition = 0;                            // +0x174
-    bool mFlag180 = false;                                   // +0x180
+    bool mStateHeld = false;                                 // +0x180 holdState done
+    bool mInTimeUpdateSimple = false;                        // +0x1e0
     uint32_t mRngBeforeTU = 0;                               // +0x1c0 CRngSafe::GetUint(1) at step start
     uint32_t mRngAfterTU = 0;                                // +0x1dc CRngSafe::GetUint(2) at step end
     CGameFeatures mFeatures;                                 // +0x188
