@@ -21,6 +21,7 @@
 #include "../src/core/FloatBits.h"
 #include "../src/core/fdlibm.h"
 #include "../src/game/CBuilding.h"
+#include "../src/game/CBuildingFlagpost.h"
 #include "../src/game/CEngine.h"
 #include "../src/game/CGame.h"
 #include "../src/game/CKISquad.h"
@@ -45,6 +46,8 @@ namespace {
 CEngine* freshEngine() {
     CEngine::release();
     CMath::initConstants();
+    static CMath* sMath = new CMath(4096);   // the trig tables, as CEngine::init builds them
+    (void)sMath;
     return CEngine::getSingletonPtr();
 }
 
@@ -325,6 +328,19 @@ TEST(radar_team_quirk) {
 #ifdef HAVE_PLAYERS_ORACLE
 namespace {
 
+// ai_oracle.py sets every flagpost's Life and Lifedot to 0 before the goal
+// step (so friendly buildings are goals too); the same here.
+void zeroFlags(CGame* g) {
+    for (unsigned id : g->objectList()) {
+        CBuilding* b = g->getAsBuilding(id);
+        if (b && b->mType == BUILDING_FLAGPOST) {
+            auto* f = static_cast<CBuildingFlagpost*>(b);
+            f->mLife = 0.0f;
+            f->mLifedot = 0.0f;
+        }
+    }
+}
+
 uint32_t fnvWords(const std::vector<uint32_t>& w) {
     uint32_t h = 0x811c9dc5u;
     for (uint32_t v : w)
@@ -400,10 +416,15 @@ void checkAgainstOriginal(int map, unsigned players, unsigned W, unsigned H, con
         if (!u) continue;
         Real infl, fall, rad;
         u->getInfluenceAndFalloff(&infl, &fall, &rad);
-        for (const auto& r : units)
-            if (r[0] == id && r[3] == fbits(u->mPosition.x) && r[4] == fbits(u->mPosition.y) &&
-                r[5] == fbits(infl) && r[6] == fbits(fall) && r[7] == fbits(rad))
+        for (const auto& r : units) {
+            if (r[0] != id) continue;
+            if (r[3] == fbits(u->mPosition.x) && r[4] == fbits(u->mPosition.y) && r[5] == fbits(infl) &&
+                r[6] == fbits(fall) && r[7] == fbits(rad))
                 ++same;
+            else
+                std::printf("    unit %u type %d: influence %08x/%08x falloff %08x/%08x radius %08x/%08x (port/original)\n",
+                            id, u->mType, fbits(infl), r[5], fbits(fall), r[6], fbits(rad), r[7]);
+        }
         ++n;
     }
     if (same == NU && n == NU) {
@@ -431,7 +452,7 @@ void checkAgainstOriginal(int map, unsigned players, unsigned W, unsigned H, con
     }
     compareGrid("updateInfluenceUnits", ki, unitsGrid, nGrid);
 
-    // 3. goal (flags at Life/Lifedot 0 in the original = the port's placeholders).
+    // 3. goal, with every flag at Life/Lifedot 0 (as the oracle sets them).
     // Its input, the buildings, must be the original's.
     size_t nb = 0;
     for (unsigned id : g->objectList()) {
@@ -447,6 +468,7 @@ void checkAgainstOriginal(int map, unsigned players, unsigned W, unsigned H, con
               fbits(b->mPosition.x) == r[3] && fbits(b->mPosition.y) == r[4]);
     }
     CHECK_MSG(nb == NB, "map %d: %zu buildings, original %zu", map, nb, static_cast<size_t>(NB));
+    zeroFlags(g.get());
     for (size_t i = 0; i < nGrid / 10; ++i) ki->cell(static_cast<int>(i)).influence = bitsf(unitsGrid[i * 10 + 5]);
     ki->updateInfluenceGoal();
     compareGrid("updateInfluenceGoal", ki, goalGrid, nGrid);
@@ -533,6 +555,7 @@ void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&buil
         CHECK_MSG(known, "map %d: object %u not in the original", map, id);
     }
     CHECK_MSG(nobj == NB + NS0, "map %d: %zu objects, original %zu", map, nobj, NB + NS0);
+    zeroFlags(g.get());
     for (const auto& m : made) {
         CUnit* u = CUnitFactory::getSingletonPtr()->createUnit(static_cast<int>(m[1]), 2,
                                                                CVector2(bitsf(m[2]), bitsf(m[3])), 0.0f, false, 0);
