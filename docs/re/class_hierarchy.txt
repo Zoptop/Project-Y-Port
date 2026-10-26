@@ -1,0 +1,133 @@
+CCommandManager
+  CCommandManagerLocal
+  CCommandManagerNetworked
+CInterface
+  CInterfaceIngame
+  CInterfaceIntro
+  CInterfaceMenu
+CInterfaceElement
+  CInterfaceElementAchList
+  CInterfaceElementBarSlider
+  CInterfaceElementButton2
+  CInterfaceElementCampaignButtons
+  CInterfaceElementImage
+  CInterfaceElementImageButton
+  CInterfaceElementImageSlider
+    CInterfaceElementCampaignImageSlider
+    CInterfaceElementMapImageSlider
+  CInterfaceElementMultiText
+  CInterfaceElementMultiTextPlayerList
+  CInterfaceElementMultiTextScrollable
+  CInterfaceElementPlayerControl
+  CInterfaceElementServerList
+  CInterfaceElementText
+  CInterfaceElementTextInput2
+  CInterfaceElementTextSlider2
+  CInterfaceElementUnitButtons
+  CInterfaceElementValueBar
+CLevel
+CNavBuildContext   (also: rcContext)
+CNavFastLZCompressor   (also: dtTileCacheCompressor)
+CNavLinearAllocator   (also: dtTileCacheAlloc)
+CNavMeshProcess   (also: dtTileCacheMeshProcess)
+CParticle
+CParticleSystem
+  CParticleSystemExplosion
+  CParticleSystemInfo
+  CParticleSystemSelect
+  CParticleSystemShotConstant
+  CParticleSystemShotDirected
+  CParticleSystemSmoke
+  CParticleSystemThruster
+CPlayer
+  CPlayerKI
+CProjectile
+  CProjectileEMPWave
+  CProjectileLaserBlastA
+  CProjectileLaserBlastB
+  CProjectileRocket
+  CProjectileSniperBullet
+CSceneObject
+  CBomber
+  CBomberBomb
+  CBomberCrate
+  CBomberMine
+  CGameObject
+    CBuilding
+      CBuildingBCC
+      CBuildingFlagpost
+      CBuildingInfoStore
+      CBuildingProduction
+        CBuildingHQ
+        CBuildingProductionAdvTech
+        CBuildingProductionLarge
+        CBuildingProductionLight
+        CBuildingProductionMedium
+      CBuildingRefinery
+      CBuildingRepair
+      CBuildingScienceLab
+      CBuildingShieldGen
+      CBuildingSpecop
+      CBuildingTraining
+      CBuildingUploadTerminal
+    CUnit
+      CUnitAmplifier
+      CUnitBeacon
+      CUnitBombSuit
+      CUnitCloakSuit
+      CUnitCommander
+      CUnitCrate
+      CUnitEMPTank
+      CUnitHackerSuit
+      CUnitHarvester
+      CUnitHeavyTank
+      CUnitLandmine
+      CUnitMineDropper
+      CUnitRepair
+      CUnitRoboBrain
+      CUnitScorpion
+      CUnitShieldTank
+      CUnitSniperSuit
+      CUnitSoldierSuit
+      CUnitSpider
+      CUnitSpotter
+      CUnitTank
+      CUnitThinkerBrain
+      CUnitTurret
+      CUnitUberBrain
+CScript
+  CScriptAIOption
+  CScriptAddAch
+  CScriptAirdrop
+  CScriptAirstrike
+  CScriptAreaTrigger
+  CScriptBeacon
+  CScriptBlock
+  CScriptBuildingTrigger
+  CScriptCountTrigger
+  CScriptCratedrop
+  CScriptFeature
+  CScriptGamestate
+  CScriptMarker
+  CScriptMod
+  CScriptSectorFlagTrigger
+  CScriptSelectTrigger
+  CScriptSpeaker
+  CScriptTimeTrigger
+  CScriptUnitTrigger
+CTexture
+  CTexture2D
+  CTextureCubemap
+CWeapon
+  CWeaponEMPWave
+  CWeaponHacker
+  CWeaponHeavyLaserGatling
+  CWeaponLaserGatling
+  CWeaponLaserSingleBTurretGun
+  CWeaponLaserSingleShot
+  CWeaponMiniLaser
+  CWeaponSniperGun
+  CWeaponTankGun
+  CWeaponTurretGun
+  CWeaponTurretRocketLauncher
+  CWeaponVisionTower

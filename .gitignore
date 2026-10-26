@@ -1,0 +1,16 @@
+# Build output
+build*/
+out/
+*.exe
+*.pdb
+*.ilk
+.vs/
+.vscode/
+CMakeUserPresets.json
+
+# Original game data (extracted locally with tools/extract_assets.py)
+data/*
+!data/README.md
+
+# Runtime
+projecty.log
