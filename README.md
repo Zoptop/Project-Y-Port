@@ -10,8 +10,8 @@ A personal, faithful PC port of **ProjectY** (Luminence Labs, Android, 2015, v1.
 |---|---|---|
 | 0 | Project skeleton: CMake, SDL2 window + OpenGL context, data folder, config and strings loading, original frame timing | done (Windows build verified in CI) |
 | 1 | Bit-exact maths core: fdlibm float, `CMath` (OGRE-derived) + trig tables, `CRng`/`CRngSafe` | done, verified |
-| 2 | Assets and renderer: meshes, textures, GLSL shaders, camera, terrain/water | next |
-| 3 | Level loading and map scripts | |
+| 2 | Assets and renderer: meshes, textures, GLSL shaders, camera, terrain/water | done (map viewer; all 46 original shaders compile) |
+| 3 | Level loading and map scripts | next |
 | 4 | Simulation: units, buildings, weapons, navmesh | |
 | 5 | Mouse/keyboard input, HUD, menus | |
 | 6 | AI | |
@@ -43,14 +43,28 @@ python tools\extract_assets.py --apk path\to\ProjectY.apk --maps path\to\map_zip
 
 This fills `data/` (see [data/README.md](data/README.md)). Then run `build\Release\ProjectY.exe` from the repository folder, or pass `--data <folder>`.
 
-Command-line options: `--data <dir>`, `--width N`, `--height N`, `--fullscreen`, `--frames N` (quit after N frames).
+Command-line options: `--data <dir>`, `--width N`, `--height N`, `--fullscreen`, `--frames N` (quit after N frames), `--map ID` (start map, default 1), `--zoom Z`, `--cam X Y`, `--yaw DEG`, `--screenshot file.png` (saves the last frame; use with `--frames`), `--check-shaders` (compile every `.gfx` and exit).
+
+### Map viewer controls (phase 2)
+
+| Input | Action |
+|---|---|
+| Left-drag | Pan (the ground point under the cursor follows the mouse) |
+| Mouse wheel | Zoom; zooming out below 1.0 switches to the strategy view |
+| Right-drag | Rotate the camera |
+| WASD / arrow keys | Scroll |
+| Page Up / Page Down | Next / previous map |
+| Esc | Quit |
 
 ## Layout
 
 ```
 src/core/       deterministic engine code (no platform dependencies)
+src/render/     meshes, textures, shaders, camera (CMesh, CTexture, CGLSLProgram, CCameraLevel)
+src/game/       game classes (CLevel so far)
+third_party/    stb_image / stb_image_write (public domain)
 src/platform/   SDL2 shell replacing the Android Java layer, GL function loading
 tests/          unit tests + cross-platform determinism digest
-tools/          asset extraction, fdlibm generator, differential-test probe
+tools/          asset extraction, fdlibm generator, differential-test probe, Unicorn emulator harness (tools/emu)
 docs/           architecture, determinism rules, reverse-engineering notes (docs/re/)
 ```

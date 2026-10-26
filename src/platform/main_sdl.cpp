@@ -5,20 +5,34 @@
 // GL2View.Draw -> CEngine::draw every frame, MotionEvent -> touch input,
 // AppOnPause/Resume, KeyBack/KeyMenu. This file plays that role with SDL2.
 //
-// Phase 0 scope: window + GL context, data directory, CMath/CConfig/CTxtLoc
-// initialisation, and the original frame-time logic of CEngine::draw
-// (dt = elapsed ms / 1000, capped at 0.2 s, times the game-speed factor).
+// Current scope (phase 2): a map viewer. It loads a map with the original
+// assets and draws it through the ported renderer (terrain, water, map
+// props, sector borders, strategy view), with mouse/keyboard camera control.
 #include <SDL.h>
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <set>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "core/CConfig.h"
 #include "core/CMath.h"
+#include "core/CMemoryFile.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
+#include "game/CLevel.h"
 #include "platform/GLFunctions.h"
+#include "render/CCamera.h"
+#include "render/CGLSLProgram.h"
+#include "render/CMesh.h"
+#include "render/CTexture.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image_write.h"
 
 using namespace py;
 
@@ -29,27 +43,33 @@ struct Options {
     int width = 1280;
     int height = 720;
     bool fullscreen = false;
-    int frames = -1;   // run N frames then quit (for automated tests)
+    int frames = -1;            // run N frames then quit (automated tests)
+    int map = 1;
+    std::string screenshot;     // write a PNG of the last frame
+    float zoom = -1.0f;         // initial zoom (default 2.0 = closest)
+    float camX = 1e9f, camY = 1e9f;
+    float yawDeg = 0.0f;
+    bool checkShaders = false;  // compile every .gfx and exit (non-zero on failure)
 };
 
 Options parseArgs(int argc, char** argv) {
     Options o;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
-        auto next = [&](int& out) {
-            if (i + 1 < argc) out = std::atoi(argv[++i]);
-        };
-        if (a == "--data" && i + 1 < argc) {
-            o.dataDir = argv[++i];
-        } else if (a == "--width") {
-            next(o.width);
-        } else if (a == "--height") {
-            next(o.height);
-        } else if (a == "--fullscreen") {
-            o.fullscreen = true;
-        } else if (a == "--frames") {
-            next(o.frames);
-        }
+        auto nextS = [&]() -> std::string { return i + 1 < argc ? argv[++i] : ""; };
+        if (a == "--data") o.dataDir = nextS();
+        else if (a == "--width") o.width = std::atoi(nextS().c_str());
+        else if (a == "--height") o.height = std::atoi(nextS().c_str());
+        else if (a == "--fullscreen") o.fullscreen = true;
+        else if (a == "--frames") o.frames = std::atoi(nextS().c_str());
+        else if (a == "--map") o.map = std::atoi(nextS().c_str());
+        else if (a == "--screenshot") o.screenshot = nextS();
+        else if (a == "--zoom") o.zoom = static_cast<float>(std::atof(nextS().c_str()));
+        else if (a == "--cam") {
+            o.camX = static_cast<float>(std::atof(nextS().c_str()));
+            o.camY = static_cast<float>(std::atof(nextS().c_str()));
+        } else if (a == "--yaw") o.yawDeg = static_cast<float>(std::atof(nextS().c_str()));
+        else if (a == "--check-shaders") o.checkShaders = true;
     }
     return o;
 }
@@ -61,15 +81,16 @@ float speedFactor(int setting) {
     return table[setting];
 }
 
-bool createContext(SDL_Window* win, SDL_GLContext* out) {
-    // Prefer desktop GL 3.3 core; fall back to GLES 2.0 (e.g. via ANGLE).
+bool createContext(SDL_Window* win, SDL_GLContext* out, bool* isES) {
+    // Prefer desktop GL 3.3 core; fall back to GLES 3.0 / 2.0 (e.g. via ANGLE).
     struct Attempt {
         int profile, major, minor;
+        bool es;
         const char* name;
     } attempts[] = {
-        {SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, "OpenGL 3.3 core"},
-        {SDL_GL_CONTEXT_PROFILE_ES, 3, 0, "OpenGL ES 3.0"},
-        {SDL_GL_CONTEXT_PROFILE_ES, 2, 0, "OpenGL ES 2.0"},
+        {SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, false, "OpenGL 3.3 core"},
+        {SDL_GL_CONTEXT_PROFILE_ES, 3, 0, true, "OpenGL ES 3.0"},
+        {SDL_GL_CONTEXT_PROFILE_ES, 2, 0, true, "OpenGL ES 2.0"},
     };
     for (const auto& a : attempts) {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, a.profile);
@@ -78,10 +99,57 @@ bool createContext(SDL_Window* win, SDL_GLContext* out) {
         if (SDL_GLContext ctx = SDL_GL_CreateContext(win)) {
             CUtils::log("GL context: %s", a.name);
             *out = ctx;
+            *isES = a.es;
             return true;
         }
     }
     return false;
+}
+
+// CEngine::initOpenGL state
+void initOpenGLState() {
+    gl::Hint(0x8192, 0x1102);    // GL_GENERATE_MIPMAP_HINT, GL_NICEST (ignored by core profiles)
+    gl::GetError();
+    gl::Enable(0x0B71);          // GL_DEPTH_TEST
+    gl::Enable(0x0B44);          // GL_CULL_FACE
+    gl::Disable(0x0BD0);         // GL_DITHER
+    gl::DepthMask(1);
+    gl::DepthFunc(0x0201);       // GL_LESS
+    gl::CullFace(0x0405);        // GL_BACK
+    gl::FrontFace(0x0901);       // GL_CCW
+}
+
+void saveScreenshot(const std::string& path, int w, int h) {
+    std::vector<unsigned char> px(static_cast<size_t>(w) * h * 4);
+    gl::ReadPixels(0, 0, w, h, 0x1908, 0x1401, px.data());   // GL_RGBA, GL_UNSIGNED_BYTE
+    stbi_flip_vertically_on_write(1);
+    if (stbi_write_png(path.c_str(), w, h, 4, px.data(), w * 4)) CUtils::log("screenshot written: %s", path.c_str());
+}
+
+// Compiles and links every .gfx in data/ and data/add/; returns the number of failures.
+int checkAllShaders() {
+    std::set<std::string> names;
+    for (const std::string& dir : {CUtils::dataPath(""), CUtils::dataPath("add")}) {
+        std::error_code ec;
+        for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+            if (e.path().extension() == ".gfx") names.insert(e.path().filename().string());
+    }
+    int failed = 0;
+    for (const auto& n : names) {
+        const bool ok = CGLSLProgramManager::get().getGLSLProgram(n) != nullptr;
+        if (!ok) ++failed;
+        CUtils::log("shader %-40s %s", n.c_str(), ok ? "ok" : "FAILED");
+    }
+    CUtils::log("shader check: %d of %d failed", failed, static_cast<int>(names.size()));
+    return failed;
+}
+
+std::vector<int> availableMaps() {
+    std::vector<int> ids;
+    for (int id : {201, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312,
+                   313, 314, 315, 316, 317, 318})
+        if (!CMemoryFile::resolve("map" + std::to_string(id) + "English.txt").empty()) ids.push_back(id);
+    return ids;
 }
 
 }  // namespace
@@ -93,11 +161,10 @@ int main(int argc, char** argv) {
     CUtils::startTimer();
     CUtils::log("ProjectY PC port - starting (data: %s)", opt.dataDir.c_str());
 
-    // --- CEngine::init equivalents (phase 0 subset) ---
+    // --- CEngine::init equivalents ---
     CUtils::log("Math init");
     CMath math(4096);
     CUtils::log("Math init done");
-
     if (!CConfig::get().load(CUtils::dataPath("config.txt"))) {
         const std::string msg = "Could not read " + CUtils::dataPath("config.txt") +
                                 "\n\nRun tools/extract_assets.py to create the data folder, "
@@ -116,17 +183,17 @@ int main(int argc, char** argv) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    const std::string title = "ProjectY " + version + " (PC port)";
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (opt.fullscreen) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    SDL_Window* window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                          opt.width, opt.height, flags);
+    SDL_Window* window = SDL_CreateWindow(("ProjectY " + version + " (PC port)").c_str(), SDL_WINDOWPOS_CENTERED,
+                                          SDL_WINDOWPOS_CENTERED, opt.width, opt.height, flags);
     if (!window) {
         CUtils::log("SDL_CreateWindow failed: %s", SDL_GetError());
         return 1;
     }
     SDL_GLContext context = nullptr;
-    if (!createContext(window, &context)) {
+    bool isES = false;
+    if (!createContext(window, &context, &isES)) {
         CUtils::log("No usable OpenGL context: %s", SDL_GetError());
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ProjectY", "No usable OpenGL context.", window);
         return 1;
@@ -137,19 +204,118 @@ int main(int argc, char** argv) {
                 reinterpret_cast<const char*>(gl::GetString(gl::VENDOR)),
                 reinterpret_cast<const char*>(gl::GetString(gl::RENDERER)),
                 reinterpret_cast<const char*>(gl::GetString(gl::VERSION)), missing);
+    CGLSLProgram::setUseES(isES);
+    if (!isES) {   // core profile needs a vertex array object
+        unsigned vao = 0;
+        gl::GenVertexArrays(1, &vao);
+        gl::BindVertexArray(vao);
+    }
+    initOpenGLState();
+
+    if (opt.checkShaders) {
+        const int failed = checkAllShaders();
+        CGLSLProgramManager::get().clear();
+        SDL_GL_DeleteContext(context);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return failed == 0 ? 0 : 2;
+    }
+
+    // --- level ---
+    const std::vector<int> maps = availableMaps();
+    int mapId = opt.map;
+    auto level = std::make_unique<CLevel>();
+    CCameraLevel cam;
+    auto loadLevel = [&](int id) {
+        CMeshManager::get().clear();
+        CTextureManager::get().clear();
+        CGLSLProgramManager::get().clear();
+        level = std::make_unique<CLevel>();
+        if (!level->load(id)) {
+            CUtils::log("map %d failed to load", id);
+            return false;
+        }
+        cam = CCameraLevel();
+        cam.setMapSize(level->mapWidth(), level->mapHeight());
+        cam.setTarget(0, 0);
+        SDL_SetWindowTitle(window, ("ProjectY " + version + " - " + level->mapName() + " (map " +
+                                    std::to_string(id) + ")").c_str());
+        return true;
+    };
+    if (!loadLevel(mapId)) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ProjectY",
+                                 ("Could not load map " + std::to_string(mapId) + ". Are the map files in data/add?").c_str(),
+                                 window);
+        return 1;
+    }
+    if (opt.zoom > 0) cam.setZoom(opt.zoom);
+    if (opt.camX < 1e8f) cam.setTarget(opt.camX, opt.camY);
+    cam.rotateBy(opt.yawDeg * 3.14159265f / 180.0f);
+    if (cam.isStrategyView()) {   // start already settled at the strategy tilt
+        for (int i = 0; i < 20; ++i) cam.timeUpdate(0.1f);
+    }
 
     // --- frame loop: the timing half of CEngine::draw ---
     int speedSetting = 3;   // "normal" (factor 1.0); CEngine+0x1b8
     float lastTime = CUtils::getTimer();
-    float fpsTimer = 0.0f;
-    int fpsFrames = 0;
+    float gameTime = 0.0f;
     bool running = true;
     int frame = 0;
+    bool dragPan = false, dragRotate = false;
+    Vec3 dragAnchor;
+    int lastMouseX = 0;
     while (running) {
+        int w = 0, h = 0;
+        SDL_GL_GetDrawableSize(window, &w, &h);
+        cam.setViewport(w, h);
+        cam.refresh();
+
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) running = false;
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = false;   // KeyBack
+            switch (e.type) {
+                case SDL_QUIT: running = false; break;
+                case SDL_KEYDOWN:
+                    if (e.key.keysym.sym == SDLK_ESCAPE) running = false;   // KeyBack
+                    if (e.key.keysym.sym == SDLK_PAGEUP || e.key.keysym.sym == SDLK_PAGEDOWN) {
+                        size_t idx = 0;
+                        for (size_t i = 0; i < maps.size(); ++i)
+                            if (maps[i] == mapId) idx = i;
+                        idx = (e.key.keysym.sym == SDLK_PAGEDOWN) ? (idx + 1) % maps.size()
+                                                                 : (idx + maps.size() - 1) % maps.size();
+                        mapId = maps[idx];
+                        loadLevel(mapId);
+                    }
+                    break;
+                case SDL_MOUSEWHEEL: cam.zoomBy(e.wheel.y > 0 ? 1.15f : 1.0f / 1.15f); break;
+                case SDL_MOUSEBUTTONDOWN:
+                    if (e.button.button == SDL_BUTTON_LEFT) {
+                        dragPan = cam.screenToGround(static_cast<float>(e.button.x), static_cast<float>(e.button.y),
+                                                     dragAnchor);
+                    } else if (e.button.button == SDL_BUTTON_RIGHT) {
+                        dragRotate = true;
+                        lastMouseX = e.button.x;
+                    }
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    if (e.button.button == SDL_BUTTON_LEFT) dragPan = false;
+                    if (e.button.button == SDL_BUTTON_RIGHT) dragRotate = false;
+                    break;
+                case SDL_MOUSEMOTION:
+                    if (dragPan) {
+                        Vec3 now;
+                        if (cam.screenToGround(static_cast<float>(e.motion.x), static_cast<float>(e.motion.y), now)) {
+                            cam.scrollBy(dragAnchor.x - now.x, dragAnchor.y - now.y);
+                            cam.refresh();
+                        }
+                    }
+                    if (dragRotate) {
+                        // CCameraLevel::rotateCam: psi = psi0 + (x0 - x) * 4 / screenWidth
+                        cam.rotateBy(static_cast<float>(lastMouseX - e.motion.x) * 4.0f / static_cast<float>(w));
+                        lastMouseX = e.motion.x;
+                    }
+                    break;
+                default: break;
+            }
         }
 
         const float now = CUtils::getTimer();
@@ -157,26 +323,40 @@ int main(int argc, char** argv) {
         lastTime = now;
         if (dt > 0.2f) dt = 0.2f;   // 0x3e4ccccd
         dt = dt * speedFactor(speedSetting);
+        gameTime += dt;
 
-        fpsTimer += dt;
-        ++fpsFrames;
-        if (fpsTimer >= 1.0f) {
-            CUtils::log("fps %.1f", static_cast<float>(fpsFrames) / fpsTimer);
-            fpsTimer = 0.0f;
-            fpsFrames = 0;
+        // keyboard scrolling, relative to the camera yaw
+        const Uint8* keys = SDL_GetKeyboardState(nullptr);
+        float fx = 0, fy = 0;
+        if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) fy += 1;
+        if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) fy -= 1;
+        if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) fx += 1;
+        if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) fx -= 1;
+        if (fx != 0 || fy != 0) {
+            const float speed = 600.0f / cam.zoom() * dt;
+            const float c = std::cos(cam.yaw()), s = std::sin(cam.yaw());
+            cam.scrollBy((fx * c - fy * s) * speed, (fx * s + fy * c) * speed);
         }
+        cam.timeUpdate(dt);
+        cam.refresh();
 
-        int w = 0, h = 0;
-        SDL_GL_GetDrawableSize(window, &w, &h);
         gl::Viewport(0, 0, w, h);
-        gl::ClearColor(0.05f, 0.07f, 0.10f, 1.0f);
+        gl::ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        SDL_GL_SwapWindow(window);
+        level->draw(cam, gameTime);
 
-        if (opt.frames > 0 && ++frame >= opt.frames) running = false;
+        ++frame;
+        const bool last = opt.frames > 0 && frame >= opt.frames;
+        if (last && !opt.screenshot.empty()) saveScreenshot(opt.screenshot, w, h);
+        SDL_GL_SwapWindow(window);
+        if (last) running = false;
     }
 
     CUtils::log("shutting down");
+    level.reset();
+    CMeshManager::get().clear();
+    CTextureManager::get().clear();
+    CGLSLProgramManager::get().clear();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();

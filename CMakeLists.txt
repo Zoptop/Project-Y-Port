@@ -63,6 +63,7 @@ add_library(projecty_core STATIC
   src/core/CUtils.cpp
   src/core/CConfig.cpp
   src/core/CTxtLoc.cpp
+  src/core/CMemoryFile.cpp
 )
 target_include_directories(projecty_core PUBLIC src)
 projecty_strict_float(projecty_core)
@@ -73,6 +74,24 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 # ---------------------------------------------------------------------------
+# Engine library: rendering + game code (OpenGL entry points are loaded at
+# runtime, so this links without an OpenGL SDK)
+# ---------------------------------------------------------------------------
+add_library(projecty_engine STATIC
+  src/platform/GLFunctions.cpp
+  src/render/CTexture.cpp
+  src/render/CMesh.cpp
+  src/render/CGLSLProgram.cpp
+  src/render/CCamera.cpp
+  src/game/CLevel.cpp
+)
+target_include_directories(projecty_engine PUBLIC src)
+target_include_directories(projecty_engine SYSTEM PUBLIC third_party)
+target_link_libraries(projecty_engine PUBLIC projecty_core)
+projecty_strict_float(projecty_engine)
+projecty_warnings(projecty_engine)
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 if(PROJECTY_BUILD_TESTS)
@@ -81,8 +100,9 @@ if(PROJECTY_BUILD_TESTS)
     tests/test_main.cpp
     tests/test_fdlibm.cpp
     tests/test_core.cpp
+    tests/test_assets.cpp
   )
-  target_link_libraries(projecty_tests PRIVATE projecty_core)
+  target_link_libraries(projecty_tests PRIVATE projecty_engine)
   projecty_strict_float(projecty_tests)
   add_test(NAME projecty_tests COMMAND projecty_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 endif()
@@ -109,9 +129,8 @@ if(PROJECTY_BUILD_GAME)
   if(SDL2_FOUND)
     add_executable(ProjectY WIN32
       src/platform/main_sdl.cpp
-      src/platform/GLFunctions.cpp
     )
-    target_link_libraries(ProjectY PRIVATE projecty_core)
+    target_link_libraries(ProjectY PRIVATE projecty_engine)
     if(TARGET SDL2::SDL2main)
       target_link_libraries(ProjectY PRIVATE SDL2::SDL2main)
     endif()

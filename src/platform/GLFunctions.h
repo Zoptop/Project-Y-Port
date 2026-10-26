@@ -91,7 +91,9 @@ constexpr GLenum SHADING_LANGUAGE_VERSION = 0x8B8C;
     X(void, Uniform1f, GLint, GLfloat)                                                  \
     X(void, Uniform3fv, GLint, GLsizei, const GLfloat*)                                 \
     X(void, Uniform4fv, GLint, GLsizei, const GLfloat*)                                 \
-    X(void, UniformMatrix4fv, GLint, GLsizei, GLboolean, const GLfloat*)
+    X(void, UniformMatrix4fv, GLint, GLsizei, GLboolean, const GLfloat*)                \
+    X(void, ReadPixels, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*)          \
+    X(void, Hint, GLenum, GLenum)
 
 #define PY_GL_DECLARE(ret, name, ...) \
     using PFN_##name = ret(PY_GLAPI*)(__VA_ARGS__); \
