@@ -17,6 +17,12 @@ struct CVector2 {
     bool operator==(const CVector2& o) const { return x == o.x && y == o.y; }
     bool operator!=(const CVector2& o) const { return !(*this == o); }
 
+    float squaredLength() const { return x * x + y * y; }
+    float dotProduct(const CVector2& o) const { return x * o.x + y * o.y; }
+
+    // Ghidra 0x12b55c: sqrtf((x-o.x)^2 + (y-o.y)^2) through the game's fdlibm.
+    float distance(const CVector2& o) const;
+
     static const CVector2 ZERO;
 };
 

@@ -1,13 +1,15 @@
 // FloatBits.h - bit-exact float helpers shared by the deterministic core.
 //
 // The original engine was compiled for ARM with software floating point
-// (libgcc __addsf3 / __mulsf3 / __fixsfsi ...). Every float operation is
-// therefore a correctly rounded IEEE-754 binary32 operation, evaluated in
-// source order. On x86-64 with SSE (and the flags set in CMakeLists.txt:
-// no FMA contraction, no fast-math) plain C++ float arithmetic gives the
-// same results. The only behaviours that differ are float->int conversions
-// of out-of-range values and NaN, which libgcc saturates; the helpers
-// below reproduce that.
+// (libgcc __addsf3 / __mulsf3 / __fixsfsi ...). Nearly every float operation
+// is a correctly rounded IEEE-754 binary32 operation evaluated in source
+// order, so on x86-64/ARM64 with SSE/NEON (and the flags set in
+// CMakeLists.txt: no FMA contraction, no fast-math) plain C++ float
+// arithmetic gives the same results. The exceptions, reproduced below:
+//   - float->int conversion of out-of-range values and NaN (libgcc saturates)
+//   - the NaN bit patterns produced by inf/NaN arithmetic
+//   - __aeabi_fadd rounds wrongly when the sum is subnormal (sf_add)
+// py::Real (Real.h) applies all of these to every operation.
 #pragma once
 
 #include <cstdint>
@@ -67,7 +69,9 @@ inline bool isNaNBits(uint32_t b) { return isSpecial(b) && (b & 0x7fffffu) != 0;
 inline bool isZeroBits(uint32_t b) { return (b & 0x7fffffffu) == 0; }
 }  // namespace detail
 
-inline float sf_add(float a, float b) {
+// IEEE add with libgcc's inf/NaN rules (correct for subnormal results,
+// unlike the original - use sf_add).
+inline float sf_add_ieee(float a, float b) {
     const uint32_t A = fbits(a), B = fbits(b);
     const bool sa = detail::isSpecial(A), sb = detail::isSpecial(B);
     if (!sa && !sb) return a + b;
@@ -85,7 +89,6 @@ inline float sf_add(float a, float b) {
     return bitsf(r0 | 0x00400000u);
 }
 
-inline float sf_sub(float a, float b) { return sf_add(a, bitsf(fbits(b) ^ 0x80000000u)); }
 
 inline float sf_mul(float a, float b) {
     const uint32_t A = fbits(a), B = fbits(b);
@@ -116,5 +119,115 @@ inline float sf_div(float a, float b) {
     }
     return a / b;
 }
+
+// ---------------------------------------------------------------------------
+// The original's __aeabi_fadd (libgcc ARM ieee754-sf.S, ELF 0x405680) is not
+// IEEE-correct for subnormal results: its 1-bit renormalisation path
+// ("Lad_a") rounds with exponent -1 instead of denormalising, and the
+// denormal-operand path has the same problem, so e.g. 0x80da6de2 + 0x0086959b
+// gives 0x8027b08e where IEEE gives 0x8053d847. About 5% of sums whose result
+// is subnormal differ. __mulsf3 and __divsf3 are exact. lgcc_fadd() is a
+// line-by-line port of the routine (ARM flags included), used whenever an
+// operand or the IEEE result is subnormal; all other sums are identical to
+// the hardware's and take the fast path. Verified against the emulated
+// original by tools/emu/check_vecmath.py ("libgcc.fadd").
+// ---------------------------------------------------------------------------
+namespace detail {
+inline uint32_t lgcc_fadd_bits(uint32_t r0, uint32_t r1) {
+    uint32_t r2 = r0 << 1, r3 = r1 << 1;
+    // zero operand, equal magnitudes, inf/NaN
+    if (r2 == 0 || r3 == 0 || r2 == r3 || (r2 >> 24) == 0xffu || (r3 >> 24) == 0xffu) {
+        if ((r2 >> 24) == 0xffu || (r3 >> 24) == 0xffu) return fbits(sf_add_ieee(bitsf(r0), bitsf(r1)));
+        if (r2 != r3) return r2 == 0 ? r1 : r0;   // x + 0, 0 + x
+        if (r0 != r1) return 0;                   // x + -x = +0
+        if ((r2 & 0xff000000u) == 0) return (r0 << 1) | (r0 & 0x80000000u);   // denormal doubling
+        if (r2 < 0xfe000000u) return r0 + 0x00800000u;                       // exponent + 1
+        return (r0 & 0x80000000u) | 0x7f800000u;                               // overflow
+    }
+    r2 >>= 24;
+    int32_t diff = static_cast<int32_t>(r3 >> 24) - static_cast<int32_t>(r2);
+    if (diff > 0) {   // make r0 the operand with the larger exponent
+        r2 += static_cast<uint32_t>(diff);
+        const uint32_t t = r0;
+        r0 = r1;
+        r1 = t;
+    } else {
+        diff = -diff;
+    }
+    r3 = static_cast<uint32_t>(diff);
+    if (r3 > 25) return r0;
+    const bool neg0 = (r0 & 0x80000000u) != 0;
+    r0 = (r0 | 0x00800000u) & 0x00ffffffu;
+    if (neg0) r0 = 0u - r0;
+    const bool neg1 = (r1 & 0x80000000u) != 0;
+    r1 = (r1 | 0x00800000u) & 0x00ffffffu;
+    if (neg1) r1 = 0u - r1;
+    if (r2 == r3) {   // Lad_d: one or both operands denormal
+        r1 ^= 0x00800000u;
+        if (r2 == 0) {
+            r0 ^= 0x00800000u;
+            r2 += 1;
+        } else {
+            r3 -= 1;
+        }
+    }
+    // Lad_x: compensate for the exponent overlapping the mantissa MSB
+    r2 -= 1;
+    r0 = r0 + static_cast<uint32_t>(static_cast<int32_t>(r1) >> r3);
+    const uint32_t sh = 32 - r3;
+    r1 = sh >= 32 ? 0u : (r1 << sh);
+    const uint32_t sign = r0 & 0x80000000u;
+    if (sign) {
+        const uint32_t c = (r1 == 0) ? 1u : 0u;   // rsbs r1, r1, #0
+        r1 = 0u - r1;
+        r0 = ~r0 + c;                             // rsc r0, r0, #0
+    }
+    if (r0 < 0x00800000u) {   // Lad_a
+        const uint32_t c = r1 >> 31;
+        r1 <<= 1;
+        r0 = r0 + r0 + c;
+        r2 -= 1;
+        if ((r0 & 0x00800000u) == 0) {
+            int lz = 32;   // clz(r0)
+            for (uint32_t t = r0; t; t >>= 1) --lz;
+            const int32_t sh2 = lz - 8;
+            const int32_t e = static_cast<int32_t>(r2) - sh2;
+            r0 = sh2 >= 32 ? 0u : (r0 << sh2);
+            if (e >= 0) return (r0 + (static_cast<uint32_t>(e) << 23)) | sign;
+            const uint32_t n = static_cast<uint32_t>(-e);
+            return sign | (n >= 32 ? 0u : (r0 >> n));
+        }
+    } else if (r0 >= 0x01000000u) {
+        const uint32_t c = r0 & 1u;
+        r0 >>= 1;
+        r1 = (c << 31) | (r1 >> 1);
+        r2 += 1;
+        if (r2 >= 254u) return sign | 0x7f800000u;
+    }
+    // Lad_e: round to nearest even
+    r0 = r0 + (r2 << 23) + (r1 >= 0x80000000u ? 1u : 0u);
+    if (r1 == 0x80000000u) r0 &= ~1u;
+    return r0 | sign;
+}
+
+inline bool tinyOrZero(uint32_t b) { return (b & 0x7f800000u) == 0; }
+}  // namespace detail
+
+// a + b exactly as the original's __aeabi_fadd (NaN rules and subnormal bug).
+inline float lgcc_fadd(float a, float b) {
+    const float r = sf_add_ieee(a, b);
+    const uint32_t A = fbits(a), B = fbits(b);
+    if (detail::tinyOrZero(fbits(r)) || detail::tinyOrZero(A) || detail::tinyOrZero(B))
+        return bitsf(detail::lgcc_fadd_bits(A, B));
+    return r;
+}
+// a - b as __subsf3: flip the sign of b, then __aeabi_fadd.
+inline float lgcc_fsub(float a, float b) { return lgcc_fadd(a, bitsf(fbits(b) ^ 0x80000000u)); }
+
+// The original's float add/sub (__aeabi_fadd/__subsf3), bit for bit: use
+// these (or py::Real) for any sum in simulation code whose operands or result
+// can be subnormal, inf or NaN.
+inline float sf_add(float a, float b) { return lgcc_fadd(a, b); }
+inline float sf_sub(float a, float b) { return lgcc_fsub(a, b); }
 
 }  // namespace py

@@ -64,6 +64,12 @@ add_library(projecty_core STATIC
   src/core/CConfig.cpp
   src/core/CTxtLoc.cpp
   src/core/CMemoryFile.cpp
+  src/core/CVector2.cpp
+  src/core/CVector3.cpp
+  src/core/CQuaternion.cpp
+  src/core/CMatrix3.cpp
+  src/core/CMatrix4.cpp
+  src/core/CPlane.cpp
 )
 target_include_directories(projecty_core PUBLIC src)
 projecty_strict_float(projecty_core)
@@ -146,6 +152,7 @@ if(PROJECTY_BUILD_TESTS)
     tests/test_assets.cpp
     tests/test_level.cpp
     tests/test_nav.cpp
+    tests/test_vecmath.cpp
   )
   target_link_libraries(projecty_tests PRIVATE projecty_engine)
   projecty_strict_float(projecty_tests)

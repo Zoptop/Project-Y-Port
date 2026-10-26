@@ -52,3 +52,20 @@ ProjectY's multiplayer is deterministic lockstep: every client simulates the who
   - Gameplay only calls `sinf`/`tanf` below 2π, to fill the tables.
   - A regression test pins the original behaviour.
 - The old float fdlibm is less accurate than modern libms (≈1.3 ulp `sinf`, ≈2.8 ulp `asinf`, ≈3 ulp `powf`). The port reproduces those errors exactly instead of "fixing" them.
+
+## The original's float add is wrong for subnormal sums
+
+`__aeabi_fadd` in libProjectY.so (libgcc's ARM `ieee754-sf.S`, ELF 0x405680)
+rounds wrongly when the result is subnormal: about 5% of such sums differ from
+IEEE. For example, `0x80da6de2 + 0x0086959b` gives `0x8027b08e`, where IEEE
+gives `0x8053d847`. Multiply and divide are exact.
+
+- `py::sf_add` / `py::sf_sub` (FloatBits.h) are a port of the routine. They
+  take the hardware path unless an operand or the result is zero or subnormal.
+- `py::Real` (Real.h) uses them, so simulation state stored as `Real` follows
+  the original automatically.
+- The game's fdlibm scales subnormal inputs before doing arithmetic. A
+  subnormal-focused run of the emulator check (sin/cos/tan/asin/atan/log/
+  exp/sqrt/atan2/pow/fmod; inputs that are subnormal, tiny or near underflow)
+  found 0 mismatches against plain float arithmetic, so `fdlibm.cpp` keeps
+  using plain floats.
