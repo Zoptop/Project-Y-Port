@@ -107,6 +107,12 @@ public:
     CGridCell* updateGridCell(const CVector3& p, unsigned id, CGridCell* old);      // Ghidra 0x2dfe74
     CGridCell* updateGridCellFar(const CVector3& p, unsigned id, CGridCell* old);   // Ghidra 0x2e0054
 
+    // ---- resources mode (game type 3); used by CUnit (stubs in stubs_cunit.cpp)
+    int getResCellIndex(const CVector2& p);                    // Ghidra 0x2dd6a8 (-1 outside)
+    Real getResValue(int cellIndex);                           // Ghidra 0x2dd994
+    Real consumeRes(const CVector2& p, Real amount);           // Ghidra 0x2dd4cc: amount actually taken
+    bool findRes(const CVector2& p, const CVector2& preferred, Real radius, CVector2* found);   // Ghidra 0x2dee28
+
     void update();          // Ghidra 0x2df380 (per step, from CGame::timeUpdate)
     void calcChecksum();    // Ghidra 0x2dd074
     const std::string& detailTexture(int i) const { return mDetailTextureNames[i]; }   // 0..2 = MAP1..3

@@ -79,9 +79,10 @@ public:
     const std::list<CSceneObject*>& sceneObjects() const { return mSceneObjects; }
 
     // ---- queries used by the game code (Ghidra addresses in CGame.cpp)
-    CUnit* getClosestUnit(const CVector2& pos, CPlayer* player, int filter, unsigned excludeId, bool alive);
-    CBuilding* getClosestBuilding(const CVector2& pos, CPlayer* player, int type, int subtype, bool flag);
-    CBuilding* getClosestBuildingWithCap(const CVector2& pos, CPlayer* player, uint32_t flags, bool flag);
+    // Ghidra 0x178cbc: player null = any non-neutral owner, type 0 = any
+    CUnit* getClosestUnit(const CVector2& pos, CPlayer* player, unsigned type, bool skipCommanders, unsigned excludeId);
+    CBuilding* getClosestBuilding(const CVector2& pos, CPlayer* player, unsigned type, unsigned excludeId, bool anyOwner);   // 0x17962c
+    CBuilding* getClosestBuildingWithCap(const CVector2& pos, CPlayer* player, uint32_t caps, unsigned excludeId, unsigned arg);   // 0x1794c0
     CBuilding* getAvailableAirstrikeBuilding(CPlayer* player);
     Real getFOWvisibility(CPlayer* player, int mode, Real x, Real y, int range, bool* visible);
     void checkGameEndingCondition(bool surrender, CPlayer* player);
@@ -108,6 +109,8 @@ public:
     unsigned mNextProjectileID = 1;                          // +0x140
     unsigned mNextWeaponID = 1;                              // +0x15c
     bool mStarted = false;                                   // +0x160 set by init (new game)
+    Real mAIDamageFactor = 1.0f;                             // +0x168 "AIDamageFactor" (CUnit::hit, AI attackers)
+    Real mAIArmorFactor = 1.0f;                              // +0x16c "AIArmorFactor" (CUnit::hit, AI-owned units)
     int mAIExtraDriverXP = 0;                                // +0x170 (updateAIFactorsFromDifficulty)
     int mGameEndingCondition = 0;                            // +0x174
     bool mFlag180 = false;                                   // +0x180

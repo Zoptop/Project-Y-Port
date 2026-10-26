@@ -64,3 +64,12 @@ seconds per map) and runs a scenario of path and nearest-poly queries and
 obstacle edits. `tools/verify/compare_nav.py` runs the same scenario through
 `build/nav_probe` and compares the results line by line for every
 `navmesh*.dat`. See docs/re/navmesh_phase4.md.
+
+## CUnit oracle
+
+`cunit_oracle.py` starts map 1 in the original, switches units to the plain
+`CUnit` vtable (weapons removed) and calls the original `CUnit::control`,
+`addPotentialNextWaypoint`, `getInfluenceAndFalloff`, `heal`,
+`addPotentialCollisionAvoidance` and a 300-step drive (`setUnitOrderMoveToLocation`
++ `timeUpdate`) on hand-made states. Its output is `tests/cunit_oracle_ref.inc`,
+which `tests/test_cunit.cpp` replays on the port (about 2 minutes to regenerate).
