@@ -17,6 +17,7 @@
 #include "../src/core/CUtils.h"
 #include "../src/core/FloatBits.h"
 #include "../src/game/CBuilding.h"
+#include "../src/game/CCommandManager.h"
 #include "../src/game/CEngine.h"
 #include "../src/game/CGame.h"
 #include "../src/game/CLevel.h"
@@ -336,4 +337,22 @@ TEST(level_resource_grid) {
     CHECK(level.getResValue(10, 0) == 0.0f);
     level.addResourceDot(CVector2(-450.0f, -450.0f), 1.0f);
     CHECK(level.mRes[90] == 1.0f && level.getResValue(CVector2(-450.0f, -450.0f)) == 500.0f);
+}
+
+// CCommandManagerLocal (0x158740): commands address objects by id and
+// check the object kind; a building id is not a unit.
+TEST(command_manager_local) {
+    if (!haveMap(1)) return;
+    auto game = loadMap(1);
+    CCommandManager* cm = game->getCommandManager();
+    CHECK(cm != nullptr && !cm->isForcedPause());
+    CUnit* u = game->getAsUnit(1101);
+    CHECK(u != nullptr);
+    if (!u) return;
+    cm->cmdUnitOrderSetMaxVelocityLimiter(1, 1101, 0.5f);
+    CHECK(u->mMaxVelocityLimiter == 0.5f);
+    cm->cmdUnitOrderSetMaxVelocityLimiter(1, 1001, 0.25f);   // a building: ignored
+    cm->cmdUnitOrderSetMaxVelocityLimiter(1, 99999, 0.25f);  // no object
+    CHECK(u->mMaxVelocityLimiter == 0.5f);
+    CEngine::getSingletonPtr()->mGame = nullptr;
 }

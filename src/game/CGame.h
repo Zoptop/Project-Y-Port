@@ -27,6 +27,7 @@ namespace py {
 
 class CBuilding;
 class CCameraLevel;
+class CCommandManager;
 class CEngine;
 class CGameObject;
 class CLevel;
@@ -101,6 +102,7 @@ public:
     void checkGameEndingCondition(bool surrender, CPlayer* player);
 
     CLevel* getLevel() const { return mLevel.get(); }
+    CCommandManager* getCommandManager() const { return mCommandManager.get(); }
     CGameFeatures& features() { return mFeatures; }
 
     // Placeholder object renderer until the renderer phase (CGamePreview.cpp).
@@ -131,6 +133,7 @@ public:
     bool mInTimeUpdateSimple = false;                        // +0x1e0
     uint32_t mRngBeforeTU = 0;                               // +0x1c0 CRngSafe::GetUint(1) at step start
     uint32_t mRngAfterTU = 0;                                // +0x1dc CRngSafe::GetUint(2) at step end
+    std::unique_ptr<CCommandManager> mCommandManager;        // +0x178 (end of init)
     CGameFeatures mFeatures;                                 // +0x188
 };
 

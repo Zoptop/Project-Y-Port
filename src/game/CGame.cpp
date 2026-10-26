@@ -8,6 +8,7 @@
 #include "core/CRng.h"
 #include "core/CUtils.h"
 #include "game/CBuilding.h"
+#include "game/CCommandManager.h"
 #include "game/CEngine.h"
 #include "game/CLevel.h"
 #include "game/CNav.h"
@@ -69,6 +70,11 @@ bool CGame::init(bool fromSavegame, bool headless) {
         e->mGameTime = 0.0f;
         mStarted = true;
     }
+    if (e->mNetworkMode == 2) {
+        // TODO(network phase): CCommandManagerNetworked (lockstep queue, checksums)
+        notPorted("CCommandManagerNetworked");
+    }
+    mCommandManager = std::make_unique<CCommandManagerLocal>();
     mStateHeld = false;
     CUtils::log("Game Init done");
     return ok;
