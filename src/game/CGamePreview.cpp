@@ -57,14 +57,14 @@ void CGame::drawPreview(const CCameraLevel& cam) const {
             name = buildingMesh(o->mType);
         } else {
             const auto* u = static_cast<const CUnit*>(o);
-            if (u->mVehicleId != 0xffffffffu) continue;   // a driver inside a vehicle
+            if (u->mCommandedUnit != 0) continue;   // a driver inside a vehicle
             name = unitMesh(o->mType);
         }
         uint32_t first = 0, count = 0;
         if (!name || !mesh->getSubMeshData(name, first, count)) continue;
-        const float h = o->mRotation * 0.5f;
+        const float h = o->mYaw * 0.5f;
         const Quat q(std::cos(h), 0.0f, 0.0f, std::sin(h));
-        const Mat4 model = Mat4::transform({o->mPosX, o->mPosY, 0.0f}, q, {1, 1, 1});
+        const Mat4 model = Mat4::transform({o->mPosition.x, o->mPosition.y, 0.0f}, q, {1, 1, 1});
         sh->setUniformMVPMatrix(cam.viewProj() * model);
         sh->setUniformLightDir(q.inverse().rotate(mLevel->lightDirection()));
         sh->setUniformPlayerColor(o->mOwner ? o->mOwner->mColor : Vec3(0.7f, 0.7f, 0.7f));

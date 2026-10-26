@@ -125,4 +125,50 @@ int CConfig::getFloats(const std::string& key, float* out, int n) const {
     return count;
 }
 
+void CConfig::updateConfigValue(unsigned& v, const std::string& key) const {
+    v = static_cast<unsigned>(std::atoi(getRaw(key).c_str()));
+}
+
+void CConfig::updateConfigValue(int& v, const std::string& key) const { v = std::atoi(getRaw(key).c_str()); }
+
+void CConfig::updateConfigValue(Real& v, const std::string& key) const {
+    v = static_cast<float>(std::strtod(getRaw(key).c_str(), nullptr));
+}
+
+void CConfig::updateConfigValue(bool& v, const std::string& key) const { v = trim(getRaw(key)) != "false"; }
+
+void CConfig::updateConfigValue(std::string& v, const std::string& key) const { v = trim(getRaw(key)); }
+
+namespace {
+// sscanf("%f ...") as bionic does it: strtod per field, narrowed to float;
+// stops at the first field that does not parse.
+int scanFloats(const std::string& s, Real* out, int n) {
+    const char* p = s.c_str();
+    int count = 0;
+    while (count < n) {
+        char* end = nullptr;
+        const double v = std::strtod(p, &end);
+        if (end == p) break;
+        out[count++] = static_cast<float>(v);
+        p = end;
+    }
+    return count;
+}
+}  // namespace
+
+void CConfig::updateConfigValue(CVector2& v, const std::string& key) const {
+    Real t[2] = {v.x, v.y};
+    scanFloats(getRaw(key), t, 2);
+    v.x = t[0];
+    v.y = t[1];
+}
+
+void CConfig::updateConfigValue(CVector3& v, const std::string& key) const {
+    Real t[3] = {v.x, v.y, v.z};
+    scanFloats(getRaw(key), t, 3);
+    v.x = t[0];
+    v.y = t[1];
+    v.z = t[2];
+}
+
 }  // namespace py

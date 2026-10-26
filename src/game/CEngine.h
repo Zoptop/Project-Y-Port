@@ -46,7 +46,7 @@ public:
     unsigned mNumPlayers = 2;          // +0x128  (players 1..n; 0 is neutral)
     CGame* mGame = nullptr;            // +0x178
     float mGameTime = 0.0f;            // +0x198  seconds, advances while not paused
-    float mFrameDt = 0.0f;             // +0x1a8
+    float mFrameDt = 0.0f;             // +0x1a8  "mDeltaT": the step's dt during CGame::timeUpdate
     int mNetworkMode = 0;              // +0x1b0  2 = network game
     std::string mLanguage = "English"; // +0x1b4
     int mProductionSpeed = 3;          // +0x1b8  "ProductionsSpeedFactor" option
@@ -60,6 +60,7 @@ public:
     unsigned mLocalPlayer = 1;         // +0x254
     bool mCratesEnabled = false;       // +0x258
     int mGameType = 0;                 // +0x2d0  0 standard, 1 campaign/scripted, 3 resources
+    unsigned mCurrentStep = 0;         // +0x310  lockstep step being simulated (0 outside)
 
 private:
     static std::unique_ptr<CEngine> sInstance;

@@ -249,7 +249,7 @@ TEST(level_map1) {
             ++units;
             auto* u = static_cast<CUnit*>(o);
             // skirmish turrets "with driver" go to player 0 and get no driver
-            CHECK(u->mType == UNIT_TURRET && u->mOwner && u->mOwner->mId == 0 && u->mDriverId == 0xffffffffu);
+            CHECK(u->mType == UNIT_TURRET && u->mOwner && u->mOwner->mId == 0 && u->mCommander == 0);
         }
     }
     CHECK_MSG(buildings == 40 && units == 24, "%d %d", buildings, units);
@@ -258,15 +258,16 @@ TEST(level_map1) {
     // building turrets come first (created in CBuildingHQ::init); positions from
     // the independent reference (tools/verify/level_reference.py)
     CUnit* t0 = game->getAsUnit(1101);
-    CHECK(fbits(t0->mPosX) == 0x43be4c81u && fbits(t0->mPosY) == 0x43afdc73u && fbits(t0->mRotation) == 0xc02841a6u);
-    CHECK(game->getAsBuilding(t0->mParentBuildingId)->mType == BUILDING_HQ);
-    CHECK(fbits(game->getAsUnit(1106)->mPosX) == 0x42bacec7u);
+    CHECK(fbits(t0->mPosition.x) == 0x43be4c81u && fbits(t0->mPosition.y) == 0x43afdc73u && fbits(t0->mYaw) == 0xc02841a6u);
+    // its parent building (the trace of the original's checksum shows 1011)
+    CHECK(game->getAsBuilding(1011)->mType == BUILDING_HQ);
+    CHECK(fbits(game->getAsUnit(1106)->mPosition.x) == 0x42bacec7u);
     // the HQ sets its sector owner's start position
-    CHECK(fbits(game->getPlayer(2)->mStartPosition.x) == fbits(game->getAsBuilding(t0->mParentBuildingId)->mPosX));
+    CHECK(fbits(game->getPlayer(2)->mStartPosition.x) == fbits(game->getAsBuilding(1011)->mPosition.x));
     // first unit: "create unit 4 sector 5 ..." (neutral sector: no watch order)
     CUnit* u0 = game->getAsUnit(1107);
-    CHECK(u0->mPosX == 9.41585f && u0->mPosY == -144.781f && !u0->mOnWatch);
-    CHECK(u0->mRotation == CMath::fDeg2Rad * 118.687f);
+    CHECK(u0->mPosition.x == 9.41585f && u0->mPosition.y == -144.781f && !u0->mOnWatch);
+    CHECK(u0->mYaw == CMath::fDeg2Rad * 118.687f);
     // "create unit 4 sector 1 ..." (player 1's sector: watch order)
     CHECK(game->getAsUnit(1109)->mOnWatch);
     // 4 unitdrop lines + 2 HQ drops (both HQs are in player sectors) + 1 cratedrop

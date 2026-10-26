@@ -1,5 +1,6 @@
 #include "CLevel.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
@@ -856,6 +857,125 @@ void CLevel::drawMap(const CCameraLevel& cam, float time) const {
     mMapMesh->draw(f, c);
     gl::Disable(GL_BLEND_);
     mSchematicShader->endDraw();
+}
+
+// ------------------------------------------------------------------ unit grids
+
+// Ghidra 0x2dc830. [!] Original bug, kept: when the position is outside the
+// grid, the clamped cell index uses the *far* grid's width (+0x134) as the
+// row stride, so such units land in a wrong (but valid) near cell.
+CGridCell* CLevel::getGridCell(const CVector2& p) {
+    int cx = f2i(p.x / Real(mMapW) * Real(mGridWf) + i2f(mGridHalfW));
+    int cy = f2i(p.y / Real(mMapH) * Real(mGridHf) + i2f(mGridHalfH));
+    int stride = mGridW;
+    if (cx >= mGridW || cy >= mGridH || (cx | cy) < 0) {
+        if (cx < 0) cx = 0;
+        if (cy < 0) cy = 0;
+        if (cx >= mGridW) cx = mGridW - 1;
+        stride = mGridFarW;
+        if (cy >= mGridH) cy = mGridH - 1;
+    }
+    const size_t i = static_cast<size_t>(stride * cy + cx);
+    return i < mGrid.size() ? &mGrid[i] : nullptr;
+}
+
+// Ghidra 0x2dc718
+CGridCell* CLevel::getGridCellFar(const CVector2& p) {
+    int cx = f2i(p.x / Real(mMapW) * Real(mGridFarWf) + Real(mGridFarHalfW));
+    int cy = f2i(p.y / Real(mMapH) * Real(mGridFarHf) + Real(mGridFarHalfH));
+    if (cx >= mGridFarW || cy >= mGridFarH || (cx | cy) < 0) {
+        if (cx < 0) cx = 0;
+        if (cy < 0) cy = 0;
+        if (cx >= mGridFarW) cx = mGridFarW - 1;
+        if (cy >= mGridFarH) cy = mGridFarH - 1;
+    }
+    const size_t i = static_cast<size_t>(mGridFarW * cy + cx);
+    return i < mGridFar.size() ? &mGridFar[i] : nullptr;
+}
+
+namespace {
+// The 3x3 block around a cell, clamped to the grid; x outer, y inner.
+template <class F>
+void forNeighbours(const CGridCell* c, int w, int h, F f) {
+    const int x0 = c->x < 1 ? 0 : c->x - 1;
+    const int x1 = c->x < w - 1 ? c->x + 1 : w - 1;
+    const int y0 = c->y < 1 ? 0 : c->y - 1;
+    const int y1 = c->y < h - 1 ? c->y + 1 : h - 1;
+    for (int x = x0; x <= x1; ++x)
+        for (int y = y0; y <= y1; ++y) f(static_cast<size_t>(w * y + x));
+}
+
+void addId(std::vector<unsigned>& v, unsigned id) {
+    if (std::find(v.begin(), v.end(), id) == v.end()) v.push_back(id);
+}
+
+void removeId(std::vector<unsigned>& v, unsigned id) { v.erase(std::remove(v.begin(), v.end(), id), v.end()); }
+}  // namespace
+
+void CLevel::addUnitToCells(CGridCell* cell, unsigned id) {
+    forNeighbours(cell, mGridW, mGridH, [&](size_t i) { addId(mGrid[i].units, id); });
+}
+
+CGridCell* CLevel::addUnitToCells(const CVector3& p, unsigned id) {
+    CGridCell* c = getGridCell(CVector2(p.x, p.y));
+    if (c) addUnitToCells(c, id);
+    return c;
+}
+
+void CLevel::addUnitToCellsFar(CGridCell* cell, unsigned id) {
+    forNeighbours(cell, mGridFarW, mGridFarH, [&](size_t i) { addId(mGridFar[i].units, id); });
+}
+
+CGridCell* CLevel::addUnitToCellsFar(const CVector3& p, unsigned id) {
+    CGridCell* c = getGridCellFar(CVector2(p.x, p.y));
+    if (c) addUnitToCellsFar(c, id);
+    return c;
+}
+
+void CLevel::removeUnitFromCells(CGridCell* cell, unsigned id) {
+    forNeighbours(cell, mGridW, mGridH, [&](size_t i) { removeId(mGrid[i].units, id); });
+}
+
+void CLevel::removeUnitFromCellsFar(CGridCell* cell, unsigned id) {
+    forNeighbours(cell, mGridFarW, mGridFarH, [&](size_t i) { removeId(mGridFar[i].units, id); });
+}
+
+CGridCell* CLevel::updateGridCell(const CVector3& p, unsigned id, CGridCell* old) {
+    CGridCell* c = getGridCell(CVector2(p.x, p.y));
+    if (c != old) {
+        removeUnitFromCells(old, id);
+        if (c) addUnitToCells(c, id);
+    }
+    return c;
+}
+
+CGridCell* CLevel::updateGridCellFar(const CVector3& p, unsigned id, CGridCell* old) {
+    CGridCell* c = getGridCellFar(CVector2(p.x, p.y));
+    if (c != old) {
+        removeUnitFromCellsFar(old, id);
+        if (c) addUnitToCellsFar(c, id);
+    }
+    return c;
+}
+
+// ------------------------------------------------------------------ simulation
+
+// Ghidra 0x2df380
+void CLevel::update() {
+    mScriptManager->update();
+    if (CEngine::getSingletonPtr()->mGameType == 3) {
+        // TODO(phase 4, resource mode): resource respawn (every 1 s, until the
+        // total is 5000: CRngSafe positions, 4 navmesh probes, 70 m from buildings).
+        static bool warned = false;
+        if (!warned) CUtils::log("CLevel::update: resource respawn not ported yet");
+        warned = true;
+    }
+}
+
+// Ghidra 0x2dd074
+void CLevel::calcChecksum() {
+    for (auto& s : mSectors) s.second->calcChecksum();
+    // TODO(phase 4, resource mode): + every resource cell value when GameType == 3
 }
 
 }  // namespace py

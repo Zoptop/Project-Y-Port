@@ -13,6 +13,7 @@
 #include <map>
 
 #include "core/CVector2.h"
+#include "core/Real.h"
 
 namespace py {
 
@@ -25,12 +26,15 @@ public:
 
     // "create building <type> sector <id> ..." without / with an explicit id.
     // The z coordinate of the script line is not passed on.
-    CBuilding* createBuilding(int type, float x, float y, float rotation, int subtype);
-    CBuilding* createBuilding(unsigned id, int type, float x, float y, float rotation, int subtype);
+    CBuilding* createBuilding(int type, Real x, Real y, Real rotation, int subtype);
+    CBuilding* createBuilding(unsigned id, int type, Real x, Real y, Real rotation, int subtype);
 
-    // Pushes mOwner to every building of the sector (vtable +0x44 of the
-    // building). TODO(phase 4): turret drivers in the sector, sound mood.
+    // Ghidra 0x391a30: pushes mOwner to every building of the sector (vtable
+    // +0x44), and the drivers of the sector's turrets leave them (leaveVehicle(true)).
+    // (The sound mood update for the local player is not simulation.)
     void ownerChanged();
+    void calcChecksum();   // Ghidra 0x391c48
+    bool isHQSector() const { return mHasHQ; }   // Ghidra 0x392070
 
     std::map<unsigned, CBuilding*> mBuildings;   // +0x04  by building id
     bool mHasHQ = false;                         // +0x34

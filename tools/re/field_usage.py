@@ -52,7 +52,7 @@ def main():
             (re.compile(r'\*\((\w+(?: \w+)?) \*\)\(' + R + r' \+ (0x[0-9a-f]+|\d+)\)(\s*=(?!=))?'), 'typed'),
             (re.compile(R + r'\[(0x[0-9a-f]+|\d+)\](\s*=(?!=))?'), 'byte'),
             (re.compile(r'\((\w+(?: \w+)?) \*\)\(' + R + r' \+ (0x[0-9a-f]+|\d+)\)'), 'addr'),
-            (re.compile(R + r' \+ (0x[0-9a-f]+|\d+)(?!\))'), 'addr2'),
+            (re.compile(R + r' \+ (0x[0-9a-f]+|\d+)\b(?!\))'), 'addr2'),
         ]
         seen_spans = []
         for p, kind in pats:

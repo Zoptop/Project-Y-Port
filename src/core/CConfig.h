@@ -15,6 +15,10 @@
 #include <map>
 #include <string>
 
+#include "CVector2.h"
+#include "CVector3.h"
+#include "Real.h"
+
 namespace py {
 
 class CConfig {
@@ -36,6 +40,18 @@ public:
     int getFloats(const std::string& key, float* out, int n) const;
 
     const std::map<std::string, std::string>& values() const { return mValues; }
+
+    // CConfig::updateConfigValue (Ghidra 0x15f350..0x15f70c), exactly: a
+    // missing key reads as "" (so numbers become 0 and bools true), and the
+    // vector forms sscanf "%f %f[ %f]" (missing / short values leave the
+    // remaining components unchanged).
+    void updateConfigValue(unsigned& v, const std::string& key) const;
+    void updateConfigValue(int& v, const std::string& key) const;
+    void updateConfigValue(Real& v, const std::string& key) const;
+    void updateConfigValue(bool& v, const std::string& key) const;
+    void updateConfigValue(std::string& v, const std::string& key) const;
+    void updateConfigValue(CVector2& v, const std::string& key) const;
+    void updateConfigValue(CVector3& v, const std::string& key) const;
 
     // ---- per-game switches the original keeps in CConfig (+0x124..+0x15c).
     // CLevel::initByScript resets them before reading a map; the map script

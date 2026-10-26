@@ -124,11 +124,14 @@ add_library(projecty_engine STATIC
   src/game/CLevel.cpp
   src/game/CNav.cpp
   src/game/CPlayer.cpp
+  src/game/CProjectile.cpp
+  src/game/CSceneObject.cpp
   src/game/CScript.cpp
   src/game/CScriptManager.cpp
   src/game/CScriptTypes.cpp
   src/game/CSector.cpp
   src/game/CUnit.cpp
+  src/game/CWeapon.cpp
 )
 if(MSVC)
   # the map/script readers use sscanf like the original
@@ -163,6 +166,11 @@ if(PROJECTY_BUILD_TESTS)
   add_executable(level_probe tools/level_probe.cpp)
   target_link_libraries(level_probe PRIVATE projecty_engine)
   projecty_strict_float(level_probe)
+
+  # Steps a skirmish and dumps checksums (compared with tools/emu/game_oracle.py)
+  add_executable(sim_probe tools/sim_probe.cpp)
+  target_link_libraries(sim_probe PRIVATE projecty_engine)
+  projecty_strict_float(sim_probe)
 
   # Runs a navmesh scenario on the port (compared with tools/emu/nav_oracle.py)
   add_executable(nav_probe tools/nav_probe.cpp)

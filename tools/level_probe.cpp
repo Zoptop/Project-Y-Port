@@ -257,11 +257,11 @@ int main(int argc, char** argv) {
     for (unsigned id : game->objectList()) {
         CGameObject* o = game->getGameObject(id);
         std::printf("OBJ %u cat=%d type=%d owner=%d pos=%08x,%08x rot=%08x", id, o->mCategory, o->mType,
-                    o->mOwner ? static_cast<int>(o->mOwner->mId) : -1, fb(o->mPosX), fb(o->mPosY), fb(o->mRotation));
+                    o->mOwner ? static_cast<int>(o->mOwner->mId) : -1, fb(o->mPosition.x), fb(o->mPosition.y), fb(o->mYaw));
         if (o->mCategory == CGameObject::CATEGORY_UNIT) {
             auto* u = static_cast<CUnit*>(o);
-            std::printf(" watch=%d vehicle=%d driver=%d", u->mOnWatch, static_cast<int>(u->mVehicleId),
-                        static_cast<int>(u->mDriverId));
+            std::printf(" watch=%d vehicle=%d driver=%d", u->mOnWatch, u->mCommandedUnit ? static_cast<int>(u->mCommandedUnit) : -1,
+                        u->mCommander ? static_cast<int>(u->mCommander) : -1);
         } else {
             auto* b = static_cast<CBuilding*>(o);
             std::printf(" sector=%d subtype=%d", b->mSector ? static_cast<int>(b->mSector->mId) : -1, b->mSubType);

@@ -62,4 +62,17 @@ std::string CUtils::dataPath(const std::string& file) {
     return gDataDir + "/" + file;
 }
 
+uint32_t CUtils::mChecksum = 0;
+std::vector<std::pair<char, uint32_t>>* CUtils::mChecksumTrace = nullptr;
+
+// Ghidra 0x3c2790: one update per element.
+void CUtils::updateChecksum(const std::vector<bool>& v) {
+    uint32_t sum = 0;
+    for (bool b : v) {
+        mChecksum += b ? 1u : 2u;
+        sum += b ? 1u : 2u;
+    }
+    if (mChecksumTrace) mChecksumTrace->push_back({'v', sum});
+}
+
 }  // namespace py

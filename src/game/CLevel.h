@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "core/CVector2.h"
+#include "core/CVector3.h"
 #include "render/Math3D.h"
 
 namespace py {
@@ -92,6 +93,22 @@ public:
     CMesh* getMapMesh() const { return mMapMesh; }
     CScriptManager* getScriptManager() const { return mScriptManager.get(); }
     CNav* getNav() const { return mNav.get(); }   // null until "load navbasemesh"
+
+    // ---- unit lookup grids (near: 10 m cells, far: 100 m cells). A unit is
+    // listed in its cell and the 8 neighbours; ids keep insertion order.
+    CGridCell* getGridCell(const CVector2& p);      // Ghidra 0x2dc830 [!] see .cpp
+    CGridCell* getGridCellFar(const CVector2& p);   // Ghidra 0x2dc718
+    void addUnitToCells(CGridCell* cell, unsigned id);        // Ghidra 0x2dfd10
+    CGridCell* addUnitToCells(const CVector3& p, unsigned id);   // Ghidra 0x2dfe18
+    void addUnitToCellsFar(CGridCell* cell, unsigned id);     // Ghidra 0x2dfef0
+    CGridCell* addUnitToCellsFar(const CVector3& p, unsigned id);   // Ghidra 0x2dfff8
+    void removeUnitFromCells(CGridCell* cell, unsigned id);   // Ghidra 0x2dfc0c
+    void removeUnitFromCellsFar(CGridCell* cell, unsigned id);   // Ghidra 0x2dfb08
+    CGridCell* updateGridCell(const CVector3& p, unsigned id, CGridCell* old);      // Ghidra 0x2dfe74
+    CGridCell* updateGridCellFar(const CVector3& p, unsigned id, CGridCell* old);   // Ghidra 0x2e0054
+
+    void update();          // Ghidra 0x2df380 (per step, from CGame::timeUpdate)
+    void calcChecksum();    // Ghidra 0x2dd074
     const std::string& detailTexture(int i) const { return mDetailTextureNames[i]; }   // 0..2 = MAP1..3
     const std::map<std::string, std::string>& loadedFiles() const { return mLoaded; }   // "load" lines
 
