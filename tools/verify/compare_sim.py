@@ -42,6 +42,15 @@ def parse(lines):
     return sums, parts
 
 
+def parse_rng(lines):
+    out = {}
+    for line in lines:
+        m = re.match(r'step\s+(\d+) rng (.*)$', line)
+        if m:
+            out[int(m.group(1))] = m.group(2).strip()
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--so', default='/home/claude/out/ProjectY_engine_RE/libProjectY.so')
@@ -69,6 +78,12 @@ def main():
                           capture_output=True, text=True).stdout.splitlines()
     rs, rp = parse(ref)
     ps, pp = parse(port)
+    rngr, rngp = parse_rng(ref), parse_rng(port)
+    for s in sorted(rngr):
+        if rngp.get(s) != rngr[s]:
+            print('step %4d  RNG state differs first: original %s  port %s  (CRngSafe mW mZ, CRng mW mZ)' % (
+                s, rngr[s], rngp.get(s)))
+            break
     first_bad = None
     for s in sorted(rs):
         ok = ps.get(s) == rs[s]
@@ -84,8 +99,6 @@ def main():
         bad = 0
         for kind, ident, desc, rtrace in rparts:
             key = (kind, ident)
-            if kind in ('scene', 'projectile'):   # ids differ in representation: match by position
-                key = None
             p = pindex.get(key) if key else None
             ptrace = p[3] if p else None
             if p and [(k, v) for k, v, _ in rtrace] == [(k, v) for k, v, _ in ptrace]:

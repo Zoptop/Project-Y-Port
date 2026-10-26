@@ -311,6 +311,8 @@ def main():
     print('game started; log tail:', o.libc.log_lines[-4:])
     for step in range(a.steps):
         print('step %4d checksum %08x' % (step, o.checksum()))
+        print('step %4d rng %s' % (step, ' '.join('%08x' % e.read_u32(e.addr(n)) for n in (
+            '_ZN8ProjectY8CRngSafe2mWE', '_ZN8ProjectY8CRngSafe2mZE', '_ZN8ProjectY4CRng2mWE', '_ZN8ProjectY4CRng2mZE'))))
         if a.detail and step in a.detail:
             for row in o.checksum_detail():
                 print('  %-10s %-6s %s' % row)

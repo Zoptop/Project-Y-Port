@@ -213,6 +213,7 @@ int main(int argc, char** argv) {
         CUtils::resetChecksum();
         game->calcChecksum();
         std::printf("step %4d checksum %08x\n", s, CUtils::mChecksum);
+        std::printf("step %4d rng %08x %08x %08x %08x\n", s, CRngSafe::mW, CRngSafe::mZ, CRng::mW, CRng::mZ);
         if (trace.count(s)) dumpTrace(game.get());
         // like CCommandManagerNetworked::timeUpdate for step s+1
         const unsigned n = static_cast<unsigned>(s + 1);
