@@ -432,27 +432,21 @@ void checkAgainstOriginal(int map, unsigned players, unsigned W, unsigned H, con
     compareGrid("updateInfluenceUnits", ki, unitsGrid, nGrid);
 
     // 3. goal (flags at Life/Lifedot 0 in the original = the port's placeholders).
-    // The buildings must be the original's: those it has must match; extra
-    // ones of the port's level loading are removed (reported, see CLevel).
-    int extra = 0;
+    // Its input, the buildings, must be the original's.
+    size_t nb = 0;
     for (unsigned id : g->objectList()) {
         CBuilding* b = g->getAsBuilding(id);
         if (!b) continue;
+        ++nb;
         const uint32_t* r = nullptr;
         for (const auto& x : buildings)
             if (x[0] == id) r = x;
-        if (!r) {
-            ++extra;
-            g->deleteGameObject(id);
-            continue;
-        }
+        CHECK_MSG(r != nullptr, "map %d: building %u not in the original", map, id);
+        if (!r) continue;
         CHECK(static_cast<uint32_t>(b->mType) == r[1] && b->mOwner && b->mOwner->mId == r[2] &&
               fbits(b->mPosition.x) == r[3] && fbits(b->mPosition.y) == r[4]);
     }
-    for (const auto& x : buildings) CHECK_MSG(g->getAsBuilding(x[0]) != nullptr, "building %u missing", x[0]);
-    if (extra)
-        std::printf("    (map %d: the port's level has %d buildings the original does not create; removed)\n", map,
-                    extra);
+    CHECK_MSG(nb == NB, "map %d: %zu buildings, original %zu", map, nb, static_cast<size_t>(NB));
     for (size_t i = 0; i < nGrid / 10; ++i) ki->cell(static_cast<int>(i)).influence = bitsf(unitsGrid[i * 10 + 5]);
     ki->updateInfluenceGoal();
     compareGrid("updateInfluenceGoal", ki, goalGrid, nGrid);
@@ -528,40 +522,35 @@ void checkSquadsAgainstOriginal(int map, unsigned players, const uint32_t (&buil
     auto* ki = dynamic_cast<CPlayerKI*>(g->getPlayer(2));
     if (!ki) return;
     ki->oneTimeInit();
-    // objects the port's level creates and the original does not (see the
-    // goal check) are removed, and the unit ids continue where the original's do
-    int extra = 0;
+    // the level's objects must be the original's
+    size_t nobj = 0;
     for (unsigned id : g->objectList()) {
+        if (!g->getGameObject(id)) continue;
+        ++nobj;
         bool known = false;
         for (const auto& b : buildings) known = known || b[0] == id;
         for (const auto& u : startUnits) known = known || u[0] == id;
-        if (!known && g->getGameObject(id)) {
-            if (CUnit* u = g->getAsUnit(id)) u->mOwner->removeUnit(id);
-            g->deleteGameObject(id);
-            ++extra;
-        }
+        CHECK_MSG(known, "map %d: object %u not in the original", map, id);
     }
-    if (extra) {
-        std::printf("    (map %d: removed %d objects the original does not create)\n", map, extra);
-        g->mNextGameObjectID = made[0][0];
-    }
+    CHECK_MSG(nobj == NB + NS0, "map %d: %zu objects, original %zu", map, nobj, NB + NS0);
     for (const auto& m : made) {
         CUnit* u = CUnitFactory::getSingletonPtr()->createUnit(static_cast<int>(m[1]), 2,
                                                                CVector2(bitsf(m[2]), bitsf(m[3])), 0.0f, false, 0);
         CHECK_MSG(u->mId == m[0], "created unit id %u, original %u", u->mId, m[0]);
     }
-    // the unit fields the squad code reads (unit classes are not ported yet)
+    // the unit fields the squad code reads must be the original's; the
+    // influence (+0x13a4) is the oracle's chosen input
     std::set<unsigned> ids;
     for (const auto& r : units) {
         ids.insert(r[0]);
         CUnit* u = g->getAsUnit(r[0]);
         CHECK_MSG(u != nullptr, "AI unit %u missing", r[0]);
         if (!u) continue;
-        CHECK(static_cast<unsigned>(u->mType) == r[1]);
+        CHECK_MSG(static_cast<unsigned>(u->mType) == r[1] && static_cast<uint32_t>(u->mUnitstate) == r[2] &&
+                      u->mFlags == r[3] && (u->mScriptControlled ? 1u : 0u) == r[4],
+                  "AI unit %u: type %d/%u state %d/%u flags %x/%x", r[0], u->mType, r[1], u->mUnitstate, r[2],
+                  u->mFlags, r[3]);
         CHECK(fbits(u->mPosition.x) == r[5] && fbits(u->mPosition.y) == r[6]);
-        u->mUnitstate = static_cast<int>(r[2]);
-        u->mFlags = r[3];
-        u->mScriptControlled = r[4] != 0;
         u->mInfluence = bitsf(r[7]);
     }
     CHECK(ids == ki->mUnits);
