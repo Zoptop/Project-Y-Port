@@ -14,3 +14,7 @@ data/*
 
 # Runtime
 projecty.log
+
+# Python
+__pycache__/
+*.pyc
