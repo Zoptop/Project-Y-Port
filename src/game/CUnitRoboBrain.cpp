@@ -1,10 +1,12 @@
 // CUnitRoboBrain.cpp - see CUnitRoboBrain.h.
 #include "game/CUnitRoboBrain.h"
 
+
 #include "core/CConfig.h"
 #include "core/CRng.h"
 #include "core/CUtils.h"
 #include "game/CBuilding.h"
+#include "game/CCommandManager.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CGameFeatures.h"
@@ -204,13 +206,13 @@ void CUnitRoboBrain::init(unsigned playerId, const CVector2& position, Real rota
     CUnit::init(playerId, position, rotation, sectorId);
 }
 
-// The command manager is not ported yet: these are the calls the original
-// makes through CGame+0x178 (CCommandManager vtable +0x30 / +0x38).
-void CUnitRoboBrain::sendDialButton(unsigned /*playerId*/, int /*button*/) {
-    notPorted("CCommandManager::cmdProcessDialButton");   // TODO(4.x commands)
+// The orders the original sends through the command manager (CGame+0x178,
+// vtable +0x30 / +0x38) for this brain.
+void CUnitRoboBrain::sendDialButton(unsigned playerId, int button) {
+    mEngine->mGame->getCommandManager()->cmdProcessDialButton(playerId, mId, static_cast<unsigned>(button));
 }
-void CUnitRoboBrain::sendActionBarButton(unsigned /*playerId*/, int /*action*/) {
-    notPorted("CCommandManager::cmdProcessActionBarButton");   // TODO(4.x commands)
+void CUnitRoboBrain::sendActionBarButton(unsigned playerId, int action) {
+    mEngine->mGame->getCommandManager()->cmdProcessActionBarButton(playerId, mId, static_cast<unsigned>(action));
 }
 
 // Ghidra 0x3c1fcc. Every 1.1 s the automatic upgrade is sent as a command:
@@ -302,8 +304,8 @@ void CUnitRoboBrain::leaveVehicle(bool force) {
     mUnitOrder = mHoldPositionOnArrival ? 1 : 0;
     mUnitstate = UNITSTATE_STOPPED;
     if (CBuilding* hq = game->getClosestBuilding(pos, mOwner, 1, 0, false)) {
-        (void)hq;
-        notPorted("CCommandManager::cmdUnitOrderMoveTo");   // TODO(4.x commands): move to hq->mPosition
+        const CVector2 dest(hq->mPosition.x, hq->mPosition.y);
+        game->getCommandManager()->cmdUnitOrderMoveTo(mOwner->mId, mId, dest);
     }
 }
 

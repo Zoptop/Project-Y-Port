@@ -4,6 +4,7 @@
 #include "core/CConfig.h"
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
+#include "game/CCraterManager.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -52,7 +53,7 @@ void CUnitLandmine::timeUpdate() {
                 v->hit(maxDamage / div, mId, DAMAGE_AREA, mOwner, nullptr);
             }
             // (explosion particles and text: not simulation)
-            notPorted("CCraterManager::addCrater (landmine)");   // TODO(4.x craters): crater of 8 m at the mine
+            if (CCraterManager* cm = mEngine->mGame->getCraterManager()) cm->addCrater(mPosition, 8.0f, false);
             return;
         }
     }

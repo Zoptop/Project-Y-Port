@@ -73,8 +73,7 @@ void CUnitCrate::doSuprise(CUnit* finder) {
                             type = Real(CRngSafe::GetUniform(0x1a)) > bitsf(0x3e99999a) ? UNIT_REPAIR : UNIT_ROBOBRAIN;
                     }
                 } while (!cfg.mUnitAvailable[type]);
-                // CGame::addBomber(x, y, owner, 2, type, 1, -1, -1)
-                notPorted("CGame::addBomber (crate)");   // TODO(4.x bombers)
+                game->addBomber(CVector2(mPosition.x, mPosition.y), finder->mOwner, 2, type, 1, -1, -1);
                 done = true;
                 break;
             }
@@ -87,16 +86,14 @@ void CUnitCrate::doSuprise(CUnit* finder) {
                         type = UNIT_ROBOBRAIN;
                 } while (!cfg.mUnitAvailable[type]);
                 const unsigned count = f2u(Real(CRngSafe::GetUniform(0x1d)) * 3.0f + 1.0f);
-                (void)count;
-                // CGame::addBomber(x, y, owner, 2, type, count, -1, -1)
-                notPorted("CGame::addBomber (crate)");   // TODO(4.x bombers)
+                game->addBomber(CVector2(mPosition.x, mPosition.y), finder->mOwner, 2, type, count, -1, -1);
                 done = true;
                 break;
             }
             case 9:
                 if (mEngine->mGameType == 3) {   // "Resource Blast!"
-                    // CLevel::addResource(x, y, 1, 50) and the level's resource refresh (vtable +4)
-                    notPorted("CLevel::addResource (crate)");   // TODO(4.x resources)
+                    // (then the level's resource texture refresh, vtable +4: render)
+                    game->getLevel()->addResource(CVector2(mPosition.x, mPosition.y), 1.0f, 50.0f);
                     done = true;
                 }
                 break;
