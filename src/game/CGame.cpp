@@ -350,29 +350,29 @@ void CGame::updateAIFactorsFromDifficulty() {
     case 2: a = bitsf(0x3fa66666); b = bitsf(0x3f4ccccd); break;
     case 3:
         mAIExtraDriverXP = 0;
-        mAICostFactor = mAIFactor168 = mAIFactor16c = 1.0f;
+        mAICostFactor = mAIDamageFactor = mAIArmorFactor = 1.0f;
         return;
     case 4:
         mAICostFactor = 0.75f;
-        mAIFactor168 = mAIFactor16c = bitsf(0x3fa66666);
+        mAIDamageFactor = mAIArmorFactor = bitsf(0x3fa66666);
         mAIExtraDriverXP = 0x2d;
         return;
     case 5:
         mAICostFactor = bitsf(0x3f19999a);
-        mAIFactor168 = mAIFactor16c = 1.5f;
+        mAIDamageFactor = mAIArmorFactor = 1.5f;
         mAIExtraDriverXP = 0x55;
         return;
     case 6:
         mAICostFactor = bitsf(0x3ecccccd);
-        mAIFactor168 = mAIFactor16c = 2.0f;
+        mAIDamageFactor = mAIArmorFactor = 2.0f;
         mAIExtraDriverXP = 100;
         return;
     default:
         return;
     }
     mAICostFactor = a;
-    mAIFactor168 = b;
-    mAIFactor16c = b;
+    mAIDamageFactor = b;
+    mAIArmorFactor = b;
     mAIExtraDriverXP = 0;
 }
 

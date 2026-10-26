@@ -139,8 +139,8 @@ public:
     unsigned mNextWeaponID = 1;                              // +0x15c
     bool mStarted = false;                                   // +0x160 set by init (new game)
     Real mAICostFactor = 1.0f;                               // +0x164 AI handicap (resource costs)
-    Real mAIFactor168 = 1.0f;                                // +0x168
-    Real mAIFactor16c = 1.0f;                                // +0x16c
+    Real mAIDamageFactor = 1.0f;                             // +0x168 "AIDamageFactor" (CUnit::hit, AI attackers)
+    Real mAIArmorFactor = 1.0f;                              // +0x16c "AIArmorFactor" (CUnit::hit, AI-owned units)
     int mAIExtraDriverXP = 0;                                // +0x170 (updateAIFactorsFromDifficulty)
     int mGameEndingCondition = 0;                            // +0x174
     bool mStateHeld = false;                                 // +0x180 holdState done

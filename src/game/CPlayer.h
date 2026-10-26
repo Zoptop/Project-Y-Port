@@ -39,6 +39,9 @@ public:
     virtual bool isAI() const { return false; }                // +0x1c
     virtual void FOWtimeupdate();                              // +0x28 TODO(4.x FOW)
     virtual void updateFOWtexture() {}                         // +0x24 (render)
+    // +0x30: reveal a circle in the team's fog of war (CUnit::timeUpdate);
+    // stub in stubs_cunit.cpp until the FOW is ported
+    virtual void drawFOWCircleTeam(const CVector2& pos, Real radius);
     virtual void reInit();                                     // +0x40
     virtual bool isFriend(const CPlayer* other) const { return mTeam == other->mTeam; }   // +0x44
     virtual int getBrainCap();                                 // +0x48 Ghidra 0x3732bc
