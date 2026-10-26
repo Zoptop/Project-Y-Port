@@ -223,22 +223,82 @@ void CGame::deleteWeapon(unsigned id) {
 
 // ------------------------------------------------------------------ TODO(4.3 CGame)
 
-CUnit* CGame::getClosestUnit(const CVector2&, CPlayer*, int, unsigned, bool) {
-    notPorted("CGame::getClosestUnit");
+// Ghidra 0x178cbc. The first unit with the smallest squared distance wins.
+CUnit* CGame::getClosestUnit(const CVector2& pos, CPlayer* player, unsigned type, bool skipCommanders,
+                             unsigned excludeId) {
+    CUnit* best = nullptr;
+    Real bestD = bitsf(0x7f7fffff);
+    for (unsigned id : mObjectList) {
+        CUnit* u = getAsUnit(id);
+        if (!u || u->mId == excludeId) continue;
+        if (player ? u->mOwner != player : u->mOwner->isNeutral()) continue;
+        if (type != 0 && static_cast<unsigned>(u->mType) != type) continue;
+        if (skipCommanders && u->isCommander()) continue;
+        const Real dx = u->mPosition.x - pos.x;
+        const Real dy = u->mPosition.y - pos.y;
+        const Real d = dx * dx + dy * dy;
+        if (bestD > d) {
+            best = u;
+            bestD = d;
+        }
+    }
+    return best;
+}
+
+// Ghidra 0x17962c
+CBuilding* CGame::getClosestBuilding(const CVector2& pos, CPlayer* player, unsigned type, unsigned excludeId,
+                                     bool anyOwner) {
+    CBuilding* best = nullptr;
+    Real bestD = bitsf(0x7f7fffff);
+    for (unsigned id : mObjectList) {
+        CBuilding* b = getAsBuilding(id);
+        if (!b || b->mId == excludeId) continue;
+        if (!(player == nullptr && anyOwner)) {
+            if (player ? b->mOwner != player : b->mOwner->isNeutral()) continue;
+        }
+        if (type != 0 && static_cast<unsigned>(b->mType) != type) continue;
+        const Real dx = b->mPosition.x - pos.x;
+        const Real dy = b->mPosition.y - pos.y;
+        const Real d = dx * dx + dy * dy;
+        if (d < bestD) {
+            best = b;
+            bestD = d;
+        }
+    }
+    return best;
+}
+
+// Ghidra 0x1794c0
+CBuilding* CGame::getClosestBuildingWithCap(const CVector2& pos, CPlayer* player, uint32_t caps, unsigned excludeId,
+                                            unsigned arg) {
+    CBuilding* best = nullptr;
+    Real bestD = bitsf(0x7f7fffff);
+    for (unsigned id : mObjectList) {
+        CBuilding* b = getAsBuilding(id);
+        if (!b || b->mId == excludeId) continue;
+        if (!((player == nullptr && !b->mOwner->isNeutral()) || b->mOwner == player)) continue;
+        if ((caps & b->mFlags) == 0) continue;
+        if (caps == OF_RESOURCE_DROPOFF && !b->isResourceDropOff(player, static_cast<int>(arg))) continue;
+        const Real dx = b->mPosition.x - pos.x;
+        const Real dy = b->mPosition.y - pos.y;
+        const Real d = dx * dx + dy * dy;
+        if (bestD > d) {
+            best = b;
+            bestD = d;
+        }
+    }
+    return best;
+}
+
+// Ghidra 0x178c40: the first SpecOp building of the player that has an operation ready.
+CBuilding* CGame::getAvailableAirstrikeBuilding(CPlayer* player) {
+    for (unsigned id : mObjectList) {
+        CBuilding* b = getAsBuilding(id);
+        if (b && b->mOwner == player && b->mType == BUILDING_SPECOP && b->hasOp()) return b;
+    }
     return nullptr;
 }
-CBuilding* CGame::getClosestBuilding(const CVector2&, CPlayer*, int, int, bool) {
-    notPorted("CGame::getClosestBuilding");
-    return nullptr;
-}
-CBuilding* CGame::getClosestBuildingWithCap(const CVector2&, CPlayer*, uint32_t, bool) {
-    notPorted("CGame::getClosestBuildingWithCap");
-    return nullptr;
-}
-CBuilding* CGame::getAvailableAirstrikeBuilding(CPlayer*) {
-    notPorted("CGame::getAvailableAirstrikeBuilding");
-    return nullptr;
-}
+
 Real CGame::getFOWvisibility(CPlayer*, int, Real, Real, int, bool*) {
     notPorted("CGame::getFOWvisibility");
     return 1.0f;

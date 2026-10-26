@@ -79,9 +79,16 @@ public:
     const std::list<CSceneObject*>& sceneObjects() const { return mSceneObjects; }
 
     // ---- queries used by the game code (Ghidra addresses in CGame.cpp)
-    CUnit* getClosestUnit(const CVector2& pos, CPlayer* player, int filter, unsigned excludeId, bool alive);
-    CBuilding* getClosestBuilding(const CVector2& pos, CPlayer* player, int type, int subtype, bool flag);
-    CBuilding* getClosestBuildingWithCap(const CVector2& pos, CPlayer* player, uint32_t flags, bool flag);
+    // player null: any non-neutral owner; type 0: any type.
+    CUnit* getClosestUnit(const CVector2& pos, CPlayer* player, unsigned type, bool skipCommanders,
+                          unsigned excludeId);
+    // player null: any non-neutral owner, or with anyOwner every building.
+    CBuilding* getClosestBuilding(const CVector2& pos, CPlayer* player, unsigned type, unsigned excludeId,
+                                  bool anyOwner);
+    // buildings with any of the capability flags (CGameObject::mFlags);
+    // for OF_RESOURCE_DROPOFF also isResourceDropOff(player, arg).
+    CBuilding* getClosestBuildingWithCap(const CVector2& pos, CPlayer* player, uint32_t caps, unsigned excludeId,
+                                         unsigned arg);
     CBuilding* getAvailableAirstrikeBuilding(CPlayer* player);
     Real getFOWvisibility(CPlayer* player, int mode, Real x, Real y, int range, bool* visible);
     void checkGameEndingCondition(bool surrender, CPlayer* player);
