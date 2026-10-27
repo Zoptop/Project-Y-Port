@@ -21,6 +21,7 @@ void CUnitTank::init(unsigned playerId, const CVector2& position, Real rotation,
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitTankMaxHealth");
     loadConfigSettings("Tank");
+    getSubMeshData("Tank1");   // +0x1c8/+0x1cc
     mFlags = 0xe57;
     mType = UNIT_TANK;
     cfg.updateConfigValue(mHackResistance, "UnitTankHackResistance");

@@ -7,6 +7,8 @@
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemShotConstant.h"
 #include "game/CProjectile.h"
 #include "game/CUnit.h"
 
@@ -150,6 +152,33 @@ CVector3 CWeapon::mountPointToWorld() {
     py = py + mMountPoint.y * Real(CMath::SinTable(uyaw + CMath::HALF_PI));
     const Real pz = mUnit->mPosition.z + mMountPoint.z;
     return CVector3(px, py, pz);
+}
+
+// e.g. CWeaponLaserGatling::timeUpdate 0x3dac9c (the end of the firing branch)
+void CWeapon::updateBeamParticleSystem(unsigned& id, int subtype, const CVector3& start, const CVector3& end,
+                                       Real yaw) {
+    CParticleManager* pm = mEngine->getParticleManager();
+    CParticleSystemShotConstant* ps = nullptr;
+    if (id == 0) {
+        ps = static_cast<CParticleSystemShotConstant*>(
+            pm->createParticleSystem(PS_SHOTCONSTANT, start, subtype, false, nullptr, false));
+    } else {
+        ps = static_cast<CParticleSystemShotConstant*>(pm->getParticleSystem(id));
+        if (!ps) {
+            id = 0;
+            CUtils::log("CWeaponLaserGatling::timeUpdate shot ps not found!");
+            return;
+        }
+        ps->mPosition = start;
+    }
+    ps->mEndpoint = end;
+    const Real dx = start.x - end.x;
+    const Real dy = start.y - end.y;
+    const Real dz = start.z - end.z;
+    ps->mRange = fdlibm::sqrtf(dx * dx + dy * dy + dz * dz);
+    const Real zero = Real(CMath::fDeg2Rad) * 0.0f;
+    ps->mRotation.FromEulerAnglesXYZ(zero, zero, yaw);
+    if (id == 0) id = ps->mID;
 }
 
 // The original pushes onto unit->mEngine->mGame's projectile vector.

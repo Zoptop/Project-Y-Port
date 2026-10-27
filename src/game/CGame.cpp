@@ -10,6 +10,7 @@
 #include "game/CBuilding.h"
 #include "game/CCommandManager.h"
 #include "game/CEngine.h"
+#include "game/CExplodedUnitPiece.h"
 #include "game/CLevel.h"
 #include "game/CNav.h"
 #include "game/CPlayer.h"
@@ -17,6 +18,7 @@
 #include "game/CSceneObject.h"
 #include "game/CUnit.h"
 #include "game/CWeapon.h"
+#include "render/CMesh.h"
 
 namespace py {
 
@@ -58,6 +60,7 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mNumPlayers = e->mNumPlayers;
     mFeatures.reset();
     mCraterManager = std::make_unique<CCraterManager>();   // +0xb8
+    mGameObjectsMesh = CMeshManager::get().getMesh("gameobjects.3DS.mesh", true, false);   // +0xc4
     updateAIFactorsFromDifficulty();
     for (unsigned i = 0; i <= mNumPlayers; ++i) createPlayerFromPlayerSetup(i);
     mLevel = std::make_unique<CLevel>();
@@ -79,6 +82,41 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mStateHeld = false;
     CUtils::log("Game Init done");
     return ok;
+}
+
+// ------------------------------------------------------------------ exploded unit pieces
+
+// Ghidra 0x17e570 (from the disassembly, ELF 0x16e570). The piece i covers
+// the triangles from firstTri + i * triCount / n, (triCount / n) - 1 of them.
+void CGame::createEUPs(const CVector3& position, unsigned firstTri, unsigned triCount, const CVector3& color,
+                       unsigned minPieces) {
+    if (mExplodedPieces.size() * 4 >= 400) return;   // (end - begin) < 400 bytes
+    const Real r = Real(CRng::GetUniform()) * 5.0f;
+    const unsigned base = minPieces + triCount / 100u;
+    const Real wanted = u2f(base + f2u(r));
+    const Real n = CUtils::clamp(wanted, u2f(minPieces), 100.0f);
+    const unsigned count = f2u(n);
+    if (count == 0) return;
+    const unsigned piece = triCount / count - 1u;
+    unsigned acc = 0;
+    for (unsigned i = 0; i != count; ++i) {
+        const unsigned first = acc / count + firstTri;
+        // CGame +0x00 of the engine's game, i.e. this game's own list
+        mEngine->mGame->mExplodedPieces.push_back(
+            std::make_unique<CExplodedUnitPiece>(first, piece, position, color, EXPPIECESTYLE_UNIT));
+        acc += triCount;
+    }
+}
+
+// Ghidra 0x1783fc
+void CGame::timeUpdateExplodedPieces(Real dt) {
+    for (auto it = mExplodedPieces.begin(); it != mExplodedPieces.end();) {
+        if ((*it)->mDelete)
+            it = mExplodedPieces.erase(it);
+        else
+            ++it;
+    }
+    for (auto& p : mExplodedPieces) p->timeUpdate(dt);
 }
 
 // ------------------------------------------------------------------ step

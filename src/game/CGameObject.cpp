@@ -12,6 +12,7 @@
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
 #include "game/CUnit.h"
+#include "render/CMesh.h"
 
 namespace py {
 
@@ -32,6 +33,13 @@ void CGameObject::init(const CVector2& position, Real rotation, CPlayer* owner) 
     mAlpha = 0.0f;
     mFirstDraw = false;
     mCreationStep = mEngine->mCurrentStep;
+}
+
+void CGameObject::getSubMeshData(const char* name, uint32_t& first, uint32_t& count) {
+    CGame* game = mEngine ? mEngine->mGame : nullptr;
+    CMesh* mesh = game ? game->getGameObjectsMesh() : nullptr;
+    if (!mesh) return;
+    if (!mesh->getSubMeshData(name, first, count)) CUtils::log("CMesh::getSubMeshData %s existiert nicht!", name);
 }
 
 // Ghidra 0x1826b8. Rendering values (shadow, icon UVs) are not kept.

@@ -16,7 +16,7 @@ public:
     void deactivate() override;                                           // Ghidra 0x3e0bb8
 
     CVector3 mBlastOffset;               // +0x90 (not used by the simulation)
-    unsigned mParticleSystem = 0;        // +0x9c aiming laser (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0x9c the aiming laser (shot constant 4)
     Real mShotDelay = 0.0f;              // +0xb8
     Real mTimeToNextShot = 0.0f;         // +0xd4
 };

@@ -6,6 +6,7 @@
 #include "core/CTxtLoc.h"
 #include "core/fdlibm.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CProjectileSniperBullet.h"
 #include "game/CUnit.h"
 
@@ -47,7 +48,10 @@ void CWeaponSniperGun::timeUpdate(CUnit* target, Real distanceSq, Real angle, bo
                 bullet->init(target, start, mUnit->mYaw, 0.0f, mUnit->mOwner, mUnit->mId, mUnit->mDamageFactor);
                 spawn(bullet);
             }
-            // (aiming-laser particle system from the mount point to the target: not ported)
+            // the aiming laser from the mount point towards the target. [!] Its end
+            // keeps the mount point's height; it turns by the aim angle.
+            const CVector3 end(target->mPosition.x, target->mPosition.y, start.z);
+            updateBeamParticleSystem(mParticleSystem, 4, start, end, angle);
             return;
         }
     }
@@ -55,6 +59,8 @@ void CWeaponSniperGun::timeUpdate(CUnit* target, Real distanceSq, Real angle, bo
 }
 
 // Ghidra 0x3e0bb8
-void CWeaponSniperGun::deactivate() { mParticleSystem = 0; }
+void CWeaponSniperGun::deactivate() {
+    if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
+}
 
 }  // namespace py

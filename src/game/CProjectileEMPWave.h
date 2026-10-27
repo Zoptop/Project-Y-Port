@@ -24,7 +24,7 @@ public:
     void calcChecksum() override;                                         // Ghidra 0x379c00
 
     Real mShieldXPValue = 0.0f;          // +0x184
-    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (smoke 10)
     Real mMaxDistance = 0.0f;            // +0x198
     Real mPeakDistance = 0.0f;           // +0x19c
     Real mMaxStunTime = 0.0f;            // +0x1a0

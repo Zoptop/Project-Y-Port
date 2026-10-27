@@ -39,6 +39,9 @@ public:
     static const std::string& getDataDir();
     static std::string dataPath(const std::string& file);
 
+    // Ghidra 0x3d23c0: lo if v < lo, else hi if v > hi, else v (NaN -> v).
+    static float clamp(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
     // Lockstep checksum (Ghidra 0x3c2700..0x3c294c): a wrapping 32-bit sum of
     // raw words; floats contribute their bit pattern, bools 1 (true) / 2 (false).
     static uint32_t mChecksum;

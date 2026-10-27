@@ -14,7 +14,7 @@
 //
 // Ghidra: CBomberBomb 0x12f4fc, init 0x12f370, timeUpdate 0x12e924,
 // calcChecksum 0x12f9fc, holdState 0x12dae4, restoreState 0x12db50.
-// Not ported: draw, timeUpdateSimple, particles (ids stay 0), save/load.
+// Not ported: draw, timeUpdateSimple, save/load.
 #pragma once
 
 #include "core/CVector3.h"
@@ -46,7 +46,7 @@ public:
     Real mPitch = 0.0f;               // +0xe4 "BombPitch"
     Real mPitchHeld = 0.0f;           // +0xe8
     Real mRoll = 0.0f;                // +0x104 "BombRoll"
-    unsigned mCurrentParticleSystem = 0;   // +0x108 (not ported: 0)
+    unsigned mCurrentParticleSystem = 0;   // +0x108 the smoke trail
     CPlayer* mOwner = nullptr;        // +0x12c "Owner"
     Real mBombMinDistance = 0.0f;     // +0x130 config "BombMinDistance"
     Real mBombDistanceScaleFactor = 0.0f;   // +0x134 config "BombDistanceScaleFactor"

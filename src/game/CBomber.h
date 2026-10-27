@@ -24,7 +24,7 @@
 // Ghidra: CBomber 0x128dd0, init 0x128fa4, timeUpdate 0x126a2c,
 // calcChecksum 0x129bec, holdState 0x1255e0, restoreState 0x12568c.
 // Not ported: draw, drawMinimap, timeUpdateSimple (render extrapolation),
-// sound, thruster/drop-marker particles (their ids stay 0), save/load.
+// sound, the thrusters' per-frame pose (CBomber::draw), save/load.
 #pragma once
 
 #include "core/CVector2.h"
@@ -76,10 +76,10 @@ public:
     Real mTimerHeld = 0.0f;           // +0x1f8
     Real mThrustPitch = 0.0f;         // +0x204 "BomberThrustPitch"
     Real mThrustPitchHeld = 0.0f;     // +0x208
-    unsigned mThrusterPS0 = 0;        // +0x20c particle system ids (not ported: 0)
+    unsigned mThrusterPS0 = 0;        // +0x20c particle system ids: the engine flames
     unsigned mThrusterPS1 = 0;        // +0x210
     int mCallerScript = 0;            // +0x22c "CallerScript" (-1: none)
-    unsigned mDropMarkerParticleSystem = 0;   // +0x230 (not ported: 0)
+    unsigned mDropMarkerParticleSystem = 0;   // +0x230 smoke 7 on the drop point (DROP_UNITS)
     int mDroppedUnitID = 0;           // +0x24c "DroppedUnitID" (-1: next free id)
 };
 

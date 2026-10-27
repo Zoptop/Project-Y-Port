@@ -529,9 +529,10 @@ TEST(script_cratedrop_fixed_position) {
 // ------------------------------------------------------------------ craters
 
 // Fade: alpha -= dt * 0.007 per step, a crater is deleted once alpha < 0.
-// With alpha starting at 1 (see CCraterManager.h) and dt = bitsf(0x3dcccc00):
-// dt * 0.007 = 0x3a377f7d, 1 - that = 0x3f7fd220, and alpha first drops
-// below 0 in step 1429 (numpy float32). Permanent craters stay.
+// The start alpha is random (0.7..1, CRng; see test_particles.cpp); set to 1
+// here. With dt = bitsf(0x3dcccc00): dt * 0.007 = 0x3a377f7d, 1 - that =
+// 0x3f7fd220, and alpha first drops below 0 in step 1429 (numpy float32).
+// Permanent craters stay.
 TEST(crater_fade) {
     CEngine::release();
     CEngine* e = CEngine::getSingletonPtr();
@@ -540,7 +541,8 @@ TEST(crater_fade) {
     cm.addCrater(CVector3(1.0f, 2.0f, 3.0f), 12.0f, false);
     cm.addCrater(CVector3(4.0f, 5.0f, 6.0f), 12.0f, true);
     CHECK(cm.craters().size() == 2);
-    CHECK(cm.craters().front()->mPosition.z == 0.0f && cm.craters().front()->mSize == 12.0f);
+    CHECK(cm.craters().front()->mPosition.z == 0.0f);
+    for (const auto& c : cm.craters()) c->mAlpha = 1.0f;
     cm.timeUpdate();
     CHECK(fbits(cm.craters().front()->mAlpha) == 0x3f7fd220u);
     for (int i = 1; i < 1428; ++i) cm.timeUpdate();

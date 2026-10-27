@@ -7,6 +7,7 @@
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
@@ -39,8 +40,8 @@ void CProjectileEMPWave::init(CUnit* target, const CVector3& position, Real yaw,
         mDirection.y = inv * mDirection.y;
         mDirection.z = inv * mDirection.z;
     }
-    // (wave particle system and mesh: rendering)
-    mParticleSystem = 0;
+    // the wave's smoke (subtype 10); the mesh is rendering only
+    mParticleSystem = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, 10);
 }
 
 // Ghidra 0x378c7c
@@ -59,6 +60,7 @@ void CProjectileEMPWave::update() {
     if (gen && gen->shieldEnabled() && crossesShield(mPosition, next, gen->mPosition, gen->shieldRadiusSq())) {
         mPosition = next;
         mReady2Delete = true;
+        mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
         return;
     }
     bool stopped = false;
@@ -78,13 +80,17 @@ void CProjectileEMPWave::update() {
     const Real front = mTimeOfFlight * mVelocity;
     if (stopped) {
         mReady2Delete = true;
+        mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
         return;
     }
     // [!] past MaxDistance the wave is marked for deletion but still stuns in this step
-    if (mMaxDistance < front) mReady2Delete = true;
+    if (mMaxDistance < front) {
+        mReady2Delete = true;
+        mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
+    }
+    mEngine->getParticleManager()->attachParticleSystem(mParticleSystem, mPosition);
 
     // ---- stun the units the front passed in this step
-    // (moves the particle system: rendering)
     Real ax = mStart.x - mPosition.x;
     Real ay = mStart.y - mPosition.y;
     const Real alen = fdlibm::sqrtf(ax * ax + ay * ay);

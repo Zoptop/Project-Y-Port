@@ -8,6 +8,7 @@
 #include "game/CBuilding.h"
 #include "game/CCraterManager.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
@@ -45,7 +46,8 @@ void CBomberBomb::init(Real yaw, Real pitch, CVector3 position, Real velocity, C
     mYaw = yaw;
     mPitch = pitch;
     mRoll = 0.0f;
-    // (smoke trail particle system and mesh "Bomb1": render only)
+    // the smoke trail (subtype 2); the mesh "Bomb1" is render only
+    mCurrentParticleSystem = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, 2);
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mBombMinDistance, "BombMinDistance");
     cfg.updateConfigValue(mBombDistanceScaleFactor, "BombDistanceScaleFactor");
@@ -96,7 +98,8 @@ void CBomberBomb::timeUpdate() {
     mPosition.x = nx;
     mPosition.y = ny;
     mPosition.z = nz;
-    // (the smoke trail particle system follows the bomb)
+    // the smoke trail follows the bomb
+    mEngine->getParticleManager()->attachParticleSystem(mCurrentParticleSystem, mPosition);
 
     const Real v = mVelocity;
     mVelocity = v > 150.0f ? v - dt * 50.0f : Real(150.0f);
@@ -108,6 +111,7 @@ void CBomberBomb::timeUpdate() {
     if (!shielded && !(mPosition.z < 0.0f)) return;
 
     mReadyToDelete = true;
+    mEngine->getParticleManager()->disableParticleSystem(mCurrentParticleSystem);
     const CVector2 at(mPosition.x, mPosition.y);
     if (CGridCell* cell = level->getGridCellFar(at)) {
         // The cell is re-read every iteration (hit() may change it).
@@ -130,10 +134,14 @@ void CBomberBomb::timeUpdate() {
             u->hit(maxDamage / f, 0, DAMAGE_AREA, mOwner, this);
         }
     }
-    // (explosion particles)
+    // the explosion: on the ground, or in the air at the shield
+    CParticleManager* pm = mEngine->getParticleManager();
     if (!shielded) {
+        pm->createParticleSystem(PS_EXPLOSION, at, 0.0f, 1, false, nullptr, false);
         if (CCraterManager* craters = game->getCraterManager()) craters->addCrater(mPosition, 12.0f, false);
+        return;
     }
+    pm->createParticleSystem(PS_EXPLOSION, CVector2(nx, ny), nz, 1, false, nullptr, false);
 }
 
 // Ghidra 0x12dae4

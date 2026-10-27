@@ -8,6 +8,7 @@
 #include "game/CBuilding.h"
 #include "game/CCommandManager.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CGameFeatures.h"
 #include "game/CLevel.h"
@@ -64,7 +65,7 @@ Real CUnitRoboBrain::getLevelXP(unsigned level) {
 // Ghidra 0x3c15b0. With withCommanderBonus, a commander's aura (mAuraFactor,
 // set by CUnitCommander::distributeMods) adds (factor-1)*xp, and the
 // commander gets XPGainForCommander times that bonus. The owner's score
-// counts the plain xp. Level-up particles and the event bar are not ported.
+// counts the plain xp. The event bar is not ported.
 void CUnitRoboBrain::gainXP(Real xp, bool withCommanderBonus) {
     CGame* game = mEngine->mGame;
     if (!game->features().isFeatureEnabled(9) || mLevel == kMaxLevel) return;
@@ -88,7 +89,8 @@ void CUnitRoboBrain::gainXP(Real xp, bool withCommanderBonus) {
     while (mXP >= mXPForNextLevel) {
         const unsigned level = mLevel;
         if (level > kMaxLevel - 1) break;
-        // (level-up particle system: mParticleUpgrade, not ported)
+        if (mParticleUpgrade == 0)   // the level-up marker (smoke 3), until the ranks are spent
+            mParticleUpgrade = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, 3);
         mLevel = level + 1;
         mLevelUpsPending = mLevelUpsPending + 1;
         mXPForNextLevel = getLevelXP(level + 2);
@@ -131,7 +133,7 @@ bool CUnitRoboBrain::addRank(unsigned rank) {
     }
     calcBonusFromRanks();
     mLevelUpsPending = mLevelUpsPending - 1;
-    // (pending == 0: the level-up particle system is disabled)
+    if (mLevelUpsPending == 0) disableParticleSystem(mParticleUpgrade);
     return true;
 }
 
@@ -176,6 +178,7 @@ void CUnitRoboBrain::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitRobobrainMaxHealth");
     loadConfigSettings("Robobrain");
+    getSubMeshData("Robobrain");   // +0x1c8/+0x1cc
     mFlags = 0x108e4d;
     mType = UNIT_ROBOBRAIN;
     cfg.updateConfigValue(mHackResistance, "UnitRobobrainHackResistance");
@@ -309,8 +312,12 @@ void CUnitRoboBrain::leaveVehicle(bool force) {
     }
 }
 
-// Ghidra 0x3c3534 (the level-up particle system is not ported)
-void CUnitRoboBrain::leaveBuilding() { CUnit::leaveBuilding(); }
+// Ghidra 0x3c3534: the level-up marker again if ranks are pending
+void CUnitRoboBrain::leaveBuilding() {
+    CUnit::leaveBuilding();
+    if (mLevelUpsPending != 0 && mParticleUpgrade == 0)
+        mParticleUpgrade = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, 3);
+}
 
 // Ghidra 0x3c37bc
 void CUnitRoboBrain::calcChecksum() {

@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "game/CParticleManager.h"
 #include "render/Math3D.h"
 
 namespace py {
@@ -49,10 +50,14 @@ public:
     // Single-player frame: updateFrameTime, then one CCommandManager step.
     void timeUpdateSingleplayer(float nowMs);
 
+    CParticleManager* getParticleManager() const { return mParticleManager.get(); }
+
     // ---- fields (original offsets)
     static constexpr int kMaxPlayers = 5;
     CPlayerSetup mPlayerSetup[kMaxPlayers];   // +0x4c
     unsigned mNumPlayers = 2;          // +0x128  (players 1..n; 0 is neutral)
+    // +0x14c CParticleManager::getSingletonPtr() in CEngine::init (Ghidra 0x16d074)
+    std::unique_ptr<CParticleManager> mParticleManager = std::make_unique<CParticleManager>();
     CGame* mGame = nullptr;            // +0x178
     float mLastFrameTime = 0.0f;       // +0x180  timer (ms) of the previous frame
     float mFpsFrames = 0.0f;           // +0x184

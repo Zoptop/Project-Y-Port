@@ -24,7 +24,7 @@ public:
     CVector3 mBlastOffset;               // +0xb0 (particles)
     std::string mSoundSourceName;        // +0xbc
     Real mSoundVolume = 0.0f;            // +0xc0
-    unsigned mParticleSystem = 0;        // +0xc4 (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0xc4 the beam (shot constant 2)
 };
 
 }  // namespace py

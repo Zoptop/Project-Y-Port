@@ -18,6 +18,7 @@ void CUnitSniperSuit::init(unsigned playerId, const CVector2& position, Real rot
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitSniperSuitMaxHealth");
     loadConfigSettings("SniperSuit");
+    getSubMeshData("sniper1");   // +0x1c8/+0x1cc
     mFlags = 0xed7;
     mType = UNIT_SNIPERSUIT;
     cfg.updateConfigValue(mHackResistance, "UnitSniperSuitHackResistance");

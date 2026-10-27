@@ -2,9 +2,12 @@
 #include "game/CProjectileLaserBlastB.h"
 
 #include "core/CConfig.h"
+#include "core/CMath.h"
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemShotDirected.h"
 #include "game/CGame.h"
 #include "game/CUnit.h"
 
@@ -33,8 +36,18 @@ void CProjectileLaserBlastB::init(CUnit* target, const CVector3& position, Real 
         mDirection.z = inv * mDirection.z;
     }
     mFlightTime = (len - 4.0f) / mVelocity;
-    // (shot particle system and sound: not ported)
-    mParticleSystem = 0;
+    // the shot (a directed shot along the flight direction); the sound is not ported
+    CParticleSystem* ps =
+        mEngine->getParticleManager()->createParticleSystem(PS_SHOTDIRECTED, mPosition, 2, false, nullptr, false);
+    mParticleSystem = ps->mID;
+    const Real zero = Real(CMath::fDeg2Rad) * 0.0f;
+    const Real heading = fdlibm::atan2f(mDirection.y, mDirection.x);
+    static_cast<CParticleSystemShotDirected*>(ps)->mRotation.FromEulerAnglesXYZ(zero, zero, heading);
+}
+
+// Ghidra 0x37b848
+CProjectileLaserBlastB::~CProjectileLaserBlastB() {
+    if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
 }
 
 // Ghidra 0x37b468
@@ -44,7 +57,8 @@ void CProjectileLaserBlastB::update() {
     if (tof > mFlightTime && !mReady2Delete) {
         const Real s = mFlightTime * mVelocity + 2.0f;
         mPosition = CVector3(s * mDirection.x + mStart.x, s * mDirection.y + mStart.y, s * mDirection.z + mStart.z);
-        // (impact particles: not ported)
+        mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, CVector2(mPosition.x, mPosition.y), 0.0f,
+                                                            6, false, nullptr, false);
         if (CUnit* target = mEngine->mGame->getAsUnit(mTargetUnit)) {
             if (!target->isCommander()) {
                 target->hit(mDamage * mDamageBonus, mStarterUnit, DAMAGE_LASER, mOwner, nullptr);
@@ -57,7 +71,7 @@ void CProjectileLaserBlastB::update() {
     }
     const Real s = tof * mVelocity;
     mPosition = CVector3(s * mDirection.x + mStart.x, s * mDirection.y + mStart.y, s * mDirection.z + mStart.z);
-    // (moves the particle system: rendering)
+    mEngine->getParticleManager()->attachParticleSystem(mParticleSystem, mPosition);
 }
 
 // Ghidra 0x37bc94

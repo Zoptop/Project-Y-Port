@@ -18,6 +18,7 @@ void CUnitScorpion::init(unsigned playerId, const CVector2& position, Real rotat
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitScorpionMaxHealth");
     loadConfigSettings("Scorpion");
+    getSubMeshData("Scorpion1");   // +0x1c8/+0x1cc
     mFlags = 0xed7;
     mType = UNIT_SCORPION;
     cfg.updateConfigValue(mHackResistance, "UnitScorpionHackResistance");

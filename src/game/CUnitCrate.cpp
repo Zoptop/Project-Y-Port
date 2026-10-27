@@ -6,6 +6,8 @@
 #include "core/CUtils.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemInfo.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
@@ -21,34 +23,41 @@ namespace py {
 //   7 reinforcements: a unit (1, 2, 3, 8, 12, 14) dropped by a bomber
 //   8 reinforcements: 1..3 units (1, 6, 9) dropped by a bomber
 //   9 resource blast (resource game type only)
-// 3, 4, 6 and 10 do nothing (draw again). The finder's owner counts a crate
-// in any case. The message particle is not ported.
+// 3, 4, 6 and 10 do nothing (draw again). An action taken within the first
+// 99 draws shows its message (an info particle system, which draws CRng).
+// The finder's owner counts a crate in any case.
 void CUnitCrate::doSuprise(CUnit* finder) {
     CGame* game = mEngine->mGame;
     const CConfig& cfg = CConfig::get();
     unsigned tries = 0;
+    const char* message = nullptr;
+    bool done = false;
     for (;;) {
         const unsigned action = f2u(Real(CRngSafe::GetUniform(0x15)) * 11.0f);
         ++tries;
-        bool done = false;
         if (action < CConfig::kCrateActions && cfg.mCrateActionAvailable[action]) {
             switch (action) {
             case 0:
                 if (finder->getLevel() != 25) {
-                    finder->gainXP(50.0f, true);   // "XP Bonus!"
+                    finder->gainXP(50.0f, true);
+                    message = "XP Bonus!";
                     done = true;
                 }
                 break;
             case 1:
-                if (!(finder->heal(100000.0f, nullptr) == 0.0f)) done = true;   // "Instant repair!"
-                break;
-            case 2:
-                if (finder->isDestroyable()) {
-                    finder->makeInvulnerable(60.0f);   // "Invulnerability!"
+                if (!(finder->heal(100000.0f, nullptr) == 0.0f)) {
+                    message = "Instant repair!";
                     done = true;
                 }
                 break;
-            case 5:   // "Production Booster!"
+            case 2:
+                if (finder->isDestroyable()) {
+                    finder->makeInvulnerable(60.0f);
+                    message = "Invulnerability!";
+                    done = true;
+                }
+                break;
+            case 5:
                 for (unsigned id : game->objectList()) {
                     CBuilding* b = game->getAsBuilding(id);
                     if (b && b->hasProduction() && b->mOwner == finder->mOwner && b->isCommanded()) {
@@ -56,9 +65,10 @@ void CUnitCrate::doSuprise(CUnit* finder) {
                         b->mProductionCountdown = b->mProductionCountdown - boost;
                     }
                 }
+                message = "Production Booster!";
                 done = true;
                 break;
-            case 7: {   // "Reinforcements!"
+            case 7: {
                 unsigned type;
                 do {
                     if (Real(CRngSafe::GetUniform(0x16)) > bitsf(0x3e99999a)) {
@@ -74,10 +84,11 @@ void CUnitCrate::doSuprise(CUnit* finder) {
                     }
                 } while (!cfg.mUnitAvailable[type]);
                 game->addBomber(CVector2(mPosition.x, mPosition.y), finder->mOwner, 2, type, 1, -1, -1);
+                message = "Reinforcements!";
                 done = true;
                 break;
             }
-            case 8: {   // "Reinforcements!"
+            case 8: {
                 unsigned type;
                 do {
                     if (Real(CRngSafe::GetUniform(0x1b)) > bitsf(0x3e4ccccd))   // 0.2
@@ -87,13 +98,17 @@ void CUnitCrate::doSuprise(CUnit* finder) {
                 } while (!cfg.mUnitAvailable[type]);
                 const unsigned count = f2u(Real(CRngSafe::GetUniform(0x1d)) * 3.0f + 1.0f);
                 game->addBomber(CVector2(mPosition.x, mPosition.y), finder->mOwner, 2, type, count, -1, -1);
+                message = "Reinforcements!";
                 done = true;
                 break;
             }
             case 9:
-                if (mEngine->mGameType == 3) {   // "Resource Blast!"
+                if (mEngine->mGameType == 3) {
                     // (then the level's resource texture refresh, vtable +4: render)
                     game->getLevel()->addResource(CVector2(mPosition.x, mPosition.y), 1.0f, 50.0f);
+                    mEngine->getParticleManager()->createParticleSystem(
+                        PS_EXPLOSION, CVector2(mPosition.x, mPosition.y), 0.0f, 8, false, nullptr, false);
+                    message = "Resource Blast!";
                     done = true;
                 }
                 break;
@@ -103,6 +118,11 @@ void CUnitCrate::doSuprise(CUnit* finder) {
         }
         if (done || tries > 99) break;
     }
+    if (done && tries < 100) {
+        CParticleSystem* info =
+            mEngine->getParticleManager()->createParticleSystem(PS_INFO, mPosition, 1, false, nullptr, false);
+        static_cast<CParticleSystemInfo*>(info)->mText = message;
+    }
     finder->mOwner->mCratesPickedUp = finder->mOwner->mCratesPickedUp + 1;
 }
 
@@ -111,6 +131,7 @@ void CUnitCrate::init(unsigned playerId, const CVector2& position, Real rotation
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitCrateMaxHealth");
     loadConfigSettings("Crate");
+    getSubMeshData("Crate1");   // +0x1c8/+0x1cc
     mType = UNIT_CRATE;
     mFlags = 0x80400;
     mMaxVelocity = 0.0f;

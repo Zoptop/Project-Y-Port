@@ -13,6 +13,7 @@ void CUnitMineDropper::init(unsigned playerId, const CVector2& position, Real ro
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitMineDropperMaxHealth");
     loadConfigSettings("MineDropper");
+    getSubMeshData("minelayer1");   // +0x1c8/+0x1cc
     mFlags = 0xe55;
     mType = UNIT_MINEDROPPER;
     cfg.updateConfigValue(mHackResistance, "UnitMineDropperHackResistance");

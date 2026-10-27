@@ -1,6 +1,8 @@
 // CCraterManager.cpp - see CCraterManager.h.
 #include "game/CCraterManager.h"
 
+#include "core/CMath.h"
+#include "core/CRng.h"
 #include "core/FloatBits.h"
 #include "game/CEngine.h"
 
@@ -9,11 +11,15 @@ namespace py {
 // Ghidra 0x160574
 CCraterManager::CCraterManager() : mEngine(CEngine::getSingletonPtr()) {}
 
-// Ghidra 0x160970 (the three CRng draws for the look are left out, see the header)
+// Ghidra 0x160970. Three CRng draws: alpha, size factor, rotation.
 void CCraterManager::addCrater(const CVector3& position, Real size, bool permanent) {
     auto c = std::make_unique<CCrater>();
+    c->mAlpha = Real(CRng::GetUniform()) * bitsf(0x3e99999a) + bitsf(0x3f333333);   // 0.3, 0.7
     c->mPosition = CVector3(position.x, position.y, 0.0f);
-    c->mSize = size;
+    c->mSize = size * (Real(CRng::GetUniform()) + 2.0f);
+    c->mUVTopLeft = CVector2(0.25f, 0.0f);
+    c->mUVSize = CVector2(0.25f, 0.25f);
+    c->mRotation = Real(CRng::GetUniform()) * CMath::TWO_PI;
     c->mPermanent = permanent;
     mCraters.push_back(std::move(c));
 }

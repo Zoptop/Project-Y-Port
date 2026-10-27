@@ -20,8 +20,8 @@
 // the desync-history recorder, which adds nothing) instead of calcChecksum
 // (+0x34), so weapon state never reaches the lockstep checksum.
 //
-// Rendering (drawMesh, shot quads via CWeaponFactory::addShot), sound and
-// particles are not ported; particle-system ids are kept as fields, always 0.
+// Rendering (drawMesh, shot quads via CWeaponFactory::addShot) and sound are
+// not ported. The beams' particle systems are (updateBeamParticleSystem).
 #pragma once
 
 #include <string>
@@ -105,6 +105,12 @@ protected:
     CVector3 mountPointToWorld();
     // appends a projectile the weapon created to CGame's projectile list
     void spawn(CProjectile* projectile);
+    // The beam (a CParticleSystemShotConstant, `subtype`) of the gatling
+    // lasers, the mini laser, the hacker and the sniper's aiming laser, as
+    // each of their timeUpdate does it: created on the first shot, then moved
+    // every step (start, endpoint, range = |start - end|, rotation about z by
+    // `yaw`); a beam that is gone clears `id`. Visual, no CRng draws.
+    void updateBeamParticleSystem(unsigned& id, int subtype, const CVector3& start, const CVector3& end, Real yaw);
 };
 
 class CWeaponFactory {

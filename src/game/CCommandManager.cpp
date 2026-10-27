@@ -5,6 +5,7 @@
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CPlayer.h"
 #include "game/CUnit.h"
@@ -143,11 +144,17 @@ void CCommandManagerLocal::cmdUnitOrderSetMaxVelocityLimiter(unsigned, unsigned 
     if (CUnit* u = mEngine->mGame->getAsUnit(unit)) u->mMaxVelocityLimiter = limit;
 }
 
-// Ghidra 0x158e0c: one step with the frame's dt unless paused (the
-// exploded pieces and particles are visual and live in the renderer).
+// Ghidra 0x158e0c: one step with the frame's dt unless paused, then the
+// exploded pieces; the particles advance every frame, also while paused.
+// [!] The particles' re-spawns draw CRng, which the AI also uses, so this
+// per-frame update is part of the single-player behaviour.
 void CCommandManagerLocal::timeUpdate() {
     CGame* g = mEngine->mGame;
-    if (g && !mEngine->mPaused) g->timeUpdate(mEngine->mFrameDt, mEngine->mGameTime);
+    if (g && !mEngine->mPaused) {
+        g->timeUpdate(mEngine->mFrameDt, mEngine->mGameTime);
+        g->timeUpdateExplodedPieces(mEngine->mFrameDt);
+    }
+    mEngine->getParticleManager()->timeUpdate(mEngine->mFrameDt);
 }
 
 }  // namespace py

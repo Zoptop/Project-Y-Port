@@ -20,7 +20,7 @@ public:
     std::string mSoundSourceName;        // +0x90
     Real mSoundVolume = 0.0f;            // +0x94
     CVector3 mBlastOffset;               // +0x98 (particles)
-    unsigned mParticleSystem = 0;        // +0xa4 shot particles (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0xa4 the beam (shot constant 1)
 };
 
 }  // namespace py

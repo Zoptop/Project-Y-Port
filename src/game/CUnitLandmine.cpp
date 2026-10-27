@@ -5,6 +5,8 @@
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
 #include "game/CCraterManager.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemInfo.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -52,7 +54,12 @@ void CUnitLandmine::timeUpdate() {
                 const Real div = f < 1.0f ? Real(1.0f) : f;
                 v->hit(maxDamage / div, mId, DAMAGE_AREA, mOwner, nullptr);
             }
-            // (explosion particles and text: not simulation)
+            // the "mine" message (an info system), the explosion and the crater: visual, CRng draws
+            CParticleManager* pm = mEngine->getParticleManager();
+            CParticleSystem* info = pm->createParticleSystem(PS_INFO, mPosition, 1, false, nullptr, false);
+            // TODO(text): CTxtLoc::getS(ETxtLocIDs 0xad) + "!" (the port's CTxtLoc is keyed by name)
+            static_cast<CParticleSystemInfo*>(info)->mText = "!";
+            pm->createParticleSystem(PS_EXPLOSION, CVector2(x, y), 0.0f, 3, false, nullptr, false);
             if (CCraterManager* cm = mEngine->mGame->getCraterManager()) cm->addCrater(mPosition, 8.0f, false);
             return;
         }
@@ -65,6 +72,7 @@ void CUnitLandmine::init(unsigned playerId, const CVector2& position, Real rotat
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitLandmineMaxHealth");
     loadConfigSettings("Landmine");
+    getSubMeshData("landmine1");   // +0x1c8/+0x1cc
     mType = UNIT_LANDMINE;
     mFlags = 0xa4404;
     mMaxVelocity = 0.0f;

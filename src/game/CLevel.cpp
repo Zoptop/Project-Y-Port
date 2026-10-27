@@ -16,6 +16,7 @@
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CPlayer.h"
 #include "game/CScript.h"
@@ -1001,7 +1002,8 @@ void CLevel::update() {
         const Real dy = p.y - b->mPosition.y;
         if (!(fdlibm::sqrtf(dx * dx + dy * dy) > 70.0f)) continue;
         addResource(p, 1.0f, 80.0f);
-        // (texture refresh and a particle system: not simulation)
+        // (texture refresh: render) and an explosion (subtype 8) on the new field
+        e->getParticleManager()->createParticleSystem(PS_EXPLOSION, p, 0.0f, 8, false, nullptr, false);
         total = getTotalResValue();
     }
 }

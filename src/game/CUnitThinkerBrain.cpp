@@ -10,6 +10,7 @@ void CUnitThinkerBrain::init(unsigned playerId, const CVector2& position, Real r
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitThinkerBrainMaxHealth");
     loadConfigSettings("ThinkerBrain");
+    getSubMeshData("tbrain1");   // +0x1c8/+0x1cc
     mFlags = 0xe05;
     mType = UNIT_THINKERBRAIN;
     cfg.updateConfigValue(mHackResistance, "UnitThinkerBrainHackResistance");

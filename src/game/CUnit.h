@@ -167,6 +167,10 @@ public:
                                                CBuilding* building);   // Ghidra 0x3ac2a0
     void setUnitOrderGatherResourcesReturnToBuildingAndStop(CBuilding* building);   // Ghidra 0x3ac0b4
     CWeapon* weapon(size_t i) const;
+    // particle systems that follow the unit (CParticleManager; see the ids below)
+    void attachParticleSystem(unsigned& id);    // position = mPosition; id = 0 if the system is gone
+    void disableParticleSystem(unsigned& id);   // CParticleManager::disableParticleSystem
+    unsigned createStatusParticleSystem(int subtype);   // smoke 8/9, +0x6c = mBoundingRadius
 
     // Fields other classes read through a CUnit* in the original (subclass
     // members, accessed by offset): defined in the subclasses' .cpp.
@@ -234,9 +238,14 @@ public:
     bool mCanHaveDriver = false;
     bool mUnitIsHealing = false;         // +0x1158
     Real mUnitIsHealingCountdown = 0.0f; // +0x1174
-    // particle-system ids: always 0 in the port (particles are not simulated)
-    unsigned mParticleHeal = 0, mParticleUpgrade = 0, mParticleSmoke = 0;    // +0x1178/+0x117c/+0x1180
-    unsigned mParticleInvul = 0, mParticleStun = 0, mParticleResGather = 0;  // +0x1184/+0x1188/+0x118c
+    // particle-system ids (CParticleManager; 0 = none). The systems follow
+    // the unit (timeUpdate / timeUpdateSimple set their positions).
+    unsigned mParticleHeal = 0;       // +0x1178 smoke 4 while being repaired
+    unsigned mParticleUpgrade = 0;    // +0x117c (CUnitRoboBrain: smoke 3, rank up)
+    unsigned mParticleSmoke = 0;      // +0x1180 smoke mInitVal12ec below 30 % health
+    unsigned mParticleInvul = 0;      // +0x1184 smoke 8 while invulnerable
+    unsigned mParticleStun = 0;       // +0x1188 smoke 9 while stunned
+    unsigned mParticleResGather = 0;  // +0x118c smoke 11/12 while gathering
     Real mArmorDriverFactor = 0.0f;      // +0x1190
     Real mArmorFactorVsLaser = 0.0f;     // +0x1194
     Real mArmorFactorVsProjectile = 0.0f;   // +0x1198

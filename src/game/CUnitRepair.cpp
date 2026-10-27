@@ -15,6 +15,7 @@ void CUnitRepair::init(unsigned playerId, const CVector2& position, Real rotatio
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitRepairMaxHealth");
     loadConfigSettings("Repair");
+    getSubMeshData("URepair1");   // +0x1c8/+0x1cc
     mFlags = 0xe55;
     mType = UNIT_REPAIR;
     cfg.updateConfigValue(mHackResistance, "UnitRepairHackResistance");

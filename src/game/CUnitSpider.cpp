@@ -18,6 +18,7 @@ void CUnitSpider::init(unsigned playerId, const CVector2& position, Real rotatio
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitSpiderMaxHealth");
     loadConfigSettings("Spider");
+    getSubMeshData("Spider1");   // +0x1c8/+0x1cc
     mFlags = 0x4e57;
     mType = UNIT_SPIDER;
     cfg.updateConfigValue(mHackResistance, "UnitSpiderHackResistance");

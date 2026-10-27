@@ -18,12 +18,13 @@ namespace py {
 class CProjectileLaserBlastB : public CProjectile {
 public:
     CProjectileLaserBlastB();                                             // Ghidra 0x37b7d4
+    ~CProjectileLaserBlastB() override;                                   // Ghidra 0x37b848 (shot off)
     void update() override;                                               // Ghidra 0x37b468
     void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
               unsigned starterUnit, Real damageBonus) override;           // Ghidra 0x37b8d0
     void calcChecksum() override;                                         // Ghidra 0x37bc94
 
-    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (the shot)
     Real mDamage = 0.0f;                 // +0x190 "ProjectileLaserBlastBDamage"
     Real mFlightTime = 0.0f;             // +0x194 time to arrival
     CVector3 mStart;                     // +0x1b8
