@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 namespace py {
 
@@ -23,10 +24,20 @@ public:
     // Value without trailing CR/LF, for display.
     std::string text(const std::string& key) const;
 
+    // CTxtLoc::getS / getC(ETxtLocIDs) (Ghidra 0x39cbd8 / 0x39cbfc): the
+    // strings by index in load order. The index advances once per key token
+    // read by CTxtLoc::load, comment/blank tokens included (see loadFromBuffer),
+    // which for the shipped files is (line number - 2). 0x293 slots; values
+    // keep their trailing '\r' like the original.
+    static constexpr int kNumIds = 0x293;
+    const std::string& getS(int id) const;
+    const char* getC(int id) const { return getS(id).c_str(); }
+
     size_t size() const { return mTxts.size(); }
 
 private:
     std::map<std::string, std::string> mTxts;
+    std::vector<std::string> mIndexed = std::vector<std::string>(kNumIds);
     std::string mEmpty;
 };
 

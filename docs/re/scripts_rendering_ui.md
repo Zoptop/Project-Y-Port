@@ -422,11 +422,11 @@ v=1:  no submesh table; layout = 1
 
 ### B.10 Text (`CTextRender`, `font_lavoir_64.png`/`.csv`)
 
-* `font_lavoir_64.png` is 1024² RGBA: 16×16 cells of 64 px, one per byte code 0–255. UV cell = (c%16, c/16)/16.
-* `font_lavoir_64.csv` has 255 lines of `"<charcode> <advancePx>"` (`loadFontDefinition`, `sscanf("%i %i")`). The stored advance is value+1 (`this+0xc+c·4`). Example: space = 10, `A` = 32, `W` = 48. Advance in text units = (w+1)/64·size (`calcTextPixelLength`).
+* `font_lavoir_64.png` is 1024² RGBA: 16×16 cells of 64 px. The cell of byte c is **c − 32** (cell 0 = space): UV = ((c−32)%16, (c−32)/16)/16 (`CTextRender::draw`; phase 5a correction of an earlier "c%16, c/16"). Codes below 32 give negative cells, which wrap (REPEAT) into the empty last rows.
+* `font_lavoir_64.csv` has 256 lines of `"<charcode> <advancePx>"` (`loadFontDefinition`, `sscanf("%i %i")`). The stored advance is value+1 (`this+0xc+c·4`). Example: csv space = 10, `A` = 32, `W` = 48 (stored 11, 33, 49). `calcTextPixelLength` = Σ stored/64·size; `calcTextLength` = twice that, which is the drawn width: glyphs are 2·size high and 2·stored/64·size wide. Hit boxes use the pixel length (half the drawn width). Details: `src/render/CTextRender.h`.
 * `drawString*` calls only queue `CTextRenderString` items (position, colour, size, alignment, optional bounds and yaw; vsprintf with a 2 KB buffer). `CTextRender::draw()` builds `CQuadPosUVColor4` quads (buffer of 0x300000 bytes, i.e. 8192 quads) and flushes them with `font.gfx`. Pixel coordinates are converted to NDC per screen orientation.
 * Helpers: `breakText`/`breakTextPixel` (wrap), `drawStringPixelBounded`, `drawStringScreenAdjustOnlyAspect`.
-* Localised strings come from `strings<Lang>.txt`, one `Key Text` per line. `CTxtLoc::getS(i)` and `getC(i)` index lines in file order: index = (line number − 2), counting comment lines **[!]** (see `CTxtLoc::load`). Examples: 0xc2 = `DescBeginnerMode`, 0x1b6 = `Episode`.
+* Localised strings come from `strings<Lang>.txt`, one `Key Text` per line. `CTxtLoc::getS(i)` and `getC(i)` index lines in file order: index = (line number − 2), counting comment lines **[!]** (see `CTxtLoc::load`; strictly, the index advances once per key token read, and a comment line's words become keys of their own: ported exactly in `CTxtLoc::loadFromBuffer`). Values keep their trailing `\r`, which is drawn as an invisible glyph of advance 24. Examples: 0xc2 = `DescBeginnerMode`, 0x1b6 = `Episode`.
 
 ---------------------------------------------------------------------------------------------------
 

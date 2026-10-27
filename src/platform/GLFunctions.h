@@ -93,6 +93,7 @@ constexpr GLenum SHADING_LANGUAGE_VERSION = 0x8B8C;
     X(void, Uniform4fv, GLint, GLsizei, const GLfloat*)                                 \
     X(void, UniformMatrix4fv, GLint, GLsizei, GLboolean, const GLfloat*)                \
     X(void, ReadPixels, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*)          \
+    X(void, GetIntegerv, GLenum, GLint*)                                                \
     X(void, Hint, GLenum, GLenum)
 
 #define PY_GL_DECLARE(ret, name, ...) \
@@ -105,5 +106,9 @@ PY_GL_FUNCS(PY_GL_DECLARE)
 // Returns the number of functions that could not be resolved.
 using ProcLoader = void* (*)(const char*);
 int load(ProcLoader loader);
+
+// True once load() ran (a context exists). Code shared with the unit tests
+// (cameras, UI layout) skips its GL calls when this is false.
+inline bool isLoaded() { return Viewport != nullptr; }
 
 }  // namespace py::gl
