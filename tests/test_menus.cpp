@@ -92,7 +92,7 @@ std::string tempDir(const char* name) {
 }
 
 std::string readFile(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(path);   // text mode: the options file is written with fprintf ("\r\n" on Windows)
     std::stringstream ss;
     ss << in.rdbuf();
     return ss.str();
