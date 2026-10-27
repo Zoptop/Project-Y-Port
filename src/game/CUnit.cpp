@@ -16,6 +16,7 @@
 //     interface; the port never sets it (it reaches neither the checksum nor
 //     any decision).
 #include "game/CUnit.h"
+#include "game/IIngameUI.h"
 
 #include <memory>
 #include <set>
@@ -226,10 +227,10 @@ int CUnit::getLevel() {
     CUnit* d = mCommander ? mEngine->mGame->getAsUnit(mCommander) : nullptr;
     return d ? d->getLevel() : 0;
 }
-bool CUnit::isLevelUpAutomated() {
-    if (!isCommanded()) return false;
+int CUnit::isLevelUpAutomated() {   // Ghidra 0x3a4d70 (the commanding brain's mode)
+    if (!isCommanded()) return 0;
     CUnit* d = mEngine->mGame->getAsUnit(mCommander);
-    return d ? d->isLevelUpAutomated() : false;
+    return d ? d->isLevelUpAutomated() : 0;
 }
 
 // Ghidra 0x3a3b28: max firing range + 50, at least 70.
@@ -1125,7 +1126,14 @@ void CUnit::callCommander(CPlayer* player, bool force) {
 void CUnit::hit(Real damage, unsigned attackerId, EDamageType type, CPlayer* attackingPlayer,
                 CSceneObject* /*source: achievements only*/) {
     CGame* game = mEngine->mGame;
-    // [UI] under-attack warning: sets mVal14dc = 1 when 0 (player interface only)
+    // [UI] under-attack warning of the owner's group bar (only with an
+    // interface for the owner); mVal14dc is the warning's cool-down
+    if (IIngameUI* ui = IIngameUI::get()) {
+        if (ui->hasInterface(mOwner) && mVal14dc == 0.0f) {
+            ui->enableUnderAttackWarning(mOwner, mId);
+            mVal14dc = 1.0f;
+        }
+    }
     CUnit* attacker = nullptr;
     if (attackerId == 0) {
         mLastAttackingPlayer = attackingPlayer;

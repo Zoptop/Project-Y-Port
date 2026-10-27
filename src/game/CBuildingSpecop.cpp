@@ -4,6 +4,10 @@
 // (addEventIcon, user interface), the radar dish drawing.
 #include "game/CBuildingSpecop.h"
 
+#include <cstdio>
+
+#include "game/IIngameUI.h"
+
 #include "core/CMath.h"
 #include "core/CUtils.h"
 #include "core/FloatBits.h"
@@ -52,7 +56,10 @@ void CBuildingSpecop::timeUpdate() {
     }
     if (mSpecopCountdown <= 0.0f) {
         mSpecopCountdown = 0.0f;
-        if (!mOpReady) mOpReady = true;   // (and the event bar icon: UI)
+        if (!mOpReady) {
+            mOpReady = true;
+            addEventIcon();
+        }
     }
     CBuilding::timeUpdate();
 }
@@ -130,8 +137,26 @@ void CBuildingSpecop::removeCommander() {
     brain->leaveBuilding();
 }
 
-// Ghidra 0x149814 (the event bar icon for the first brain of a ready op: UI)
-void CBuildingSpecop::enter(unsigned brainId) { mContainedBrains.push_back(brainId); }
+// Ghidra 0x149814 (with the event bar icon for the first brain of a ready op)
+void CBuildingSpecop::enter(unsigned brainId) {
+    mContainedBrains.push_back(brainId);
+    if (mOpReady && mContainedBrains.size() == 1) addEventIcon();
+}
+
+// Ghidra 0x149448: the "<op> ready" icon of the owner's event bar, labelled
+// with the commanding brain's level plus the player's bonus 8 (UI only)
+void CBuildingSpecop::addEventIcon() {
+    IIngameUI* ui = IIngameUI::get();
+    if (mContainedBrains.empty() || !ui || !ui->hasInterface(mOwner)) return;
+    Real lvl = 0.0f;
+    if (CUnit* b = mEngine->mGame->getAsUnit(mContainedBrains.front())) lvl = static_cast<float>(static_cast<unsigned>(b->getLevel()));
+    const Real v = mOwner->getBonus(8) + lvl;
+    char buf[20];
+    std::snprintf(buf, sizeof(buf), "%i", f2i(v));
+    static const int kEvent[5] = {0, 2, 1, 3, 4};   // by mOpType
+    if (static_cast<unsigned>(mOpType) > 4u) return;
+    ui->addEvent(mOwner, kEvent[mOpType], mId, CVector2(0.0f, 0.0f), false, buf);
+}
 
 // Ghidra 0x1496b4. Simulation part: the op type (0x12..0x14, 0x1a, 0x1b)
 // and the automatic brain call (0x18/0x19).
@@ -154,7 +179,8 @@ void CBuildingSpecop::processDialButton(int button) {
         return;
     }
     if (mOpType == op) return;
-    mOpType = op;   // (and the event bar icon if ready with a brain: UI)
+    mOpType = op;
+    if (mOpReady && !mContainedBrains.empty()) addEventIcon();
 }
 
 // Ghidra 0x1499e8

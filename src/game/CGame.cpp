@@ -6,6 +6,7 @@
 #include <string>
 
 #include "core/CRng.h"
+#include "core/CTxtLoc.h"
 #include "core/CUtils.h"
 #include "game/CBuilding.h"
 #include "game/CCommandManager.h"
@@ -18,6 +19,7 @@
 #include "game/CSceneObject.h"
 #include "game/CUnit.h"
 #include "game/CWeapon.h"
+#include "game/IIngameUI.h"
 #include "render/CFakeShadow.h"
 #include "render/CMesh.h"
 
@@ -438,6 +440,29 @@ void CGame::checkGameEndingCondition(bool surrender, CPlayer* player) {
         for (CPlayer* pl : alive) pl->won();
     } else {
         CUtils::log("No Winner Team yet");
+    }
+    // the texts of the local players' interfaces (UI only): a modal overlay
+    // text whose dismissal adds the end-game script (caller -2) when the game
+    // is over; the camera scrolls to the losing player's start
+    IIngameUI* ui = IIngameUI::get();
+    if (!ui) return;
+    for (auto& p : mPlayers) {
+        CPlayer* pl = p.second.get();
+        if (!ui->hasInterface(pl)) continue;
+        const CTxtLoc& t = CTxtLoc::get();
+        const CVector2* at = player ? &player->mStartPosition : nullptr;
+        if (pl == player && surrender) {
+            if (winner) ui->showGameEndText(pl, t.getC(0xf6), -2, at);
+            else ui->showGameEndText(pl, t.getC(0xf7), -1, at);
+        } else if (!player) {
+            if (winner) ui->showGameEndText(pl, t.getC(0xf9), -2, nullptr);
+        } else if (winner) {
+            ui->showGameEndText(pl, t.getC(0xf9), -2, at);
+        } else {
+            char buf[256];
+            std::snprintf(buf, sizeof(buf), t.getC(0xf8), player->getName().c_str());
+            ui->showGameEndText(pl, buf, -1, at);
+        }
     }
 }
 

@@ -451,6 +451,19 @@ CEngine* CEngine::getSingletonPtr() {
 
 void CEngine::release() { sInstance.reset(); }
 
+// Ghidra 0x166a40 (table at ELF 0x4aa338); index = config TouchMinMovedDistanceID
+float CEngine::getMinMovedDistance() const {
+    static const uint32_t kTable[11] = {0x3ba3d70a, 0x3c23d70a, 0x3c75c28f, 0x3ca3d70a, 0x3cf5c28f, 0x3d4ccccd,
+                                        0x3dcccccd, 0x3e19999a, 0x3e4ccccd, 0x3e800000, 0x3e99999a};
+    const unsigned idx = static_cast<unsigned>(CConfig::get().getInt("TouchMinMovedDistanceID", 3));
+    if (idx < 11u) return bitsf(kTable[idx]);
+    return bitsf(0x3ca3d70a);   // 0.02
+}
+
+float CEngine::getLongTouchTime() const {
+    return static_cast<float>(CConfig::get().getInt("LongTouchTime", 300));
+}
+
 // Ghidra 0x156a90 (table at 0x4aa364)
 float CEngine::getSpeedFactor(int setting) {
     static const float kTable[6] = {0.1f, 0.2f, 0.5f, 1.0f, 1.5f, 2.0f};

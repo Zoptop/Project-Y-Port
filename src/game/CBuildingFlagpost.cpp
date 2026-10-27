@@ -3,6 +3,7 @@
 // PORT STATUS: complete for the simulation. Not ported: the event bar
 // messages and the sound mood (user interface), the flag drawing.
 #include "game/CBuildingFlagpost.h"
+#include "game/IIngameUI.h"
 
 #include "core/CConfig.h"
 #include "core/CUtils.h"
@@ -104,7 +105,8 @@ void CBuildingFlagpost::timeUpdate() {
         mLifedot = lifedot;
     }
     if (lifedot < 0.0f && mUnderAttackEventCountdown == 0.0f) {
-        // (event bar "sector under attack" for the sector owner: UI)
+        // event bar "sector under attack" for the sector owner (UI only)
+        if (IIngameUI* ui = IIngameUI::get()) ui->addEvent(mSector->mOwner, 5, mId, CVector2(0.0f, 0.0f), true, "");
         mUnderAttackEventCountdown = 15.0f;
     }
     // (sound mood "flag losing" when the local player's flag is losing: not simulation)
@@ -112,7 +114,11 @@ void CBuildingFlagpost::timeUpdate() {
     if (mLife > 100.0f) {
         mLife = 100.0f;
     } else if (mLife < 0.0f) {
-        // (event bar messages for the old and the new owner: UI)
+        // event bar "sector lost" / "sector taken" for the old and the new owner (UI only)
+        if (IIngameUI* ui = IIngameUI::get()) {
+            ui->addEvent(mSector->mOwner, 6, mId, CVector2(0.0f, 0.0f), false, "");
+            ui->addEvent(capturer, 0x10, mId, CVector2(0.0f, 0.0f), false, "");
+        }
         if (capturer) {
             mSector->mOwner = capturer;
             mSector->ownerChanged();

@@ -24,15 +24,7 @@
 #include "ui/CInterfaceElementTextInput2.h"
 #include "ui/CInterfaceElementTextSlider2.h"
 
-// The ingame interface: the real one when the HUD package is in the tree,
-// else the [PC] stand-in (CInterfaceIngameStandIn.h).
-#if __has_include("ui/CInterfaceIngame.h")
 #include "ui/CInterfaceIngame.h"
-#define PY_HAS_INGAME_INTERFACE 1
-#else
-#include "ui/CInterfaceIngameStandIn.h"
-#define PY_HAS_INGAME_INTERFACE 0
-#endif
 
 namespace py {
 
@@ -520,13 +512,8 @@ void CInterfaceMenu::initSingleplayerGame() {
     e->mNetworkMode = 0;
     e->setGame(std::make_unique<CGame>());
     e->mGame->init(false);
-#if PY_HAS_INGAME_INTERFACE
     auto ingame = std::make_unique<CInterfaceIngame>();
     ingame->initSingleplayer(mWidth, mHeight, e->mLocalPlayer);
-#else
-    auto ingame = std::make_unique<CInterfaceIngameStandIn>();
-    ingame->initSingleplayer(mWidth, mHeight, e->mLocalPlayer);
-#endif
     e->mIngameInterface = std::move(ingame);
     e->mCurrentInterface = e->mIngameInterface.get();
     e->resumeGame(e->mFrameTime);

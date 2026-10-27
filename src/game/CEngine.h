@@ -211,6 +211,13 @@ public:
     unsigned mMusicVolume = 40;        // "BackgroundMusicVolume"
     unsigned mMasterVolume = 100;      // "MasterVolume"
     std::unique_ptr<CGame> mOwnedGame; // [PC] owner of mGame (see setGame)
+    // ---- ingame interface state (HUD package)
+    bool mFollowMode = false;          // +0x1a4  the camera follows IPP +0x8c
+    int mChatInputMode = 0;            // +0x31c  0 ingame chat, 1 lobby chat (createInputDialog)
+    // Ghidra 0x166a40: config TouchMinMovedDistanceID (cfg +0xac) -> fraction of the display
+    float getMinMovedDistance() const;
+    // config LongTouchTime (cfg +0xa8), milliseconds
+    float getLongTouchTime() const;
 
 private:
     static std::unique_ptr<CEngine> sInstance;

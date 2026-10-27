@@ -1,7 +1,7 @@
 // CBuildingProduction.cpp - see CBuildingProduction.h.
 //
-// PORT STATUS: complete except the rally to a unit group (needs the local
-// player's group bar, user interface) and the achievement counter.
+// PORT STATUS: complete except the achievement counter. The rally to a
+// control group and the event icon go through IIngameUI (the HUD).
 #include "game/CBuildingProduction.h"
 
 #include "core/CMath.h"
@@ -11,6 +11,8 @@
 #include "game/CPlayer.h"
 #include "game/CSector.h"
 #include "game/CUnit.h"
+#include "game/CCommandManager.h"
+#include "game/IIngameUI.h"
 
 namespace py {
 
@@ -198,11 +200,23 @@ void CBuildingProduction::timeUpdate() {
     if (mRallyPointSet) {
         if (mRallyGroupID == 0) {
             unit->rally(mRallyObjectID, mRallyPosition);
-        } else if (!mOwner->isNeutral() && !mOwner->isAI()) {
-            // TODO(UI): rally to the first unit of group mRallyGroupID of the
-            // owner's group bar (a move / gather command through the command
-            // queue) and add the unit to that group. Needs CInterfaceIngame.
-            notPorted("CBuildingProduction rally to group");
+        } else if (!mOwner->isNeutral() && !mOwner->isAI() && IIngameUI::get() &&
+                   IIngameUI::get()->hasInterface(mOwner)) {
+            // [!] the rally to a control group reads the local player's group
+            // bar (user interface state): the first unit of the group gets
+            // followed, through the command queue as the original does
+            IIngameUI* ui = IIngameUI::get();
+            const unsigned first = ui->getFirstGroupUnit(mOwner, mRallyGroupID);
+            CUnit* lead = first ? e->mGame->getAsUnit(first) : nullptr;
+            if (lead && lead->isAlive()) {
+                CCommandManager* cm = e->mGame->getCommandManager();
+                if (e->mGameType == 3 && unit->isResourceGatherer() && lead->mUnitOrder == UNITORDER_GATHERRESOURCES)
+                    cm->cmdUnitOrderGatherResourcesAtLocation(mOwner->mId, unit->mId, lead->mGatherResourceDestination);
+                else
+                    cm->cmdUnitOrderMoveTo(mOwner->mId, unit->mId, lead->position2());
+                if (ui->isGameObjectSelected(mOwner, first)) ui->selectGameObject(mOwner, unit->mId);
+            }
+            ui->addUnitToGroup(mOwner, mRallyGroupID, unit->mId);
         }
     }
     addUnitProducedEvent(unit->mId);
@@ -213,6 +227,33 @@ void CBuildingProduction::timeUpdate() {
     mProductionTime = t;
     mProductionCountdown = t;
     CBuilding::timeUpdate();
+}
+
+// Ghidra 0x13caf4: the "unit produced" icon of the owner's event bar, by the
+// type being produced. [!] Types 4, 7, 0xb and 0xf..0x15 get none (the
+// event types 0x14..0x19 exist but are never used here).
+void CBuildingProduction::addUnitProducedEvent(unsigned unitId) {
+    IIngameUI* ui = IIngameUI::get();
+    if (!ui || !ui->hasInterface(mOwner)) return;
+    int ev;
+    switch (mUnitType) {
+        case 1: ev = 7; break;
+        case 2: ev = 0xd; break;
+        case 3: ev = 0xe; break;
+        case 5: ev = 10; break;
+        case 6: ev = 8; break;
+        case 8: ev = 0xc; break;
+        case 9: ev = 9; break;
+        case 10: ev = 0xb; break;
+        case 0xc: ev = 0x11; break;
+        case 0xd: ev = 0x12; break;
+        case 0xe: ev = 0x13; break;
+        case 0x16: ev = 0x1a; break;
+        case 0x17: ev = 0x1b; break;
+        case 0x18: ev = 0x1c; break;
+        default: return;
+    }
+    ui->addEvent(mOwner, ev, unitId, CVector2(0.0f, 0.0f), false, "");
 }
 
 // Ghidra 0x13eebc

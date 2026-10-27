@@ -31,6 +31,7 @@ public:
     void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x149be8
     void doOp(const CVector2& target) override;     // +0xd0 Ghidra 0x148d24
     void enter(unsigned brainId) override;          // +0xd8 Ghidra 0x149814
+    void addEventIcon();                            // Ghidra 0x149448 (IIngameUI: event bar)
 
     Real mSpecopCountdown = 0.0f;        // +0x350 "SpecopCountdown"
     Real mRadarYaw = 0.0f;               // +0x354 "RadarYaw" (the dish turns; drawing only)

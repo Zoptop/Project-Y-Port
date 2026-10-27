@@ -1,5 +1,6 @@
 // CUnitRoboBrain.cpp - see CUnitRoboBrain.h.
 #include "game/CUnitRoboBrain.h"
+#include "game/IIngameUI.h"
 
 
 #include "core/CConfig.h"
@@ -95,7 +96,9 @@ void CUnitRoboBrain::gainXP(Real xp, bool withCommanderBonus) {
         mLevelUpsPending = mLevelUpsPending + 1;
         mXPForNextLevel = getLevelXP(level + 2);
         if (mOwner->mHighestBrainLevel < mLevel) mOwner->mHighestBrainLevel = mLevel;
-        // (CEventBar "level up" event: UI)
+        // the "level up" icon of the owner's event bar (UI only)
+        if (IIngameUI* ui = IIngameUI::get())
+            if (ui->hasInterface(mOwner)) ui->addEvent(mOwner, 0xf, mId, CVector2(0.0f, 0.0f), false, "");
     }
 }
 

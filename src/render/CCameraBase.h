@@ -65,6 +65,9 @@ public:
     int mViewportY = 0;                    // +0x174
     unsigned mOrientation = 0;             // +0x178
     Quat mOrientationQuat;                 // +0x18c (w, x, y, z)
+    // +0x19c yaw around z (radians): CCameraLevel's orbit angle, the minimap
+    // camera's rotation; billboard quads (CInterfaceIngame::addColored4Quad) use it
+    float mYaw = 0.0f;
 };
 
 }  // namespace py

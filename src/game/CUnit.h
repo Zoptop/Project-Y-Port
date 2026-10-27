@@ -126,7 +126,7 @@ public:
     virtual void checkHealth();                        // +0x120 Ghidra 0x3a8f80
     virtual void stun(Real duration, unsigned attackerId);   // +0x124 Ghidra 0x3acfe8
     virtual void automateLevelUp(int mode);            // +0x128 Ghidra 0x3a4d20
-    virtual bool isLevelUpAutomated();                 // +0x12c
+    virtual int isLevelUpAutomated();                  // +0x12c the mode (0 manual, 1 random, 2 last selection)
     virtual Real getVisibilityRange();                 // +0x130
     virtual bool isStunnable();                        // +0x134
     virtual void createWeapons();                      // +0x138
