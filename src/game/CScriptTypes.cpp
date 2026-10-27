@@ -353,8 +353,9 @@ void CScriptGamestate::run() {
         CUtils::log("CEngine::pauseGame");
         mEngine->mPaused = true;   // CEngine::pauseGame (Ghidra 0x167fe8)
     }
-    // (the menu becomes the current interface and shows the aftermath
-    // screen: CInterfaceMenu::setupElements(12) / processAction(0x21) - UI)
+    // the menu becomes the current interface at the aftermath screen
+    // (setupElements(12), processAction(0x21)); a no-op without the UI
+    mEngine->showAftermathInterface();
 }
 
 // -------------------------------------------------------------------- beacon

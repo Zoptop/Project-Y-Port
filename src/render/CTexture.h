@@ -53,6 +53,9 @@ public:
     CTexture* getTexture(const std::string& name, unsigned type, unsigned flags, unsigned filter,
                          bool allowHalfRes = true);
     void clear();
+    // CTextureManager::removeTexture(char const*): deletes the named texture
+    // (the image sliders swap their preview image this way)
+    void removeTexture(const std::string& name);
 
 private:
     std::map<std::string, std::unique_ptr<CTexture>> mTextures;

@@ -136,3 +136,57 @@ Modifiers: `shift`, `ctrl`, `alt`, `gui`, joined with `+` (`ctrl+shift`). Exampl
 key escape                   # same frame: back to the main menu
 +80 click left 570 558       # "Exit": the menu sets CEngine::mQuitRequested
 ```
+
+## Phase 5d: the menus (status)
+
+Code: `src/ui/CInterfaceMenu.{h,cpp}` (events, drawing, quads, starting a game),
+`CInterfaceMenuScreens.cpp` (`setupElements` 0x1bbcb8 and the `createElement*` builders),
+`CInterfaceMenuActions.cpp` (`processAction`, `screenCenter`), the elements
+`CInterfaceElement{TextSlider2,ImageSlider/MapImageSlider,PlayerControl,BarSlider,ValueBar,MultiText,TextInput2}`,
+and in `CEngine`: `saveOptions`/`loadOptions`, `validateNameAndClan`, `resetGame`, `showAftermathInterface`.
+
+| screen | state |
+|---|---|
+| 0 main, 1 single player, 10 custom game, 9 tutorial | ported (start the game) |
+| 4 pause, 11 statistics, 12 aftermath, 30 surrender | ported |
+| 5/6 options, 3 profile, 14 credits, 21 update news | ported (profile: no online stats; online options disabled) |
+| 7/8 save/load | layout; every slot "Empty Slot" (savegames: later phase, actions log notPorted) |
+| 25 campaign | layout; the CCampaign slider and start are not ported (buttons disabled) |
+| 2, 15–18, 20 multiplayer | layout; split screen starts a single-player game (log), networking actions log notPorted |
+| 13 download | layout ([PC] nothing is downloaded) |
+| others (19 lobby chat, 22–24, 26–29, 31) | `[PC] [STAND-IN]` page with the number and Back |
+
+Starting a game: Start Game (action 0xd) → draw mode 1 (loading text) → mode 2 (camera to
+(−599, −143)) → `initSingleplayerGame` (0x1af6cc): local player = the **last** human slot among 1..n
+[quirk, `localPlayerFromSetup`], pause, reseed CRng/CRngSafe, network mode 0, `new CGame`, `init(false)`,
+the ingame interface's `initSingleplayer(w, h, local)`, current interface = ingame, `resumeGame`.
+Until the HUD package lands, the ingame interface is `CInterfaceIngameStandIn` (`[PC] [STAND-IN]`):
+it draws the world with `CWorldView`, Back/Escape → `CEngine::showMenuInterface` (statistics screen),
+and when the local player has won or lost it adds the end-game script after 3 s; the script's
+`CScriptGamestate::run` → `CEngine::showAftermathInterface` → aftermath screen 12.
+`initSingleplayerGame` uses the real `CInterfaceIngame` once `ui/CInterfaceIngame.h` exists
+(`__has_include`).
+
+Quirks kept (and tested where testable): BarSlider scales the fraction by max, not max − min; its bar
+green is 0.9·2t; PlayerControl's colour cycle skips the config colour 0 and only some slots by n;
+`validateNameAndClan` tests > 5 but keeps 10 name characters; the map list reuses the previous map's
+player count when a script has no `numplayers` line and keeps the `\r` of `set mapname`; the
+single-player "Yes, I capitulate!" is action 0x21 (show the aftermath) — nobody lost, so it reads
+"Draw"; `loadOptions` turns a missing `UseAutoUpgrade` into false.
+
+Options file: `<save dir>/options.txt`, 35 lines in a fixed order, read sequentially (a missing or
+mismatched key takes its default). `LastVersion` is written as config `Revision`; when the stored one
+is older (or there is no file) the update news screen (21) follows the intro. [PC] The save dir is
+`SDL_GetPrefPath("LuminenceLabs", "ProjectY")` or `--save-dir <dir>`.
+
+[PC] additions: mouse wheel over a TextSlider2 steps it; TextInput2 is edited with the keyboard
+(Enter confirms, Escape cancels); website buttons open through `SDL_OpenURL`. Not ported: click
+sounds (TODO at the call sites), achievements, lobby/online features, savegames, the campaign
+(CCampaign), the credits roll (draw mode 3), the server list element, the waiting-room chat.
+
+Headless check of the whole flow (empty save dir):
+
+```
+SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --save-dir /tmp/py_save \
+    --frames 1300 --input tools/ui/skirmish_start.input
+```
