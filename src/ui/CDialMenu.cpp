@@ -4,6 +4,8 @@
 #include <cstring>
 
 #include "core/CMath.h"
+#include "core/CMatrix3.h"
+#include "core/CQuaternion.h"
 #include "core/CTxtLoc.h"
 #include "core/FloatBits.h"
 #include "game/CEngine.h"
@@ -349,7 +351,13 @@ void CDialMenu::drawCenterMesh(int selectedButton) {
         case 0x4b: unit = 0x18; break;
         default: return;
     }
-    ingamedraw::drawUnitAtScreen(unit, mCenter.x, mCenter.y, mEngine->mRealGameTime, mIPP);
+    // q = FromRotationMatrix(FromEulerAnglesXYZ(-45 deg, 0, real game time
+    // (engine +0x19c) rad)): tilted towards the viewer, turning 1 rad/s
+    CMatrix3 rot;
+    rot.FromEulerAnglesXYZ(CMath::fDeg2Rad * bitsf(0xc2340000), CMath::fDeg2Rad * 0.0f, mEngine->mRealGameTime);
+    CQuaternion q;
+    q.FromRotationMatrix(rot);
+    ingamedraw::drawUnitAtScreen(unit, mCenter, q);
 }
 
 }  // namespace py

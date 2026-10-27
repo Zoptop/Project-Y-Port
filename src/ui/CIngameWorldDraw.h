@@ -10,6 +10,9 @@
 // setupDrawContext fills it for one IPP before the calls.
 #pragma once
 
+#include "core/CQuaternion.h"
+#include "core/CVector2.h"
+
 namespace py {
 
 class CCameraLevel;
@@ -28,10 +31,9 @@ void drawWeapons();                                  // CWeaponFactory::draw
 void drawParticles(const CCameraLevel& cam);         // CParticleManager::draw(cam, false)
 void drawMinimap(CGame* game);                       // CGame::drawMinimap
 void drawReset();                                    // CWeaponFactory::drawReset
-// CUnitFactory::drawUnit(type, ...): the 3D unit turning at the dial menu
-// centre. TODO(world-rendering): not ported (no unit-model-at-screen
-// function exists yet); a no-op.
-void drawUnitAtScreen(unsigned unitType, float px, float py, float yaw, CInterfaceIngamePerPlayer* ipp);
+// CUnitFactory::drawUnit(type, CMatrix4::IDENTITY, screenPos, q): the unit
+// model turned by q, flat at the pixel screenPos (the dial menu's centre)
+void drawUnitAtScreen(unsigned unitType, const CVector2& screenPos, const CQuaternion& q);
 
 }  // namespace ingamedraw
 }  // namespace py

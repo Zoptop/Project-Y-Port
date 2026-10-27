@@ -191,7 +191,8 @@ SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 1 --frame
 SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 201 --frames 601 --input tools/ui/ingame_tutorial_text.input
 ```
 
-`--skirmish <map>` starts the game directly (`--players N`, default the map's; `--fow`; `--minimap 0..3`).
+`--skirmish <map>` starts the game directly (`--players N`, default and at least the map's; `--fow`; `--minimap 0..3`;
+`--gametype N`, 3 = resources).
 The input-script command `dump [label]` prints `state <label>: selection [...] dial ... events [...]
 groups [...] cam ...` (the selected units' order, destination and target) for the checks.
 `tests/test_ingame.cpp` covers the action priority lists, the dial angle maths, the zoom clamp and snap,
@@ -202,10 +203,48 @@ Quirks kept: `drawCounter` is never called (the overlay shows the counter); the 
 selected unit types without a button; "Info" acts on the last selected id even if that object is gone;
 the dial labels / event short texts are format strings in the original.
 
-Not ported yet: avatar icons of speaker texts (need CCampaign), the 3D unit at the dial centre
-(`CUnitFactory::drawUnit`), the object-info screen's texts and model (`drawInfoscreen`), the
-off-screen arrow of selected units, chat input (network), sounds (no-op `uisound` calls at the sites),
-the selection hand-over when a brain enters/leaves a vehicle, `CUnit::rally`'s group copy, achievements.
+Not ported yet: avatar icons of speaker texts (need CCampaign), chat input (network), sounds (no-op
+`uisound` calls at the sites), achievements. (The dial-centre unit, the object-info screen, the
+off-screen arrows, the selection hand-over and the rally group copy: see 5e.)
+
+## Phase 5e: the open items of 5c/5d (status)
+
+- **Dial-centre unit**: `CDialMenu::drawCenterMesh` (0x162500) builds q from Euler XYZ (-45 deg, 0,
+  real game time) and calls `CUnitFactory::drawUnit` (0x3bb01c) through `ingamedraw::drawUnitAtScreen`.
+  The 19 `CUnit<type>::drawUnit` statics, `CUnit::drawMeshFlat` / `drawShadowFlat`,
+  `CWeaponFactory::drawWeapon`, the 8 non-empty `CWeapon<type>::drawWeapon` and `CWeapon::drawMeshFlat`
+  are in `src/game/CUnitFactoryDraw.cpp`; `CCamera::createOrthogonalProjectionMatrix` (0x14ead4) is in
+  `render/CCameraBase`. `size` (the bounding radius, x 1.3 for brains and suits) world units are
+  90 x GUI scale pixels. [!] LIGHTCOLOR is not set (it keeps CGame::draw's last value), as in the original.
+- **Object-info screen**: `IPP::drawInfoScreen` (0x1a21c4) draws the object (vtable +0x10 with
+  (false, 1)) over the dark backdrop and calls `drawInfoscreen` (vtable +0x94) from (10, 50) x GUI
+  scale: `CGameObject` (name, wrapped description), `CUnit` (+ each weapon's, vtable +0x30),
+  `CBuilding`, the HQ, the four production buildings, the special operations building and the science
+  lab (`src/game/CInfoscreenDraw.cpp`). [!] The English strings file has InfoInv / InfoUndestroyable /
+  InfoWeapons in another order than the code's ids 0x7c..0x7e (the German file matches the code), so
+  the English screen says "Invulnberable:" over the weapons, as the original.
+- **Off-screen arrows**: `CUnit::drawOffscreenArrow` (part of `drawSelection`, 0x3a52a8) queues the
+  arrow into the HUD's screen queue through `CDrawContext::addColored4QuadPixel`. Rally groups:
+  `CBuilding::drawSelection` frames the group in the group bar (`IIngameUI::highlightRallyGroup`).
+- **World labels**: `CBuildingProduction::drawLabels` (also the HQ), `CBuildingScienceLab::drawLabels`,
+  `CBuildingSpecop::drawLabels`, the info particle's text (`CParticleSystemInfo::getQuads`),
+  `CUnitFactory::getUnitTypeName`. Countdown labels are size 28 x GUI scale (0x41e00000).
+- **Selection hand-over** (`IIngameUI`: `unselectGameObject`, `addUnitToGroupOfUnit`,
+  `isCurrentInterface`): `CUnit::enterVehicle` (only while the ingame interface is the current one),
+  `leaveVehicle` / `CUnitRoboBrain::leaveVehicle` (the brain is selected again unless forced),
+  `ownerChanged` (the old owner unselects the driven vehicle), `setScriptedControlled`, `CUnit::rally`
+  (joins the target's group and selection).
+- **Resources mode**: `CLevel::genRESTexture` / `updateREStexture` / `bindREStexture` (CLevelDraw.cpp);
+  the RES texture sits after the FOW texture (terrain: then map_tx_res.png). `--gametype 3` starts a
+  resources skirmish. `CBuilding::timeUpdate` now reveals the fog of war around buildings (it was a
+  TODO: with UseFOW, the menus' default, the map was black away from units).
+- **End of a game**: HQ captured -> `checkGameEndingCondition` -> `won`/`lost` -> overlay text (caller
+  -2) -> click -> `addEndGameScript` -> `CScriptGamestate::run` -> aftermath (12) works; tested in
+  `tests/test_ingame_end.cpp` (victory and defeat) and by a scratch map (nine tanks of player 1 at
+  the AI's HQ flag post, `--fps 5`, ~1200 frames).
+- **Map 201 with one player**: the original crashes as the port did (an ownerless production building,
+  `getUnitProductionTime` reads the null owner); its menus always use the map's `set numplayers`, so
+  `CInterfaceIngame::startSkirmish` raises a smaller `--players` to it.
 
 ## Phase 5d: the menus (status)
 

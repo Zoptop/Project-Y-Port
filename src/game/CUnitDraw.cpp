@@ -1,5 +1,6 @@
 // CUnitDraw.cpp - CUnit's draw functions. Drawing state only (see
 // CGameObjectDraw.cpp); the simulation fields are only read.
+#include "core/CMath.h"
 #include "core/fdlibm.h"
 #include "game/CPlayer.h"
 #include "game/CUnit.h"
@@ -9,6 +10,7 @@
 #include "render/CGLSLProgram.h"
 #include "render/CIngameQuads.h"
 #include "render/CMesh.h"
+#include "ui/CUIUtils.h"
 
 namespace py {
 
@@ -119,13 +121,46 @@ void CUnit::drawRadarMarker(bool minimap) {
 // Ghidra 0x3af8b0 (the same as CGameObject's)
 void CUnit::drawMinimap() { CGameObject::drawMinimap(); }
 
-// Ghidra 0x3a52a8. The selection circle (the bounding radius), and with the
-// "show ranges" option the maximum and (if any) minimum firing range.
-// TODO(HUD): the off-screen arrow (CMath::checkSegmentRectangleHit of the
-// screen centre -> unit segment with the screen rectangle inset by 30/64/96,
-// then addColored4QuadPixel with interface cell (4, 2), rotated by the
-// segment's atan2, alpha 0.7) is screen-space HUD drawing and belongs to
-// the CInterfaceIngame port.
+// Part of Ghidra 0x3a52a8: the arrow at the screen border towards a selected
+// unit off the screen. The unit's ground point (x, y, 0) goes through the
+// camera's view matrix (+0x40), its eye z clamped to <= -1 (so a point
+// behind the camera still projects), then the projection (+0x00) and
+// screenPosToPixelPos. When the segment from the screen centre to it
+// leaves the rectangle (0, 30)-(w, h), the arrow (interface.png cell
+// (4, 2), 64 x 64 px, not GUI-scaled, red, alpha 0.7, turned by
+// -atan2(dy, dx)) sits where the segment crosses (96, 72)-(w - 96, h - 32),
+// moved by (-32, -32).
+void CUnit::drawOffscreenArrow() {
+    CDrawContext& dc = draw::ctx();
+    const CCameraLevel* cam = draw::camera();
+    if (!cam || !dc.addColored4QuadPixel) return;
+    const Mat4& v = cam->mView;
+    const Mat4& p = cam->mProjection;
+    const float x = mPosition.x, y = mPosition.y;
+    const float w = 1.0f / (x * v.at(3, 0) + y * v.at(3, 1) + v.at(3, 2) * 0.0f + v.at(3, 3));
+    const float ex = w * (x * v.at(0, 0) + y * v.at(0, 1) + v.at(0, 2) * 0.0f + v.at(0, 3));
+    const float ey = w * (x * v.at(1, 0) + y * v.at(1, 1) + v.at(1, 2) * 0.0f + v.at(1, 3));
+    float ez = w * (x * v.at(2, 0) + y * v.at(2, 1) + v.at(2, 2) * 0.0f + v.at(2, 3));
+    if (ez > -1.0f) ez = -1.0f;
+    const float pw = 1.0f / (ex * p.at(3, 0) + ey * p.at(3, 1) + ez * p.at(3, 2) + p.at(3, 3));
+    const float sx = pw * (ex * p.at(0, 0) + ey * p.at(0, 1) + ez * p.at(0, 2) + p.at(0, 3));
+    const float sy = pw * (ex * p.at(1, 0) + ey * p.at(1, 1) + ez * p.at(1, 2) + p.at(1, 3));
+    const CVector2 target = draw::screenPosToPixelPos(CVector2(sx, sy));
+    const float sw = static_cast<float>(cam->mWidth), sh = static_cast<float>(cam->mHeight);
+    const CVector2 centre(sw * 0.5f, sh * 0.5f);
+    CVector2 hit;
+    if (!uiutil::checkSegmentRectangleHit(centre, target, CVector2(0.0f, 30.0f), CVector2(sw, sh), hit)) return;
+    uiutil::checkSegmentRectangleHit(centre, target, CVector2(96.0f, 72.0f), CVector2(sw - 32.0f - 64.0f, sh - 32.0f),
+                                     hit);
+    const float yaw = -CMath::ATan2(target.y - centre.y, target.x - centre.x);
+    dc.addColored4QuadPixel(CVector2(hit.x - 32.0f, hit.y - 32.0f), uiutil::btnUVpos(4, 2), uiutil::btnUVdefsize(),
+                            CVector2(64.0f, 64.0f), Vec3(1.0f, 0.0f, 0.0f), bitsf(0x3f333333), yaw);
+}
+
+// Ghidra 0x3a52a8. In the strategy view a circle of 22; else the arrow when
+// the unit is off the screen (drawOffscreenArrow), the selection circle
+// (the bounding radius), and with the "show ranges" option the maximum and
+// (if any) minimum firing range.
 void CUnit::drawSelection() {
     CDrawContext& dc = draw::ctx();
     if (!dc.quads) return;
@@ -134,6 +169,7 @@ void CUnit::drawSelection() {
         dc.quads->addCircleQuad(pos, 22.0f, 1.0f, CVector3(1.0f, 0.0f, 0.0f), bitsf(0x3f4ccccd));
         return;
     }
+    drawOffscreenArrow();
     dc.quads->addCircleQuad(pos, mBoundingRadius, 1.0f, CVector3(1.0f, 0.0f, 0.0f), bitsf(0x3f4ccccd));
     if (dc.showRanges && !mWeaponIds.empty()) {
         const CVector3 magenta(1.0f, 0.0f, 1.0f);

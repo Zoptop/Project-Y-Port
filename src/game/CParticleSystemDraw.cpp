@@ -35,6 +35,7 @@
 #include "game/CParticleSystemSmoke.h"
 #include "game/CParticleSystemThruster.h"
 #include "game/CParticleManager.h"
+#include "game/DrawUtil.h"
 #include "render/CCamera.h"
 #include "render/CQuad.h"
 
@@ -565,11 +566,26 @@ void CParticleSystemInfo::getQuads(CQuadPosUVColor4* quads, int& count) {
             quads[count++] = particleQuad(p.mPosition, half, p, CVector3(1.0f, 1.5f, 1.0f), a, 0.0f, nullptr);
         }
     }
-    // TODO(CTextRender): the label mText (+0x54) above the system: screen
-    // position of mPosition (camera +0x100, screenPosToPixelPos), raised by
-    // v(r: 10@0, 100@1) px with r = runtime / lifetime (+0x50 / +0x58), size
-    // v(r: 1@0, 48@0.05, 1@1) x GUI scale, centred (calcTextPixelLength / 2),
-    // colour (1, 1, 0.5), alpha v(r: 0@0, 0.75@0.05, 0@1): drawStringPixel.
+    // the label mText (+0x54) above the system (any subtype): the screen
+    // position of mPosition (camera +0x100, then screenPosToPixelPos), raised
+    // by v(r: 10@0, 100@1) px with r = runtime / lifetime (+0x50 / +0x58),
+    // size v(r: 1@0, 48@0.05, 1@1) x GUI scale, centred (half its pixel
+    // length left, half its size up), colour (1, 1, 0.5), alpha
+    // v(r: 0@0, 0.75@0.05, 0@1). [!] The text is the format string.
+    CTextRender* tr = draw::text();
+    if (!tr || mText.empty()) return;
+    const Real raise = interpolateValue(mRuntime / mLifetime, 10.0f, 0.0f, 100.0f, 1.0f);
+    const CMatrix4& m = draw::viewProj();
+    const Real px = mPosition.x, py = mPosition.y, pz = mPosition.z;
+    const Real w = Real(1.0f) / (m.m[3][3] + (px * m.m[3][0] + py * m.m[3][1] + pz * m.m[3][2]));
+    const Real sx = w * (m.m[0][3] + (px * m.m[0][0] + py * m.m[0][1] + pz * m.m[0][2]));
+    const Real sy = w * (m.m[1][3] + (px * m.m[1][0] + py * m.m[1][1] + pz * m.m[1][2]));
+    const CVector2 at = draw::screenPosToPixelPos(CVector2(sx, sy));
+    const Real alpha = interpolateValue(mRuntime / mLifetime, 0.0f, 0.0f, 0.75f, 0.05f, 0.0f, 1.0f);
+    const float size = interpolateValue(mRuntime / mLifetime, 1.0f, 0.0f, 48.0f, 0.05f, 1.0f, 1.0f) * draw::guiScale();
+    const float x = at.x - tr->calcTextPixelLength(mText.c_str(), size) * 0.5f;
+    const float y = at.y - size * 0.5f - raise;
+    tr->drawStringPixel(x, y, size, 1.0f, 1.0f, 0.5f, alpha, 0, mText.c_str());
 }
 
 }  // namespace py

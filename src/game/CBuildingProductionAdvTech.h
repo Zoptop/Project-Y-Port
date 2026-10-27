@@ -12,6 +12,7 @@ namespace py {
 
 class CBuildingProductionAdvTech : public CBuildingProduction {
 public:
+    void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x14024c (CInfoscreenDraw.cpp)
     CBuildingProductionAdvTech() = default;         // Ghidra 0x140214
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x13fdf4
 };

@@ -60,6 +60,12 @@ public:
     virtual void hit(Real damage);                     // +0x08 Ghidra 0x3d458c
     virtual void heal(Real amount);                    // +0x0c Ghidra 0x3d3d84
     virtual void drawMesh(bool alphaPass, float alpha);   // +0x10 Ghidra 0x3d45e4 (CWeaponDraw.cpp)
+    // +0x30 Ghidra 0x3d3f6c: the object-info screen's lines of the weapon
+    // (CWeaponDraw.cpp)
+    virtual void drawInfoscreen(CVector2& pos);
+    // Ghidra 0x3d4c04: the same code as CUnit::drawMeshFlat (CUnitFactoryDraw.cpp)
+    static void drawMeshFlat(const CMatrix4& view, const std::string& subMesh, const CVector2& screenPos, Real size,
+                             const CQuaternion& q, const CVector3& offset);
     // +0x14: target (may be null), squared distance, angle (world yaw) to the
     // target, whether to aim (false: the turret keeps its yaw)
     virtual void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) = 0;
@@ -134,6 +140,10 @@ public:
     // The switch at the top of createWeapon: a new, not yet initialised
     // weapon of `type`, or null for 3, 9 and unknown types.
     static CWeapon* newWeapon(int type);
+    // Ghidra 0x3d8b94: CWeapon<type>::drawWeapon, the weapon of a unit drawn
+    // flat on the screen (types 3, 4, 6, 9, 12, 13 draw nothing)
+    static void drawWeapon(unsigned type, const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q,
+                           Real size, const CVector3& offset);
 
     // ---- the beam batch (drawing; CWeaponFactoryDraw.cpp). The original
     // creates the shader and texture in the constructor (Ghidra 0x3d8678).

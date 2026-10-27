@@ -11,6 +11,7 @@ namespace py {
 
 class CBuildingProductionLight : public CBuildingProduction {
 public:
+    void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x1415b4 (CInfoscreenDraw.cpp)
     CBuildingProductionLight() { mProductionStopped = false; }   // Ghidra 0x141b6c
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x141140
 };

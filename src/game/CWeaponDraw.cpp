@@ -151,7 +151,7 @@ void CWeaponHacker::drawMesh(bool, float) {
     const float k = bitsf(0x3f333333);
     const Vec3 col(CVector3::COL_GREEN.x * k, CVector3::COL_GREEN.y * k, CVector3::COL_GREEN.z * k);
     const Real v = Real(100.0f) - mHackTargetResistance * 100.0f;
-    t->drawStringScreen(mUnit->getScreenPosForLabel(0.0f, 16.0f, 12.0f), draw::guiScale() * 30.0f, col, 1.0f, 1,
+    t->drawStringScreen(mUnit->getScreenPosForLabel(0.0f, 16.0f, 12.0f), draw::guiScale() * 28.0f, col, 1.0f, 1,
                         "%02.1f%%", static_cast<double>(v));
 }
 

@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "game/CEngine.h"
 #include "platform/GLFunctions.h"
 
 namespace py {
@@ -90,6 +91,31 @@ CVector2 CCamera::viewportPlaneHit(const CVector2& screen) const {
     const float t = -a.z / d.z;
     if (t < 0.0f) return CVector2(0.0f, 0.0f);
     return CVector2(a.x + t * d.x, a.y + t * d.y);
+}
+
+// Ghidra 0x14ead4 (see the header), in the original's operation order.
+// [!] The z shift is (-0) / (2 size) = -0.
+CMatrix4 CCamera::createOrthogonalProjectionMatrix(float pixelsAt1, float w, float h, const CVector2& pos,
+                                                   float size) {
+    const float g = CEngine::getSingletonPtr()->mGUIScale;
+    const float sx = size * w / (g * pixelsAt1);
+    const float sy = size * h / (g * pixelsAt1);
+    float tx = static_cast<float>(pos.x) / w;
+    tx = tx + tx;
+    tx = tx - 1.0f;
+    float ty = static_cast<float>(pos.y) / h;
+    ty = ty + ty;
+    ty = 1.0f - ty;
+    const float d = size + size;
+    CMatrix4 m = CMatrix4::ZERO;
+    m.m[0][0] = 1.0f / sx;
+    m.m[0][3] = tx;
+    m.m[1][1] = 1.0f / sy;
+    m.m[1][3] = ty;
+    m.m[2][2] = -2.0f / d;
+    m.m[2][3] = -(size - size) / d;
+    m.m[3][3] = 1.0f;
+    return m;
 }
 
 // The matrix CTextRender::draw builds for display rotation 0 (Ghidra 0x39d5ac):

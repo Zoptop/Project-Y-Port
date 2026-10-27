@@ -13,9 +13,11 @@
 #include "game/CGameFeatures.h"
 #include "game/CGameObject.h"
 #include "game/CPlayer.h"
+#include "game/CUnit.h"
 #include "platform/GLFunctions.h"
 #include "render/CCamera.h"
 #include "render/CGLSLProgram.h"
+#include "render/CMesh.h"
 #include "render/CTextRender.h"
 #include "render/CTexture.h"
 #include "render/Colors.h"
@@ -238,8 +240,8 @@ void CInterfaceIngamePerPlayer::drawTimer() {
 namespace {
 std::string counterName(unsigned type, unsigned subtype) {
     // CUnitFactory::getUnitTypeName / CBuildingFactory::getBuildingTypeName
-    // (the localised type names: CTxtLoc ids by type; not ported, the type number is shown)
-    if (type == 1) return "Unit " + std::to_string(subtype);
+    // (CBuildingFactory::getBuildingTypeName is not ported: the building type number is shown)
+    if (type == 1) return CUnitFactory::getUnitTypeName(subtype);
     if (type == 2) return "Building " + std::to_string(subtype);
     return "";
 }
@@ -314,10 +316,16 @@ void CInterfaceIngamePerPlayer::drawOverlayText() {
     if (tr) tr->draw();
 }
 
-// Ghidra 0x1a21c4: the object-info screen (dark backdrop; the object's
-// drawInfoscreen texts and the model drawn in front are not ported yet)
+// Ghidra 0x1a21c4: the object-info screen. The texts so far are flushed, the
+// screen below the title bar is darkened (black, alpha 0.65), then the
+// object is drawn again in front of it (gameobjects.3DS.mesh with the object
+// shader bound, its draw (vtable +0x10) with (false, 1)) and its
+// drawInfoscreen (vtable +0x94) writes its texts from (10, 50) x GUI scale,
+// flushed at once. The camera has zoomed onto the object (startObjectInfo
+// and timeUpdate), and the world drawing skipped it (CDrawContext).
 void CInterfaceIngamePerPlayer::drawInfoScreen() {
-    if (CTextRender* tr = mEngine->getTextRender()) tr->draw();
+    CTextRender* tr = mEngine->getTextRender();
+    if (tr) tr->draw();
     const float g = mEngine->mGUIScale;
     const float w = static_cast<float>(mParent->getCamera()->mWidth);
     const float h = static_cast<float>(mParent->getCamera()->mHeight);
@@ -326,6 +334,19 @@ void CInterfaceIngamePerPlayer::drawInfoScreen() {
                                   bitsf(0x3f266666));
     drawScreenSpaceQuads(false);
     drawScreenSpaceQuadsColored4();
+    CGame* game = mEngine->mGame;
+    CGameObject* o = game ? game->getGameObject(mInfoScreenObject) : nullptr;
+    if (!o) return;
+    if (game->mGameObjectsMesh && game->mObjectShader) {
+        game->mGameObjectsMesh->bindBuffer();
+        game->mObjectShader->startDraw();
+        if (game->mObjectTexture) game->mObjectTexture->bind(kTexture0);
+        o->draw(false, 1.0f);
+        game->mObjectShader->endDraw();
+    }
+    CVector2 pos(g * 10.0f, g * 50.0f);
+    o->drawInfoscreen(pos);
+    if (tr) tr->draw();
 }
 
 // Ghidra 0x1a5a58: the tutorial arrow pointing at a HUD element or object

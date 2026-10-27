@@ -123,6 +123,14 @@ public:
     void addResourceDot(const CVector2& pos, Real value);       // Ghidra 0x2ddf94
     Real consumeRes(const CVector2& pos, Real amount);          // Ghidra 0x2dd4cc
     int getResCellIndex(const CVector2& pos) const;             // Ghidra 0x2dd6a8
+    // The RES texture (render only; CLevelDraw.cpp): the grid as bytes
+    // (+0x1c0), uploaded as a one-channel texture (+0x1c8) that the *_res
+    // shaders read as MAPRES. No-ops without a GL context.
+    void genRESTexture() const;                                 // Ghidra 0x2dd394
+    void updateREStexture() const;                              // Ghidra 0x2da614 (vtable +0x04)
+    void bindREStexture(unsigned textureUnit) const;            // Ghidra 0x2da6d8 (vtable +0x08)
+    // updateREStexture's byte of a grid value: (int) floor(v * 254.99), 0x437efd71
+    static uint8_t resTextureByte(Real value);
     Real getResValue(const CVector2& pos) const;                // Ghidra 0x2dd7cc
     Real getResValue(int x, int y) const;                       // Ghidra 0x2dd920
     Real getResValue(int index) const { return mRes[static_cast<size_t>(index)]; }   // Ghidra 0x2dd994
@@ -176,7 +184,11 @@ public:
     int mResW = 0, mResH = 0;                                // +0x1b0/+0x1b4 = FOW texture size
     Real mResScaleX = 0.0f, mResScaleY = 0.0f;               // +0x1b8/+0x1bc = FOW scale
     std::vector<Real> mRes;                                  // +0x1c4 resW*resH
-    bool mResChanged = false;                                // +0x1d0 (texture refresh)
+    // +0x1d0: set when a harvester takes resources; CLevel::drawMap then
+    // uploads the texture and clears it (drawing only reads the grid)
+    mutable bool mResChanged = false;
+    mutable std::vector<uint8_t> mResBytes;                  // +0x1c0 (render)
+    mutable unsigned mResTextureId = 0;                      // +0x1c8 (render)
     Real mResRespawnCountdown = 0.0f;                        // +0x1d4
 
 private:

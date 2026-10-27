@@ -88,5 +88,15 @@ inline CMatrix4 transform(const CVector3& pos, const CQuaternion& q, const CVect
 // q^-1 * L
 inline CVector3 localLight(const CQuaternion& q) { return q.Inverse() * lightDir(); }
 
+// CInterfaceIngamePerPlayer::screenPosToPixelPos (Ghidra 0x1a597c) for the
+// current camera: normalised device x / y to pixels (origin top-left);
+// display rotation 0 only (the PC has no rotated display).
+inline CVector2 screenPosToPixelPos(const CVector2& ndc) {
+    const CCameraLevel* c = camera();
+    const float w = c ? static_cast<float>(c->mWidth) : 1.0f;
+    const float h = c ? static_cast<float>(c->mHeight) : 1.0f;
+    return CVector2((ndc.x + 1.0f) * 0.5f * w, (1.0f - (ndc.y + 1.0f) * 0.5f) * h);
+}
+
 }  // namespace draw
 }  // namespace py

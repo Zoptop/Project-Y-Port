@@ -12,6 +12,8 @@ namespace py {
 
 class CUnitShieldTank : public CUnit {
 public:
+    // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
+    static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3c5a54
     CUnitShieldTank() = default;   // Ghidra 0x3c59bc
 
     void timeUpdate() override;                          // Ghidra 0x3c5fac

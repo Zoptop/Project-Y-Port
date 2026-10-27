@@ -82,6 +82,9 @@ public:
     virtual bool isCommanded() { return false; }      // +0x88
     virtual void removeCommander() {}                 // +0x8c
     virtual bool isResourceGatherer();                // +0x90
+    // +0x94 Ghidra 0x1815d0: the object-info screen's texts from `pos`
+    // (pixels; pos.y advances past them) (CInfoscreenDraw.cpp)
+    virtual void drawInfoscreen(CVector2& pos);
     virtual void processActionBarAction(int /*EActionBarButtonTypes*/) {}          // +0x98
     // +0x9c Ghidra 0x181e08: the screen position (normalised device x / y)
     // of the point (ox, oy) turned by the camera yaw and scaled by GUI scale

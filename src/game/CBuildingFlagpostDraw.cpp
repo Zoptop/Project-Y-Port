@@ -56,7 +56,7 @@ void CBuildingFlagpost::draw(bool alphaPass, float alpha) {
         const Vec3 col = draw::labelColor(mSector->mOwner->mColor);
         const CVector2 at = draw::strategyView() ? getScreenPosForLabel(0.0f, 0.0f, 12.0f)
                                                  : getScreenPosForLabel(0.0f, 10.0f, 12.0f);
-        t->drawStringScreen(at, draw::guiScale() * 30.0f, col, 1.0f, 1, "%02.0f%%", static_cast<double>(mLife));
+        t->drawStringScreen(at, draw::guiScale() * 28.0f, col, 1.0f, 1, "%02.0f%%", static_cast<double>(mLife));
         if (mBlockTimeout > 0.0f) {
             const CVector2 at2 = getScreenPosForLabel(0.0f, -16.0f, 12.0f);
             t->drawStringScreen(at2, draw::guiScale() * 22.0f, draw::vec3(CVector3::COL_YELLOW), 1.0f, 1,

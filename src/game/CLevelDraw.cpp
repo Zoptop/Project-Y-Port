@@ -12,10 +12,13 @@
 // The FOW texture is the one of the current interface player
 // (CEngine::getCurrentInterfacePlayer -> CDrawContext::player), bound only
 // when UseFOW (engine +0x250) is on.
-// [TODO] GameType 3 (resources): the RES texture (CLevel::bindREStexture,
-// vtable +0x08, and updateREStexture when +0x1d0 is set) is not ported; the
-// *_res shaders then sample an unbound texture.
+// GameType 3 (resources): the RES texture (genRESTexture / updateREStexture
+// / bindREStexture, below) goes to the unit after the FOW texture: terrain
+// 5 (4 without FOW) with map_tx_res.png (+0x50) next to it, the strategy
+// view's and the minimap's sector areas 1 (0 without FOW).
 #include "core/CMatrix4.h"
+#include "core/FloatBits.h"
+#include "core/fdlibm.h"
 #include "core/CQuaternion.h"
 #include "core/CVector3.h"
 #include "game/CDrawContext.h"
@@ -46,6 +49,29 @@ void bindPlayerFOW(unsigned unit) {
     if (e->mUseFOW && p) p->bindFOWtexture(unit);
 }
 
+// The pattern of startSectorDraw (strategy view), drawMap and drawMinimap:
+// the FOW texture at `unit` with UseFOW, and in GameType 3 the RES texture
+// at the next unit (with UseFOW) or at `unit` (without), plus, for the
+// terrain only, map_tx_res.png at the unit after that.
+void bindFOWAndRES(const CLevel& level, unsigned unit, const CTexture* resTxt) {
+    CEngine* e = CEngine::getSingletonPtr();
+    unsigned next = unit;
+    if (e->mUseFOW) {
+        bindPlayerFOW(unit);
+        next = unit + 1;
+    }
+    if (e->mGameType != 3) return;
+    level.bindREStexture(next);
+    if (resTxt) resTxt->bind(next + 1);
+}
+
+constexpr unsigned GL_TEXTURE_2D_ = 0x0DE1;
+constexpr unsigned GL_LUMINANCE_ = 0x1909, GL_RED_ = 0x1903, GL_R8_ = 0x8229;
+constexpr unsigned GL_UNSIGNED_BYTE_ = 0x1401;
+// the upload format that worked (0 = not tried yet): GL_RED (core profile)
+// or GL_LUMINANCE (the original's, GLES 2 / compatibility)
+unsigned sRESFormat = 0;
+
 // owner colour * 0.25 + COL_GRAY25 (CSector::draw strategy branch / drawMinimap)
 CVector3 schematicColor(const CSector& s) {
     const Vec3 c = s.mOwner ? s.mOwner->mColor : Vec3(0.0f, 0.0f, 0.0f);
@@ -53,6 +79,62 @@ CVector3 schematicColor(const CSector& s) {
                     c.z * 0.25f + CVector3::COL_GRAY25.z);
 }
 }  // namespace
+
+// Ghidra 0x2dd394: a one-channel texture of the grid's size, REPEAT,
+// LINEAR, from the byte copy (+0x1c0). The original uploads GL_LUMINANCE;
+// the shaders read .r, so the port uses GL_R8 / GL_RED where GL_LUMINANCE
+// is not available (the desktop core profile), as CPlayer::genFOWTexture.
+// [port] GL_UNPACK_ALIGNMENT is 4 in the original; for a width that is not
+// a multiple of 4 the rows have no padding, so the port uses 1 there.
+void CLevel::genRESTexture() const {
+    if (!gl::isLoaded() || !gl::GenTextures || mResW <= 0 || mResH <= 0) return;
+    mResBytes.assign(static_cast<size_t>(mResW * mResH), 0);
+    gl::GenTextures(1, &mResTextureId);
+    gl::BindTexture(GL_TEXTURE_2D_, mResTextureId);
+    gl::PixelStorei(0x0D05, 4);                              // GL_PACK_ALIGNMENT
+    gl::PixelStorei(0x0CF5, (mResW % 4) == 0 ? 4 : 1);       // GL_UNPACK_ALIGNMENT
+    gl::TexParameteri(GL_TEXTURE_2D_, 0x2802, 0x2901);       // WRAP_S = GL_REPEAT
+    gl::TexParameteri(GL_TEXTURE_2D_, 0x2803, 0x2901);       // WRAP_T = GL_REPEAT
+    gl::TexParameteri(GL_TEXTURE_2D_, 0x2800, 0x2601);       // MAG_FILTER = GL_LINEAR
+    gl::TexParameteri(GL_TEXTURE_2D_, 0x2801, 0x2601);       // MIN_FILTER = GL_LINEAR
+    if (gl::GetError) while (gl::GetError() != 0) {}
+    if (sRESFormat == 0 || sRESFormat == GL_RED_) {
+        gl::TexImage2D(GL_TEXTURE_2D_, 0, static_cast<int>(GL_R8_), mResW, mResH, 0, GL_RED_, GL_UNSIGNED_BYTE_,
+                       mResBytes.data());
+        if (!gl::GetError || gl::GetError() == 0) {
+            sRESFormat = GL_RED_;
+            return;
+        }
+    }
+    gl::TexImage2D(GL_TEXTURE_2D_, 0, static_cast<int>(GL_LUMINANCE_), mResW, mResH, 0, GL_LUMINANCE_,
+                   GL_UNSIGNED_BYTE_, mResBytes.data());
+    sRESFormat = GL_LUMINANCE_;
+}
+
+// The byte of updateREStexture: __fixsfsi(floorf(value * 254.99)), stored
+// as a byte (the low 8 bits).
+uint8_t CLevel::resTextureByte(Real value) {
+    return static_cast<uint8_t>(f2i(fdlibm::floorf(value * bitsf(0x437efd71))));
+}
+
+// Ghidra 0x2da614: every grid value to its byte (resTextureByte), then
+// glTexSubImage2D of the whole grid on unit 0.
+void CLevel::updateREStexture() const {
+    if (mResTextureId == 0 || !gl::TexSubImage2D) return;
+    const int n = mResW * mResH;
+    if (static_cast<int>(mResBytes.size()) != n || static_cast<int>(mRes.size()) < n) return;
+    for (int i = 0; i < n; ++i) mResBytes[static_cast<size_t>(i)] = resTextureByte(mRes[static_cast<size_t>(i)]);
+    bindREStexture(GL_TEXTURE0_);
+    if ((mResW % 4) != 0) gl::PixelStorei(0x0CF5, 1);   // [port] see genRESTexture
+    gl::TexSubImage2D(GL_TEXTURE_2D_, 0, 0, 0, mResW, mResH, sRESFormat, GL_UNSIGNED_BYTE_, mResBytes.data());
+}
+
+// Ghidra 0x2da6d8
+void CLevel::bindREStexture(unsigned textureUnit) const {
+    if (!gl::ActiveTexture) return;
+    gl::ActiveTexture(textureUnit);
+    gl::BindTexture(GL_TEXTURE_2D_, mResTextureId);
+}
 
 // Ghidra 0x2dc464
 void CLevel::draw() const {
@@ -101,7 +183,7 @@ void CLevel::startSectorDraw() const {
         mMapMesh->bindBuffer();
         mSchematicMMShader->startDraw();
         mSchematicMMShader->setUniformMVPMatrix(cam->viewProjMatrix());
-        bindPlayerFOW(GL_TEXTURE0_);
+        bindFOWAndRES(*this, GL_TEXTURE0_, nullptr);
     }
 }
 
@@ -165,10 +247,15 @@ void CLevel::drawAssets() const {
     mAssetShader->endDraw();
 }
 
-// Ghidra 0x2dbca0
+// Ghidra 0x2dbca0. In GameType 3 a changed resource grid (+0x1d0) is
+// uploaded first.
 void CLevel::drawMap() const {
     const CCameraLevel* cam = currentCamera();
     CEngine* e = CEngine::getSingletonPtr();
+    if (e->mGameType == 3 && mResChanged) {
+        updateREStexture();
+        mResChanged = false;
+    }
     if (!mMapMesh) return;
     if (!cam->isStrategyView()) {
         if (mMapShader) {
@@ -177,7 +264,7 @@ void CLevel::drawMap() const {
             if (mMixTexture) mMixTexture->bind(GL_TEXTURE0_);
             for (unsigned i = 0; i < 3; ++i)
                 if (mDetail[i]) mDetail[i]->bind(GL_TEXTURE0_ + 1 + i);
-            bindPlayerFOW(GL_TEXTURE0_ + 4);
+            bindFOWAndRES(*this, GL_TEXTURE0_ + 4, mResTexture);
             mMapShader->setUniformMVPMatrix(cam->viewProjMatrix());
             mMapShader->setUniformPlayerColor(CVector3(mMixBaseColor.x, mMixBaseColor.y, mMixBaseColor.z));
             mMapMesh->draw(mMapFirst, mMapCount);
@@ -239,7 +326,7 @@ void CLevel::drawMinimap() const {
     mMapMesh->bindBuffer();
     mSchematicMMShader->startDraw();
     mSchematicMMShader->setUniformMVPMatrix(vp);
-    bindPlayerFOW(GL_TEXTURE0_);
+    bindFOWAndRES(*this, GL_TEXTURE0_, nullptr);
     for (const auto& e : mSectors) drawSectorMinimap(*e.second);
     mSchematicMMShader->endDraw();
     mSchematicMMNoFowShader->startDraw();

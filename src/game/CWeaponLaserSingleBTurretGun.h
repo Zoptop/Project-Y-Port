@@ -11,6 +11,9 @@ namespace py {
 
 class CWeaponLaserSingleBTurretGun : public CWeapon {
 public:
+    // the model flat on the screen (CWeaponFactory::drawWeapon; CUnitFactoryDraw.cpp)
+    static void drawWeapon(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q, Real size,
+                           const CVector3& offset);   // Ghidra 0x3dba30
     CWeaponLaserSingleBTurretGun();                                       // Ghidra 0x3db99c
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3dbb8c
     void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3dc3f0 (CWeaponDraw.cpp)

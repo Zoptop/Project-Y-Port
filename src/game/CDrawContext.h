@@ -21,7 +21,10 @@
 // Nothing in here is simulation state.
 #pragma once
 
+#include <functional>
+
 #include "core/CVector2.h"
+#include "render/Math3D.h"
 #include "core/FloatBits.h"
 
 namespace py {
@@ -49,6 +52,11 @@ struct CDrawContext {
     bool showRanges = true;        // engine +0x1be
     float guiScale = 1.0f;         // engine +0x24c
     bool minimapEnabled = true;    // option "minimap" (IPP::draw checks it with feature 7)
+    // CInterfaceIngame::addColored4QuadPixel (the HUD's screen-space queue,
+    // flushed by IPP::draw): (top left, uv top left, uv size, size in
+    // pixels, colour, alpha, yaw). Null without the HUD.
+    std::function<void(const CVector2&, const CVector2&, const CVector2&, const CVector2&, const Vec3&, float, float)>
+        addColored4QuadPixel;
 
     static CDrawContext& get();
 };

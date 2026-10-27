@@ -14,6 +14,8 @@ namespace py {
 
 class CUnitSpotter : public CUnit {
 public:
+    // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
+    static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3c8c2c
     CUnitSpotter() = default;   // Ghidra 0x3c8b60
 
     void timeUpdate() override;          // Ghidra 0x3c9354

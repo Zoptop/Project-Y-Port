@@ -49,6 +49,7 @@ public:
     // drawing (CBuildingDraw.cpp)
     void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x13623c
     void drawSelection() override;                     // +0x48 Ghidra 0x135c70
+    void drawInfoscreen(CVector2& pos) override;       // +0x94 Ghidra 0x136250 (CInfoscreenDraw.cpp)
 
     // ---- CBuilding virtuals (vtable slot)
     // +0xcc Ghidra 0x134aac: sector, owner, potential field around the building
