@@ -27,7 +27,8 @@
 //   --check-shaders      compile every .gfx and exit
 //   --skirmish <map>     [PC] start a skirmish on map <map> directly in the
 //                        ingame screen (--players N, default the map's; --fow; the
-//                        minimap with --minimap 0..3, default 2)
+//                        minimap with --minimap 0..3, default 2; --gametype N, the
+//                        custom game's game type, 3 = resources)
 //   --viewer             the phase-2 map viewer instead of the game
 //                        (--map N, --zoom Z, --cam X Y, --yaw DEG;
 //                        PageUp/PageDown cycle maps, Esc quits)
@@ -96,6 +97,7 @@ struct Options {
     int skirmish = 0;           // --skirmish <map> [PC]
     int players = 0;            // --players N (with --skirmish; 0 = the map's "set numplayers")
     int minimap = 2;            // --minimap 0..3 (with --skirmish)
+    int gameType = 0;           // --gametype N (with --skirmish; engine +0x2d0)
 };
 
 Options parseArgs(int argc, char** argv) {
@@ -128,6 +130,7 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--skirmish") o.skirmish = std::atoi(nextS().c_str());
         else if (a == "--players") o.players = std::atoi(nextS().c_str());
         else if (a == "--minimap") o.minimap = std::atoi(nextS().c_str());
+        else if (a == "--gametype") o.gameType = std::atoi(nextS().c_str());
     }
     if (o.fps <= 0.0f && o.frames > 0) o.fps = 60.0f;
     return o;
@@ -327,7 +330,8 @@ int runGame(const Options& opt, SDL_Window* window) {
         engine->mMinimapSize = opt.minimap;
         const unsigned players = opt.players >= 1 && opt.players <= 4 ? static_cast<unsigned>(opt.players)
                                                                     : mapPlayerCount(opt.skirmish);
-        if (!CInterfaceIngame::startSkirmish(static_cast<unsigned>(opt.skirmish), players, opt.fow, w, h)) {
+        if (!CInterfaceIngame::startSkirmish(static_cast<unsigned>(opt.skirmish), players, opt.fow, w, h,
+                                             opt.gameType)) {
             std::fprintf(stderr, "--skirmish %d: the map did not load\n", opt.skirmish);
             return 4;
         }

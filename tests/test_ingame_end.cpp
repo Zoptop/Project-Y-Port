@@ -4,6 +4,7 @@
 // player count of a skirmish on map 201, and the selection hand-over through
 // IIngameUI (brain entering / leaving a vehicle, CUnit::rally). Headless, on
 // the real maps (skipped without data/).
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -51,7 +52,7 @@ bool haveMap(unsigned id) {
 struct Game {
     CInterfaceIngame* ingame = nullptr;
     CInterfaceIngamePerPlayer* ipp = nullptr;
-    explicit Game(unsigned map = 1, unsigned players = 2) {
+    explicit Game(unsigned map = 1, unsigned players = 2, bool fow = false) {
         resetTestEngine();
         static CMath* m = nullptr;
         if (!m) m = new CMath(4096);
@@ -65,7 +66,7 @@ struct Game {
         menu->mCamera = std::make_unique<CCameraMenu>();
         menu->setResolution(1280, 720);
         e->mMenuInterface = std::move(menu);
-        ingame = CInterfaceIngame::startSkirmish(map, players, false, 1280, 720);
+        ingame = CInterfaceIngame::startSkirmish(map, players, fow, 1280, 720);
         ipp = ingame ? ingame->ipp(0) : nullptr;
     }
     ~Game() {
@@ -273,4 +274,63 @@ TEST(ingame_rally_copies_group_and_selection) {
     CHECK(gb->isUnitInGroup(b->mId));
     CHECK(gb->getGroupOfUnit(b->mId) == gb->getGroupOfUnit(a->mId));
     CHECK(g.ipp->isGameObjectSelected(b->mId));
+}
+
+// ---------------------------------------------------------------- resources mode
+
+// CLevel::updateREStexture (Ghidra 0x2da614): byte = (int) floor(v *
+// 254.99000549 (0x437efd71)): 1 -> 254, 0.5 -> 127.495 -> 127, 0.004 ->
+// 1.01996 -> 1, 0.0039 -> 0.99446 -> 0. Without a GL context a resources
+// game makes no texture and the uploads are no-ops.
+TEST(level_res_texture_bytes) {
+    CHECK(CLevel::resTextureByte(1.0f) == 254);
+    CHECK(CLevel::resTextureByte(0.5f) == 127);
+    CHECK(CLevel::resTextureByte(0.004f) == 1);
+    CHECK(CLevel::resTextureByte(0.0039f) == 0);
+    CHECK(CLevel::resTextureByte(0.0f) == 0);
+    if (!haveMap(1)) return;
+    Game g;
+    CEngine* e = g.engine();
+    e->resetGame();
+    CHECK(CInterfaceIngame::startSkirmish(1, 2, false, 1280, 720, 3) != nullptr);
+    const CLevel* level = e->mGame ? e->mGame->getLevel() : nullptr;
+    CHECK(level != nullptr);
+    if (!level) return;
+    CHECK(e->mGameType == 3);
+    CHECK(level->mResW > 0 && level->mResH > 0);
+    CHECK(level->mRes.size() == static_cast<size_t>(level->mResW * level->mResH));
+    CHECK(level->mResTextureId == 0u);
+    level->updateREStexture();
+    level->genRESTexture();
+    CHECK(level->mResTextureId == 0u);
+}
+
+// ---------------------------------------------------------------- fog of war
+
+// CBuilding::timeUpdate (Ghidra 0x1361a0) with UseFOW: the owner's team sees
+// 100 around the building (vtable +0x30, drawFOWCircleTeam). Map 1: FOW grid
+// 64 x 64 over 2000 x 2000 ("fowsize"), so the radius is 64 * 0.5 * 100 /
+// 1000 = 3.2 -> 3 cells (31.25 each); one call adds f2i(dt * 300) = 30 at
+// dt = 0.1 (0.1f * 300 = 30.0000004 -> 30.0f).
+TEST(fow_buildings_reveal_around_them) {
+    if (!haveMap(1)) return;
+    Game g(1, 2, true);
+    if (!g.ipp) return;
+    CPlayer* me = g.me();
+    CBuilding* hq = g.hqOf(me);
+    CHECK(hq != nullptr);
+    CHECK(!me->mFOWMap.empty());
+    if (!hq || me->mFOWMap.empty()) return;
+    std::fill(me->mFOWMap.begin(), me->mFOWMap.end(), static_cast<uint8_t>(0));
+    g.engine()->mFrameDt = 0.1f;
+    hq->CBuilding::timeUpdate();
+    const CVector2 at = hq->position2();
+    CHECK(me->getVisibilityValue(at, nullptr) == 30.0f / 256.0f);
+    CHECK(me->getVisibilityValue(CVector2(at.x + 80.0f, at.y), nullptr) == 30.0f / 256.0f);
+    CHECK(me->getVisibilityValue(CVector2(at.x + 140.0f, at.y), nullptr) == 0.0f);
+    // without UseFOW nothing is drawn (the grid stays as it is)
+    std::fill(me->mFOWMap.begin(), me->mFOWMap.end(), static_cast<uint8_t>(0));
+    g.engine()->mUseFOW = false;
+    hq->CBuilding::timeUpdate();
+    CHECK(me->getVisibilityValue(at, nullptr) == 0.0f);
 }

@@ -614,6 +614,10 @@ bool CLevel::initByScript(const std::string& file, bool fromSavegame) {
                         mResW = mFowTexW;
                         mResH = mFowTexH;
                         initRES();
+                        // the rest of initRESTexture (Ghidra 0x2dd44c) and the
+                        // vtable +0x04 call after it: render only
+                        genRESTexture();
+                        updateREStexture();
                         mResTexture = texture("map_tx_res.png");
                     }
                 }
@@ -881,7 +885,8 @@ void CLevel::update() {
         const Real dy = p.y - b->mPosition.y;
         if (!(fdlibm::sqrtf(dx * dx + dy * dy) > 70.0f)) continue;
         addResource(p, 1.0f, 80.0f);
-        // (texture refresh: render) and an explosion (subtype 8) on the new field
+        updateREStexture();   // vtable +0x04 (render only)
+        // and an explosion (subtype 8) on the new field
         e->getParticleManager()->createParticleSystem(PS_EXPLOSION, p, 0.0f, 8, false, nullptr, false);
         total = getTotalResValue();
     }
@@ -1065,7 +1070,7 @@ void CLevel::generateResources() {
             }
         }
     }
-    // (genRESTexture: render)
+    updateREStexture();   // vtable +0x04 (render only)
 }
 
 // Ghidra 0x2dee28: the nearest cell with resources on a ring of growing

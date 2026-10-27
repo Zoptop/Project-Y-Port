@@ -88,7 +88,8 @@ public:
     // interface made current. Returns it, or null if the map did not load.
     // `players` below the map's "set numplayers" is raised to it (see
     // skirmishPlayerCount).
-    static CInterfaceIngame* startSkirmish(unsigned mapId, unsigned players, bool fow, int width, int height);
+    static CInterfaceIngame* startSkirmish(unsigned mapId, unsigned players, bool fow, int width, int height,
+                                           int gameType = 0);
     // [PC] the map script's "set numplayers" (0 if none), and the player count
     // a skirmish of `requested` players starts with (at least that).
     static unsigned mapNumPlayers(unsigned mapId);

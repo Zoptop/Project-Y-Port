@@ -141,13 +141,13 @@ unsigned CInterfaceIngame::skirmishPlayerCount(unsigned mapId, unsigned requeste
     return requested;
 }
 
-CInterfaceIngame* CInterfaceIngame::startSkirmish(unsigned mapId, unsigned players, bool fow, int width,
-                                                 int height) {
+CInterfaceIngame* CInterfaceIngame::startSkirmish(unsigned mapId, unsigned players, bool fow, int width, int height,
+                                                 int gameType) {
     CEngine* e = CEngine::getSingletonPtr();
     players = skirmishPlayerCount(mapId, players);
     e->setupSkirmish(mapId, players);
     e->mUseFOW = fow;
-    e->mGameType = 0;
+    e->mGameType = gameType;   // [PC] --gametype (the custom game screen's slider, action 0x31)
     e->mLocalPlayer = 1;
     e->pauseGame();
     e->mNetworkMode = 0;
