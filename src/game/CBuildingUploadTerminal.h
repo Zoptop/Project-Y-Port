@@ -17,6 +17,8 @@ public:
     void holdState() override { mRadarYawHeld = mRadarYaw; }      // +0x1c Ghidra 0x14d0cc
     void restoreState() override { mRadarYaw = mRadarYawHeld; }   // +0x20 Ghidra 0x14d0e8
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x14d13c
+    // drawing (CBuildingUploadTerminalDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x14d2d4
 
     Real mRadarYaw = 0.0f;               // +0x338 "RadarYaw"
     Real mRadarYawHeld = 0.0f;           // +0x33c

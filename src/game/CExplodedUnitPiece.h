@@ -1,6 +1,6 @@
 // CExplodedUnitPiece.h - port of ProjectY::CExplodedUnitPiece (0x58 bytes):
 // one flying piece of a destroyed unit's mesh (CGame::createEUPs). Logic and
-// state only; CGame::drawExplodedUnitPieces (render) is not ported.
+// state only; CGame::drawExplodedUnitPieces draws them (CGameDraw.cpp).
 //
 // The constructor draws 11 CRng uniforms (speed, direction, orientation,
 // spin, spin speed). Pieces fly with gravity, bounce on z = 1 and are

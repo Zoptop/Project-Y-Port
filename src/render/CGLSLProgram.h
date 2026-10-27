@@ -23,6 +23,8 @@
 
 namespace py {
 
+class CMatrix4;
+struct CVector3;
 struct CVertexPosUV;
 struct CVertexPosUVColor;
 struct CVertexPosUVColor4;
@@ -67,6 +69,10 @@ public:
     void endDrawLocalPosUVColorWidthBlendNoDepth() const;
     // [PC] replaces the glDrawArrays(mode, first, count) that follows a startDrawLocal*.
     static void drawLocal(unsigned mode, int first, int count);
+    // [PC] a position-only stream (vec3 POSITION @0, `stride` bytes per
+    // vertex): CGame::drawMinimap's camera outline (point.gfx).
+    void startDrawLocalPos(const float* v, int stride) const;
+    void endDrawLocalPos() const;
 
     void setUniformMVPMatrix(const Mat4& m) const;
     void setUniformMMatrix(const Mat4& m) const;
@@ -80,6 +86,17 @@ public:
     void setUniformTime(float t) const;
     void setUniformAlpha(float a) const;
     void setUniformSize(float s) const;
+    // The original's CMatrix4 / CVector3 setters. CMatrix4 is OGRE's
+    // row-major matrix; the original uploads the transposed product it keeps
+    // for the GPU, the port uploads M (row-major) as column-major data,
+    // which is the same thing.
+    void setUniformMVPMatrix(const CMatrix4& m) const;
+    void setUniformMMatrix(const CMatrix4& m) const;
+    void setUniformPlayerColor(const CVector3& c) const;
+    void setUniformLightColor(const CVector3& c) const;
+    void setUniformLightDir(const CVector3& d) const;
+    void setUniformEyePosition(const CVector3& v) const;
+    void setUniformBlendColor(const CVector3& c) const;
 
     unsigned program() const { return mProgram; }
     const std::string& name() const { return mName; }

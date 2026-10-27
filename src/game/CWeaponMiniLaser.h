@@ -14,6 +14,7 @@ class CWeaponMiniLaser : public CWeapon {
 public:
     CWeaponMiniLaser();                                                   // Ghidra 0x3e0398
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3dfbc4
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3df1c4 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3e0598
     void deactivate() override;                                           // Ghidra 0x3dfb70
     void calcChecksum() override;                                         // Ghidra 0x3e07c8

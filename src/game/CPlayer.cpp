@@ -412,6 +412,7 @@ void CPlayer::initFOWTexture() {
     mFOWRasterizer->setFrameBuffer(mFOWMap.data(), static_cast<unsigned>(l->mFowTexW),
                                    static_cast<unsigned>(l->mFowTexH));
     mFOWRasterizer->clear(0);
+    genFOWTexture();
 }
 
 // Ghidra 0x372918: explored cells (> 64) fade by one per 0.1 s of game time,

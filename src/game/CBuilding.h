@@ -46,6 +46,9 @@ public:
     bool isCommandable(CPlayer* player) override;      // +0x5c Ghidra 0x1350ec
     bool isCommanded() override;                       // +0x88 Ghidra 0x134a88
     void removeCommander() override {}                 // +0x8c
+    // drawing (CBuildingDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x13623c
+    void drawSelection() override;                     // +0x48 Ghidra 0x135c70
 
     // ---- CBuilding virtuals (vtable slot)
     // +0xcc Ghidra 0x134aac: sector, owner, potential field around the building

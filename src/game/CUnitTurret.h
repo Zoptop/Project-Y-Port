@@ -27,6 +27,7 @@ public:
     bool hasChangeableWeapon() override { return true; } // Ghidra 0x3ce8f4
     void processDialButton(int button) override;         // Ghidra 0x3d05f0
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3cf1dc
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3cf488 (CUnitTurretDraw.cpp)
     CGameObject* findClosestEnemySlow(Real range, bool outsideMinRange, bool onlyStunnable) override;   // Ghidra 0x3ceb98
     CGameObject* findClosestEnemyFast() override;            // Ghidra 0x3ce9c8
     void getInfluenceAndFalloff(Real* influence, Real* falloff, Real* range) override;   // Ghidra 0x3cf79c

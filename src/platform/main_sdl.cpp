@@ -49,11 +49,13 @@
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CScriptManager.h"
+#include "game/CWorldView.h"
 #include "platform/GLFunctions.h"
 #include "render/CCamera.h"
 #include "render/CGLSLProgram.h"
 #include "render/CMesh.h"
 #include "render/CTexture.h"
+#include "render/CTextRender.h"
 #include "ui/CInputScript.h"
 #include "ui/CInterface.h"
 
@@ -80,6 +82,11 @@ struct Options {
     float camX = 1e9f, camY = 1e9f;
     float yawDeg = 0.0f;
     bool checkShaders = false;  // compile every .gfx and exit (non-zero on failure)
+    // world view (game/CWorldView.h)
+    bool fow = false;           // --fow: fog of war (option UseFOW), seen by player 1
+    bool allAI = false;         // --all-ai: player 1 is a computer player too
+    bool noSim = false;         // --no-sim: draw the map without running the game
+    int steps = 0;              // --steps N: simulate N steps (0.1 s) before the first frame
     bool viewer = false;        // --viewer: the phase-2 map viewer
 };
 
@@ -105,6 +112,10 @@ Options parseArgs(int argc, char** argv) {
             o.camY = static_cast<float>(std::atof(nextS().c_str()));
         } else if (a == "--yaw") o.yawDeg = static_cast<float>(std::atof(nextS().c_str()));
         else if (a == "--check-shaders") o.checkShaders = true;
+        else if (a == "--fow") o.fow = true;
+        else if (a == "--all-ai") o.allAI = true;
+        else if (a == "--no-sim") o.noSim = true;
+        else if (a == "--steps") o.steps = std::atoi(nextS().c_str());
         else if (a == "--viewer") o.viewer = true;
     }
     if (o.fps <= 0.0f && o.frames > 0) o.fps = 60.0f;
@@ -409,6 +420,7 @@ int runViewer(const Options& opt, SDL_Window* window, const std::string& version
     std::unique_ptr<CGame> game;
     CLevel* level = nullptr;
     CCameraLevel cam;
+    CWorldView view;
     auto loadLevel = [&](int id) {
         CEngine* engine = CEngine::getSingletonPtr();
         engine->mGame = nullptr;
@@ -417,10 +429,15 @@ int runViewer(const Options& opt, SDL_Window* window, const std::string& version
         CMeshManager::get().clear();
         CTextureManager::get().clear();
         CGLSLProgramManager::get().clear();
+        // the text renderer (labels), on the freshly cleared resources
+        engine->mTextRender = std::make_unique<CTextRender>();
+        if (!engine->mTextRender->init()) CUtils::log("CTextRender: font resources missing");
         // Viewer setup: the map's own player count (the menu decides this in
         // the game), slot 1 human, the rest AI; campaign maps are "scripted".
         engine->setupSkirmish(static_cast<unsigned>(id), mapPlayerCount(id));
         engine->mGameType = id >= 200 ? 1 : 0;
+        engine->mUseFOW = opt.fow;
+        if (opt.allAI) engine->mPlayerSetup[1].type = 2;
         game = std::make_unique<CGame>();
         engine->mGame = game.get();
         if (!game->init(false)) {
@@ -428,6 +445,8 @@ int runViewer(const Options& opt, SDL_Window* window, const std::string& version
             return false;
         }
         level = game->getLevel();
+        view.reset(game.get(), game->getPlayer(1));
+        for (int i = 0; i < opt.steps; ++i) view.advance(0.1f);
         cam = CCameraLevel();
         cam.setMapSize(level->mapWidth(), level->mapHeight());
         cam.setTarget(0, 0);
@@ -454,7 +473,6 @@ int runViewer(const Options& opt, SDL_Window* window, const std::string& version
     // --- frame loop: the timing half of CEngine::draw ---
     int speedSetting = 3;   // "normal" (factor 1.0); CEngine+0x1b8
     float lastTime = CUtils::getTimer();
-    float gameTime = 0.0f;
     bool running = true;
     int frame = 0;
     bool dragPan = false, dragRotate = false;
@@ -519,7 +537,6 @@ int runViewer(const Options& opt, SDL_Window* window, const std::string& version
         lastTime = now;
         if (dt > 0.2f) dt = 0.2f;   // 0x3e4ccccd
         dt = dt * speedFactor(speedSetting);
-        gameTime += dt;
 
         // keyboard scrolling, relative to the camera yaw
         const Uint8* keys = SDL_GetKeyboardState(nullptr);
@@ -539,8 +556,9 @@ int runViewer(const Options& opt, SDL_Window* window, const std::string& version
         gl::Viewport(0, 0, w, h);
         gl::ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        level->draw(cam, gameTime);
-        game->drawPreview(cam);
+        // fixed 30 fps for scripted runs (--frames), so screenshots repeat
+        if (!opt.noSim) view.advance(opt.frames > 0 ? 1.0f / 30.0f : dt);
+        view.draw(cam, w, h);
 
         ++frame;
         const bool last = opt.frames > 0 && frame >= opt.frames;

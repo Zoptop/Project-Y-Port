@@ -15,7 +15,7 @@
 // Ghidra: CParticleManager 0x36c890, timeUpdate 0x36c524, getParticleSystem
 // 0x36c684, disableParticleSystem 0x36c6f8, cleanUp 0x36c7f8,
 // createParticleSystem 0x36ca44 / 0x36cbc8 (CVector2 + z), getUVTileCoords
-// 0x36c4d4. Not ported: draw 0x36cea8 (render), save/load.
+// 0x36c4d4. Drawing: draw 0x36cea8 (CParticleManagerDraw.cpp). Not ported: save/load.
 #pragma once
 
 #include <cstddef>
@@ -27,10 +27,14 @@
 #include "core/CVector3.h"
 #include "core/Real.h"
 #include "game/CParticleSystem.h"
+#include "render/CQuad.h"
 
 namespace py {
 
+class CCameraLevel;
+class CGLSLProgram;
 class CPlayer;
+class CTexture;
 
 // std::unordered_map<unsigned, CParticleSystem*> as the original's libstdc++
 // implements it (_Hashtable with _Prime_rehash_policy, max load factor 1,
@@ -112,8 +116,22 @@ public:
 
     static unsigned mNextParticleSystemID;   // 0x4e1914, starts at 1
 
+    // Ghidra 0x36cea8 (CParticleManagerDraw.cpp): the systems' quads in two
+    // batches of at most 10000, sorted by z: the depth-tested systems, then
+    // the NoDepthCheck ones (+0x4c) without depth test; `menu` draws only the
+    // ShowInMenu systems (+0x4f), else only the others. A system shown only to
+    // one player (+0x2c) is drawn for that interface player only.
+    void draw(const CCameraLevel& cam, bool menu);
+
 private:
+    void initGraphics();
     CParticleSystemTable mSystems;   // +0x00
+    // drawing (the constructor's render part, made on the first draw)
+    std::vector<CQuadPosUVColor4> mQuadsDepth;     // +0x18 (10000)
+    std::vector<CQuadPosUVColor4> mQuadsNoDepth;   // +0x1c (10000)
+    CGLSLProgram* mShader = nullptr;               // +0x24 particlesgray.gfx
+    CTexture* mTexture = nullptr;                  // +0x28 particlesgray.png
+    bool mGraphicsTried = false;
 };
 
 }  // namespace py

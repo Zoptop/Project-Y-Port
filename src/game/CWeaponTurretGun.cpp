@@ -56,7 +56,25 @@ void CWeaponTurretGun::timeUpdate(CUnit* target, Real distanceSq, Real angle, bo
         if (deg + deg > err) {
             const Real damage = mDPS * Real(mEngine->mFrameDt) * mUnit->mDamageFactor;
             target->hit(damage, mUnit->mId, DAMAGE_LASER, mUnit->mOwner, nullptr);
-            // (shot quad from the blast offset to the target: CWeaponFactory::addShot, rendering)
+            // The beam from the blast offset to the target (CWeaponFactory::addShot,
+            // drawing only: it reads simulation state, writes the beam batch).
+            // [!] x = ux + m.x sin(yaw + pi/2) + m.y sin(yaw) + ..., i.e. +m.y
+            // sin where a rotation would subtract it (the mount and blast
+            // offsets have y = 0 in the config, so it does not show).
+            const Real hp = CMath::HALF_PI;
+            const CVector3& up = mUnit->mPosition;
+            const Real uy = mUnit->mYaw;
+            Real x = up.x + mMountPoint.x * CMath::SinTable(uy + hp);
+            x = x + mMountPoint.y * CMath::SinTable(uy);
+            x = x + mBlastOffset.x * CMath::SinTable(uy + mYaw + hp);
+            x = x + mBlastOffset.y * CMath::SinTable(uy + mYaw);
+            Real y = up.y + mMountPoint.x * CMath::SinTable(uy);
+            y = y + mMountPoint.y * CMath::SinTable(uy + hp);
+            y = y + mBlastOffset.x * CMath::SinTable(uy + mYaw);
+            y = y + mBlastOffset.y * CMath::SinTable(uy + mYaw + hp);
+            const Real z = up.z + mMountPoint.z + mBlastOffset.z;
+            CWeaponFactory::getSingletonPtr()->addShot(CVector3(x, y, z), target->mPosition, mQuadWidth, mShotUVTopleft,
+                                                       mShotUVSize);
             return;
         }
     }

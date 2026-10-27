@@ -22,6 +22,8 @@ public:
     bool isCommanded() override { return !mContainedBrains.empty(); }   // +0x88 Ghidra 0x143ea4
     void removeCommander() override;                // +0x8c Ghidra 0x144188
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x144834
+    // drawing (CBuildingScienceLabDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x144c58
     void enter(unsigned brainId) override { mContainedBrains.push_back(brainId); }   // +0xd8 Ghidra 0x1442a8
 
     // Ghidra 0x144454: a random researchable tech other than the current and

@@ -10,6 +10,9 @@ namespace py {
 
 // Ghidra 0x14d13c
 void CBuildingUploadTerminal::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
+    // The building's mesh in gameobjects.3DS.mesh (+0x1c8/+0x1cc): drawing only (the
+    // HQ's is also what its destruction breaks into pieces).
+    getSubMeshData("ulterminal");
     loadConfigSettings("UploadTerminal");
     CBuilding::init(position, rotation, sectorId, subtype);
     mType = BUILDING_UPLOADTERMINAL;

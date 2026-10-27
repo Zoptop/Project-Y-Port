@@ -12,6 +12,7 @@ class CWeaponEMPWave : public CWeapon {
 public:
     CWeaponEMPWave();                                                     // Ghidra 0x3d69a8
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3d6b90
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3d7380 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3d7d74
     void calcChecksum() override;                                         // Ghidra 0x3d8014
     void holdState() override;                                            // Ghidra 0x3d6578

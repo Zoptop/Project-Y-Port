@@ -5,7 +5,7 @@
 // Not saved with the game (+0x4d = false).
 //
 // Ghidra: ctor 0x2d192c, setNewParticleData 0x2d19cc (empty), init
-// 0x2d19d0, timeUpdate 0x2d1ed8, getQuads 0x2d18e4 (not ported).
+// 0x2d19d0, timeUpdate 0x2d1ed8, getQuads 0x2d18e4 (CParticleSystemDraw.cpp).
 #pragma once
 
 #include "core/CMatrix3.h"
@@ -19,6 +19,7 @@ public:
     explicit CParticleSystemShotConstant(int subtype);   // Ghidra 0x2d192c
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d19d0
+    void getQuads(CQuadPosUVColor4* quads, int& count) override;      // Ghidra 0x2d18e4 (CParticleSystemDraw.cpp)
     void timeUpdate(Real dt) override;                               // Ghidra 0x2d1ed8
     void setNewParticleData(CParticle*) {}                          // Ghidra 0x2d19cc
 

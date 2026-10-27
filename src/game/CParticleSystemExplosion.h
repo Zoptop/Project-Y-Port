@@ -6,7 +6,7 @@
 // 8 (landmine / bomb); others create nothing.
 //
 // Ghidra: ctor 0x2ce0d4, init 0x2ce11c, timeUpdate 0x2cf398, getQuads
-// 0x2cbe38 (not ported).
+// 0x2cbe38 (CParticleSystemDraw.cpp).
 #pragma once
 
 #include "game/CParticleSystem.h"
@@ -18,6 +18,7 @@ public:
     explicit CParticleSystemExplosion(int subtype);   // Ghidra 0x2ce0d4
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2ce11c
+    void getQuads(CQuadPosUVColor4* quads, int& count) override;      // Ghidra 0x2cbe38 (CParticleSystemDraw.cpp)
     void timeUpdate(Real dt) override;                               // Ghidra 0x2cf398
 
     Real mRuntime = 0.0f;   // +0x50 "Runtime"

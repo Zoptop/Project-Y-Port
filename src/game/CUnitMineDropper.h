@@ -17,6 +17,7 @@ public:
     void calcChecksum() override;                        // Ghidra 0x3bf54c
     void processActionBarAction(int action) override;    // Ghidra 0x3bf498
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3bf1e0
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3befcc (CUnitMineDropperDraw.cpp)
     void hit(Real damage, unsigned attackerId, EDamageType type, CPlayer* attackingPlayer,
              CSceneObject* source) override;             // Ghidra 0x3bfd4c
 

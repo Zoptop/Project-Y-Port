@@ -17,6 +17,9 @@ Real shieldBonus(CPlayer* p) { return p->getBonus(7, 0, DAMAGE_NONE, false, fals
 
 // Ghidra 0x147cc4
 void CBuildingShieldGen::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
+    // The building's mesh in gameobjects.3DS.mesh (+0x1c8/+0x1cc): drawing only (the
+    // HQ's is also what its destruction breaks into pieces).
+    getSubMeshData("shldbld");
     loadConfigSettings("ShieldGen");
     CBuilding::init(position, rotation, sectorId, subtype);
     mType = BUILDING_SHIELDGEN;

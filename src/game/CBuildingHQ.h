@@ -26,6 +26,9 @@ public:
     using CBuilding::isCommandable;
     void processDialButton(int button) override;    // +0x84 Ghidra 0x13b1d4
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x13b78c
+    // drawing (CBuildingHQDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x13b160
+    Real getFOWVisibility(CPlayer* player, int mode, bool* visible) override;   // +0xc8 Ghidra 0x13b51c
     bool isResourceDropOff(CPlayer* player, int resourceType) override;   // +0xdc Ghidra 0x13b66c
     void destroy() override;                        // +0xe8 Ghidra 0x13c1b0
 
