@@ -158,4 +158,4 @@ Phases 0–5 give a playable single-player skirmish. The original's built-in com
 
 ## 12. Legal note
 
-The decompiled code and game assets are Luminence Labs' copyright. They're fine as a private reference for a personal port. For a public release, use them only as a specification and write the port's code from scratch (a "clean-room" approach). Don't copy decompiled code, and ship without the original assets unless you have permission.
+The original code, game assets and the ProjectY name are Luminence Labs' copyright. This repository is public (the studio has shut down). It contains no assets, no binaries and no decompiled source files: players extract the data from their own copy of the game (see the README). The port's source is a reimplementation that follows the decompiled engine closely, function by function, which makes it a derivative of the original. If a rights holder objects, the repository should be taken down or changed as they ask.
