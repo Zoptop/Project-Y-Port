@@ -8,6 +8,7 @@
 #include "core/CMemoryFile.h"
 #include "core/CUtils.h"
 #include "game/CCommandManager.h"
+#include "game/CDrawContext.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CPlayer.h"
@@ -35,6 +36,14 @@ CInterfaceIngame::CInterfaceIngame() {
 CInterfaceIngame::~CInterfaceIngame() {
     if (IIngameUI::get() == this) IIngameUI::set(nullptr);
     if (CScriptManager::ui() == this) CScriptManager::setUI(nullptr);
+    // [PC] the draw context must not keep pointers into this interface
+    CDrawContext& dc = CDrawContext::get();
+    if (dc.quads == &mWorldQuads) {
+        dc.quads = nullptr;
+        dc.camera = nullptr;
+        dc.minimapCamera = nullptr;
+        dc.addColored4QuadPixel = nullptr;
+    }
 }
 
 // Ghidra 0x19e27c
