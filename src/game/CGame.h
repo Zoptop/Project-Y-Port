@@ -13,9 +13,11 @@
 // in CGame.cpp.
 #pragma once
 
+#include <cstdint>
 #include <list>
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "core/CVector2.h"
@@ -29,7 +31,10 @@ namespace py {
 class CBuilding;
 class CCameraLevel;
 class CExplodedUnitPiece;
+class CFakeShadow;
+class CGLSLProgram;
 class CMesh;
+class CTexture;
 class CCommandManager;
 class CEngine;
 class CGameObject;
@@ -136,8 +141,26 @@ public:
     CCommandManager* getCommandManager() const { return mCommandManager.get(); }
     CGameFeatures& features() { return mFeatures; }
 
-    // Placeholder object renderer until the renderer phase (CGamePreview.cpp).
-    void drawPreview(const CCameraLevel& cam) const;
+    // ---- drawing (CGameDraw.cpp). The world pass of
+    // CInterfaceIngamePerPlayer::draw calls, in this order:
+    //   updateVisibility, CLevel::draw, CGame::draw, CWeaponFactory::draw,
+    //   CParticleManager::draw, CGame::drawMinimap
+    // with CDrawContext (game/CDrawContext.h) set up for the current IPP.
+    void initGraphics();                       // the GL part of CGame::init (Ghidra 0x17cf28)
+    void startDraw();                          // Ghidra 0x177dc8
+    void endDraw();                            // Ghidra 0x177df0
+    void updateVisibility();                   // Ghidra 0x17857c
+    void draw();                               // Ghidra 0x17b3c8
+    void drawExplodedUnitPieces(CPlayer* player);   // Ghidra 0x17a67c
+    void drawMinimap();                        // Ghidra 0x1785f4
+    // The submesh ranges the objects' init functions look up (by name) in
+    // gameobjects.3DS.mesh (+0xc4) or flag.3DS.mesh (+0xd8): kept for the
+    // draw code of the parts the port's simulation classes do not store.
+    struct SubMesh {
+        uint32_t first = 0, count = 0;
+    };
+    SubMesh subMesh(const char* name, bool flagMesh = false);
+    CFakeShadow* getFakeShadow() const { return mFakeShadow.get(); }
 
     // ---- fields (original offsets)
     std::vector<std::unique_ptr<CExplodedUnitPiece>> mExplodedPieces;   // +0x00
@@ -150,8 +173,22 @@ public:
     std::vector<CProjectile*> mProjectiles;                  // +0x98
     std::unique_ptr<CLevel> mLevel;                          // +0xa4
     CEngine* mEngine = nullptr;                              // +0xac
+    std::unique_ptr<CFakeShadow> mFakeShadow;                // +0xb4 (drawing)
     std::unique_ptr<CCraterManager> mCraterManager;          // +0xb8
     CMesh* mGameObjectsMesh = nullptr;                       // +0xc4 (owned by CMeshManager)
+    // GL resources of the object drawing (CGame::init; null when headless)
+    CGLSLProgram* mObjectShader = nullptr;                   // +0xc0 diffuseplayerlight.gfx
+    CTexture* mObjectTexture = nullptr;                      // +0xc8 gameobjects.png
+    CGLSLProgram* mFlagShader = nullptr;                     // +0xcc diffuseplayerlightweave.gfx
+    CGLSLProgram* mShieldShader = nullptr;                   // +0xd0 shield.gfx
+    CTexture* mShieldTexture = nullptr;                      // +0xd4 shield.png
+    CMesh* mFlagMesh = nullptr;                              // +0xd8 flag.3DS.mesh (flag, hemisphere, wave)
+    CTexture* mFlagTexture = nullptr;                        // +0xdc flag.png
+    CGLSLProgram* mLightningShader = nullptr;                // +0xe0 lightning.gfx
+    CGLSLProgram* mAlphaShader = nullptr;                    // +0xe4 diffuseplayerlightalpha.gfx
+    CTexture* mLightningTexture = nullptr;                   // +0xe8 lightning.png
+    CTexture* mNoiseTexture = nullptr;                       // +0xec noise.png
+    std::map<std::string, SubMesh> mSubMeshCache;            // (port) see subMesh()
     CPlayer* mNeutralPlayer = nullptr;                       // +0xbc
     unsigned mNextGameObjectID = 1101;                       // +0x108 "mNextGameObjectID"
     unsigned mNextGameObjectBuildingID = 1001;               // +0x124

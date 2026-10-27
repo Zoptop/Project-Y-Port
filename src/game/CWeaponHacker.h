@@ -16,6 +16,7 @@ class CWeaponHacker : public CWeapon {
 public:
     CWeaponHacker();                                                      // Ghidra 0x3d963c
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3d8f58
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3d8d8c (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3d97d4
     void deactivate() override;                                           // Ghidra 0x3d8f24
     void calcChecksum() override;                                         // Ghidra 0x3d9a00

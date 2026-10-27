@@ -49,6 +49,7 @@ namespace py {
 
 class CBuilding;
 class CKISquad;
+class CTexture;
 class CUnit;
 
 // Orders the original's pointer-keyed sets by allocation serial (see above).
@@ -91,7 +92,8 @@ public:
     void removeUnit(unsigned id) override;                             // +0x08 Ghidra 0x2d9914
     void unitProduced(CUnit* unit, CBuilding* building) override;      // +0x0c Ghidra 0x2d6590
     bool isAI() const override { return true; }                        // +0x1c Ghidra 0x2d3f18
-    void initFOWTexture() override {}                                  // +0x20 Ghidra 0x2d3f7c (texture fow_ki.png only)
+    void initFOWTexture() override;                                    // +0x20 Ghidra 0x2d3f7c (texture fow_ki.png only, CPlayerDraw.cpp)
+    void bindFOWtexture(unsigned textureUnit) override;                // +0x38 Ghidra 0x2d3fc0 (CPlayerDraw.cpp)
     void updateFOWtexture() override {}                                // +0x24 Ghidra 0x2d3f2c
     void FOWtimeupdate() override {}                                   // +0x28 Ghidra 0x2d3f38
     void drawFOWCirclePlayer(const CVector2&, Real) override {}        // +0x2c Ghidra 0x2d3f20
@@ -149,6 +151,7 @@ public:
     unsigned mWantedSquads = 0;         // +0x1b4
     unsigned mCurrentSquads = 0;        // +0x1b8
     CKISquad* mResumeSquad = nullptr;   // +0x1bc squad to resume updating with
+    CTexture* mFOWTextureKI = nullptr;  // +0x1ac fow_ki.png (drawing only)
     bool mPassive = false;              // +0x1c0 network client that is not the host
     int mTargetMode = 2;                // +0x1c4 0 sector, 1 unit, 2 position
     unsigned mTargetSector = 0;         // +0x1c8

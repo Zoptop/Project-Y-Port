@@ -15,6 +15,9 @@ public:
     CBuildingTraining() = default;                  // Ghidra 0x14cc00
     void timeUpdate() override;                     // +0x08 Ghidra 0x14cda8
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x14cc38
+    // drawing (CBuildingTrainingDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x14cf40
+    void drawSelection() override;                    // +0x48 Ghidra 0x14cf9c
 
     Real mTrainDistance = 0.0f;          // +0x338 BuildingTrainingTrainDistance
     Real mTrainDistanceSq = 0.0f;        // +0x33c

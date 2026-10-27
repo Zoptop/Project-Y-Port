@@ -24,6 +24,9 @@ public:
     void timeUpdate() override;                     // +0x08 Ghidra 0x139e58
     void calcChecksum() override;                   // +0x24 Ghidra 0x13ac1c
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x139c30
+    // drawing (CBuildingFlagpostDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x13a5f4
+    void drawFlag();                                  // Ghidra 0x138fe8 (CGame::draw, flag pass)
 
     Real mLife = 0.0f;                   // +0x350 "Life" 0..100 (config BuildingFlagpostLife, or the subtype)
     Real mLifedot = 0.0f;                // +0x354 "Lifedot" change this step

@@ -14,6 +14,9 @@ namespace py {
 // subtype: the shipped maps give AdvTech factories subtype 10 (heavy tank),
 // so the first EMP tank takes the heavy tank's production time.
 void CBuildingProductionAdvTech::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
+    // The building's mesh in gameobjects.3DS.mesh (+0x1c8/+0x1cc): drawing only (the
+    // HQ's is also what its destruction breaks into pieces).
+    getSubMeshData("advfactory");
     loadConfigSettings("ProductionAdvTech");
     mUnitType = subtype;
     mType = BUILDING_PRODUCTION_ADVTECH;

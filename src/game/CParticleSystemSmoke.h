@@ -11,7 +11,7 @@
 //   11 resource gathering, 12 harvester gathering
 //
 // Ghidra: ctor 0x370e64, setNewParticleData 0x370eac, init 0x37170c,
-// timeUpdate 0x371878, getQuads 0x36fd10 (not ported).
+// timeUpdate 0x371878, getQuads 0x36fd10 (CParticleSystemDraw.cpp).
 #pragma once
 
 #include "game/CParticleSystem.h"
@@ -23,6 +23,7 @@ public:
     explicit CParticleSystemSmoke(int subtype);   // Ghidra 0x370e64
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x37170c
+    void getQuads(CQuadPosUVColor4* quads, int& count) override;      // Ghidra 0x36fd10 (CParticleSystemDraw.cpp)
     void timeUpdate(Real dt) override;                               // Ghidra 0x371878
     void setNewParticleData(CParticle* p);                           // Ghidra 0x370eac
 

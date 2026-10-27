@@ -15,6 +15,9 @@ public:
     CBuildingRepair() = default;                    // Ghidra 0x143944
     void timeUpdate() override;                     // +0x08 Ghidra 0x143b04
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x14397c
+    // drawing (CBuildingRepairDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x143d18
+    void drawSelection() override;                    // +0x48 Ghidra 0x143d74
 
     Real mHealingDistance = 0.0f;        // +0x338 BuildingRepairHealingDistance
     Real mHealingDistanceSq = 0.0f;      // +0x33c

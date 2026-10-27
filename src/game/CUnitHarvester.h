@@ -14,6 +14,7 @@ public:
     CUnitHarvester() = default;   // Ghidra 0x3bcee4
 
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3bd100
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3bd390 (CUnitHarvesterDraw.cpp)
 };
 
 }  // namespace py

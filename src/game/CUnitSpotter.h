@@ -22,6 +22,7 @@ public:
     void restoreState() override;        // Ghidra 0x3cb7d4
     void calcChecksum() override;        // Ghidra 0x3cada8
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3c8f08
+    void drawExtra() override;                        // +0x38 Ghidra 0x3c7e40 (CUnitSpotterDraw.cpp)
     void die() override;                 // Ghidra 0x3c9324
 
     enum EUAVState { UAV_PARKED = 0, UAV_CLIMBING, UAV_CIRCLING, UAV_STATE3, UAV_FALLING, UAV_DESTROYED };

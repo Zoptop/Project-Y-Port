@@ -23,8 +23,8 @@
 //
 // Ghidra: CBomber 0x128dd0, init 0x128fa4, timeUpdate 0x126a2c,
 // calcChecksum 0x129bec, holdState 0x1255e0, restoreState 0x12568c.
-// Not ported: draw, drawMinimap, timeUpdateSimple (render extrapolation),
-// sound, the thrusters' per-frame pose (CBomber::draw), save/load.
+// Drawing (with the thrusters' per-frame pose): CBomberDraw.cpp. Not ported:
+// timeUpdateSimple (render extrapolation), sound, save/load.
 #pragma once
 
 #include "core/CVector2.h"
@@ -53,6 +53,9 @@ public:
     void holdState() override;      // Ghidra 0x1255e0
     void restoreState() override;   // Ghidra 0x12568c
     void calcChecksum() override;   // Ghidra 0x129bec
+    // drawing (CBomberDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x125738
+    void drawMinimap() override;                      // +0x30 Ghidra 0x1267d4
 
     CVector3 mPosition;               // +0x78 "BomberPosition"
     CVector3 mPositionHeld;           // +0x84

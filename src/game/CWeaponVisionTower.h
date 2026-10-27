@@ -13,6 +13,7 @@ class CWeaponVisionTower : public CWeapon {
 public:
     CWeaponVisionTower();                                                 // Ghidra 0x3e6cfc
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3e6b7c
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3e6ddc (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3e782c
     // calcChecksum (Ghidra 0x3e792c) is the same as CWeapon's
     void holdState() override { mRotationHeld = mRotation; }              // Ghidra 0x3e6be4

@@ -83,6 +83,12 @@ struct CVector3 {
     static const CVector3 NEGATIVE_UNIT_Y;
     static const CVector3 NEGATIVE_UNIT_Z;
     static const CVector3 UNIT_SCALE;
+
+    // Colour constants (ProjectY additions, .bss filled by the static
+    // initialisers; values read from the original under emulation).
+    static const CVector3 COL_BLACK, COL_WHITE, COL_RED, COL_GREEN, COL_BLUE, COL_CYAN, COL_MAGENTA,
+        COL_YELLOW, COL_ORANGE, COL_VIOLET, COL_SKYBLUE, COL_SPRINGGREEN, COL_DARKMAGENTA, COL_LIME, COL_GOLD,
+        COL_SILVER, COL_BRONZE, COL_GRAY15, COL_GRAY25, COL_GRAY50, COL_GRAY75, COL_GRAY90, COL_RESOURCE;
 };
 
 inline CVector3 operator*(float s, const CVector3& v) { return {s * v.x, s * v.y, s * v.z}; }
@@ -95,5 +101,29 @@ inline const CVector3 CVector3::NEGATIVE_UNIT_X{-1.0f, 0.0f, 0.0f};
 inline const CVector3 CVector3::NEGATIVE_UNIT_Y{0.0f, -1.0f, 0.0f};
 inline const CVector3 CVector3::NEGATIVE_UNIT_Z{0.0f, 0.0f, -1.0f};
 inline const CVector3 CVector3::UNIT_SCALE{1.0f, 1.0f, 1.0f};
+
+inline const CVector3 CVector3::COL_BLACK{0.0f, 0.0f, 0.0f};
+inline const CVector3 CVector3::COL_WHITE{1.0f, 1.0f, 1.0f};
+inline const CVector3 CVector3::COL_RED{1.0f, 0.0f, 0.0f};
+inline const CVector3 CVector3::COL_GREEN{0.0f, 1.0f, 0.0f};
+inline const CVector3 CVector3::COL_BLUE{0.0f, 0.0f, 1.0f};
+inline const CVector3 CVector3::COL_CYAN{0.0f, 1.0f, 1.0f};
+inline const CVector3 CVector3::COL_MAGENTA{1.0f, 0.0f, 1.0f};
+inline const CVector3 CVector3::COL_YELLOW{1.0f, 1.0f, 0.0f};
+inline const CVector3 CVector3::COL_ORANGE{1.0f, 0.5f, 0.0f};
+inline const CVector3 CVector3::COL_VIOLET{1.0f, 0.0f, 0.5f};
+inline const CVector3 CVector3::COL_SKYBLUE{0.0f, 0.5f, 1.0f};
+inline const CVector3 CVector3::COL_SPRINGGREEN{0.0f, 1.0f, 0.5f};
+inline const CVector3 CVector3::COL_DARKMAGENTA{0.5f, 0.0f, 1.0f};
+inline const CVector3 CVector3::COL_LIME{0.5f, 1.0f, 0.0f};
+inline const CVector3 CVector3::COL_GOLD{1.0f, 0x1.afafa8p-1f, 0.0f};                       // 0x3f57d7d4
+inline const CVector3 CVector3::COL_SILVER{0x1.a7a7a8p-1f, 0x1.a7a7a8p-1f, 0x1.a7a7a8p-1f};   // 0x3f53d3d4
+inline const CVector3 CVector3::COL_BRONZE{0x1.a5a598p-1f, 0x1.a5a5bap-2f, 0x1.e1e1d2p-4f};   // 0x3f52d2cc 0x3ed2d2dd 0x3df0f0e9
+inline const CVector3 CVector3::COL_GRAY15{0x1.333334p-3f, 0x1.333334p-3f, 0x1.333334p-3f};   // 0x3e19999a
+inline const CVector3 CVector3::COL_GRAY25{0.25f, 0.25f, 0.25f};
+inline const CVector3 CVector3::COL_GRAY50{0.5f, 0.5f, 0.5f};
+inline const CVector3 CVector3::COL_GRAY75{0.75f, 0.75f, 0.75f};
+inline const CVector3 CVector3::COL_GRAY90{0x1.ccccccp-1f, 0x1.ccccccp-1f, 0x1.ccccccp-1f};   // 0x3f666666
+inline const CVector3 CVector3::COL_RESOURCE{0x1.a8f5c2p-1f, 0x1.f1a9fcp-3f, 0x1.78d4fep-3f};  // 0x3f547ae1 0x3e78d4fe 0x3e3c6a7f
 
 }  // namespace py

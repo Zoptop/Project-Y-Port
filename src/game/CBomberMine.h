@@ -28,6 +28,7 @@ public:
     void holdState() override;      // Ghidra 0x13274c
     void restoreState() override;   // Ghidra 0x1327b8
     void calcChecksum() override;   // Ghidra 0x133ca0
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x132824 (CBomberBombDraw.cpp)
 
     bool mReadyToDeleteHeld = false;  // +0x1d
     CVector3 mPosition;               // +0x78 "BombPosition"

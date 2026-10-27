@@ -13,6 +13,8 @@ class CBuildingProductionLarge : public CBuildingProduction {
 public:
     CBuildingProductionLarge() = default;           // Ghidra 0x142380
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x141ff8
+    // drawing (CBuildingProductionLargeDraw.cpp)
+    Real getFOWVisibility(CPlayer* player, int mode, bool* visible) override;   // +0xc8 Ghidra 0x141ee8
     // +0xc8 getFOWVisibility (max of its own and its turret's): fog of war, TODO(4.x FOW)
 
     unsigned mTurret = 0;                // +0x3ec turret unit id

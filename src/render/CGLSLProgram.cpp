@@ -1,5 +1,8 @@
 #include "CGLSLProgram.h"
 
+#include "core/CMatrix4.h"
+#include "core/CVector3.h"
+
 #include <regex>
 #include <vector>
 
@@ -372,5 +375,37 @@ CGLSLProgram* CGLSLProgramManager::getGLSLProgram(const std::string& gfxFile) {
 }
 
 void CGLSLProgramManager::clear() { mPrograms.clear(); }
+
+// ---------------------------------------------------------------- port additions
+
+void CGLSLProgram::startDrawLocalPos(const float* v, int stride) const {
+    gl::UseProgram(mProgram);
+    bindLocal(v, stride);
+    localAttrib(aPosition, 3, stride, 0);
+}
+void CGLSLProgram::endDrawLocalPos() const { disableAttrib(aPosition); }
+
+namespace {
+void toGL(const CMatrix4& m, float* out) {   // row-major OGRE matrix -> column-major GL
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 4; ++c) out[c * 4 + r] = m.m[r][c];
+}
+}  // namespace
+
+void CGLSLProgram::setUniformMVPMatrix(const CMatrix4& m) const {
+    float f[16];
+    toGL(m, f);
+    if (uMVP >= 0) gl::UniformMatrix4fv(uMVP, 1, 0, f);
+}
+void CGLSLProgram::setUniformMMatrix(const CMatrix4& m) const {
+    float f[16];
+    toGL(m, f);
+    if (uModel >= 0) gl::UniformMatrix4fv(uModel, 1, 0, f);
+}
+void CGLSLProgram::setUniformPlayerColor(const CVector3& c) const { setUniformPlayerColor(Vec3(c.x, c.y, c.z)); }
+void CGLSLProgram::setUniformLightColor(const CVector3& c) const { setUniformLightColor(Vec3(c.x, c.y, c.z)); }
+void CGLSLProgram::setUniformLightDir(const CVector3& d) const { setUniformLightDir(Vec3(d.x, d.y, d.z)); }
+void CGLSLProgram::setUniformEyePosition(const CVector3& v) const { setUniformEyePosition(Vec3(v.x, v.y, v.z)); }
+void CGLSLProgram::setUniformBlendColor(const CVector3& c) const { setUniformBlendColor(Vec3(c.x, c.y, c.z)); }
 
 }  // namespace py

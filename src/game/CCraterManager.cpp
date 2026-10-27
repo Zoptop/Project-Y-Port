@@ -9,7 +9,7 @@
 namespace py {
 
 // Ghidra 0x160574
-CCraterManager::CCraterManager() : mEngine(CEngine::getSingletonPtr()) {}
+CCraterManager::CCraterManager() : mEngine(CEngine::getSingletonPtr()), mQuads(1000) {}
 
 // Ghidra 0x160970. Three CRng draws: alpha, size factor, rotation.
 void CCraterManager::addCrater(const CVector3& position, Real size, bool permanent) {
