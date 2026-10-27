@@ -1,8 +1,8 @@
 # ProjectY PC port
 
-A personal, faithful PC port of **ProjectY** (Luminence Labs, Android, 2015, v1.0.71), rebuilt from the decompiled original engine. The goal is behaviour that matches the original bit for bit, so the simulation, AI, maps and campaign play exactly as they did on Android.
+An unofficial, fan-made PC port (Windows, Linux, macOS) of **ProjectY**, the real-time strategy game by Luminence Labs for Android (2015, v1.0.71). The engine was rebuilt in C++17 from the original game's library, class by class. The goal is behaviour identical to the original, so the simulation, AI and maps play exactly as they did on Android. The simulation is checked step by step against the original engine running under emulation.
 
-> This repository is private and for personal use. The decompiled engine and the original assets belong to Luminence Labs. A future public release would need its own code and assets.
+> **Disclaimer.** This project is not affiliated with, endorsed by or connected to Luminence Labs. ProjectY, its name, artwork, maps, sounds and other content belong to their respective owners. **This repository contains no game assets and no original code or binaries**: to play, you need your own copy of the original Android game (APK) and its map files, from which a script extracts the data on your machine. The port exists to preserve a game that is no longer available or maintained. If you are a rights holder and want something changed or removed, please open an issue.
 
 ## Status
 
@@ -35,7 +35,7 @@ SDL2 is downloaded automatically during configuration. Every push is also built 
 
 ## Game data
 
-The original files aren't in the repository. Put the APK and the map/campaign zips somewhere and run:
+You need your own copy of the original game: the ProjectY APK (v1.0.71) and its map/campaign zip files. None of these are in this repository and none are distributed with it. Put them somewhere and run:
 
 ```bat
 python tools\extract_assets.py --apk path\to\ProjectY.apk --maps path\to\map_zips
