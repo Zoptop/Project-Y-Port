@@ -29,6 +29,11 @@
 // table are the original's so that the picture matches).
 #pragma once
 
+#include <vector>
+
+#include "core/CMatrix3.h"
+#include "core/CMatrix4.h"
+#include "core/CPlane.h"
 #include "core/CVector2.h"
 #include "render/CCameraBase.h"
 #include "render/Math3D.h"
@@ -89,6 +94,23 @@ public:
     float yaw() const { return mYaw; }
     float tiltDeg() const { return mTiltDeg; }
     void setZoom(float z) { mZoom = z; }
+    void setViewportOrigin(int x, int y) { mViewportX = x; mViewportY = y; }
+    int viewportWidth() const { return mWidth; }
+    int viewportHeight() const { return mHeight; }
+
+    // ---- what the world drawing (phase 5b) reads, filled by refresh():
+    const CMatrix4& viewProjMatrix() const { return mViewProjM; }           // +0x100 (row-major, OGRE)
+    const std::vector<CPlane>& frustumPlanes() const { return mFrustum; }   // +0x1a0
+    const CMatrix3& billboardMatrix() const { return mBillboard; }          // +0x268
+    // The loop every checkVisibility runs over the planes: false when the
+    // sphere lies outside one of them (-distance - radius > 0).
+    bool sphereInFrustum(const CVector3& center, Real radius) const;
+    // Ghidra 0x14f1f8: glViewport + glScissor of this camera (the projection
+    // is kept up to date by refresh).
+    void activateGLviewport() const;
+    // Ghidra 0x14e74c: the z = 0 hit of the ray through the normalised
+    // device point `ndc` (-1..1); (0, 0) when the ray misses.
+    void viewportPlaneHitPreNormalized(const CVector2& ndc, CVector2& out) const;
 
     // ---- fields (original offsets; +0x19c yaw is in CCamera)
     CVector2 mTarget;                // +0x210
@@ -111,7 +133,30 @@ public:
     float mYawGoal = 0.0f;           // +0x264
 
 private:
+    void updateDrawState();   // the CMatrix4 copy, frustum planes, billboard axes
     float mFallbackHalfW = 1000.0f, mFallbackHalfH = 1000.0f;
+    CMatrix4 mViewProjM = CMatrix4::IDENTITY;
+    std::vector<CPlane> mFrustum;
+    CMatrix3 mBillboard;
+};
+
+// The minimap camera of the world drawing (CDrawContext::minimapCamera): a
+// square viewport of min(W, H) x {0.2, 0.3, 0.4}[option - 1] (0.4 otherwise)
+// in the bottom-left corner, perspective 50 deg / near 20 / far 5000, at
+// (minimapxy, minimapz * 1.26) looking straight down (orientation identity).
+// IPP::setResolution sets it up next to its CCamera (IPP +0x94).
+class CCameraMinimap {
+public:
+    void setup(int size, int x, int y, float centerX, float centerY, float height);
+    void activateGLviewport() const;
+    const CMatrix4& viewProjMatrix() const { return mViewProjM; }   // +0x100
+    int size() const { return mSize; }
+    int x() const { return mX; }
+    int y() const { return mY; }
+
+private:
+    int mSize = 256, mX = 0, mY = 0;
+    CMatrix4 mViewProjM = CMatrix4::IDENTITY;
 };
 
 }  // namespace py

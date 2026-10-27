@@ -21,6 +21,7 @@ public:
     void restoreState() override;                        // Ghidra 0x3cdb2c
     void calcChecksum() override;                        // Ghidra 0x3cde4c
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3cd430
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3cbb18 (CUnitTankDraw.cpp)
     Real getVisibilityRange() override { return 50.0f; }   // Ghidra 0x3cba84
     void createWeapons() override;                       // Ghidra 0x3cba90
 

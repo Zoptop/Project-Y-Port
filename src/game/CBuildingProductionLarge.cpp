@@ -13,6 +13,9 @@ namespace py {
 // production time is that of the map's subtype, not of mUnitType (the first
 // unit takes as long as the subtype's unit). Same in ProductionAdvTech.
 void CBuildingProductionLarge::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
+    // The building's mesh in gameobjects.3DS.mesh (+0x1c8/+0x1cc): drawing only (the
+    // HQ's is also what its destruction breaks into pieces).
+    getSubMeshData("Productio1");
     loadConfigSettings("ProductionLarge");
     mUnitType = subtype;
     mType = BUILDING_PRODUCTION_LARGE;

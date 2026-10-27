@@ -3,7 +3,7 @@
 // axis; the projectile sets mPosition and mRotation. No CRng draws.
 //
 // Ghidra: ctor 0x2d2624, setNewParticleData 0x2d26c0 (empty), init
-// 0x2d26c4, timeUpdate 0x2d28d0, getQuads 0x2d25dc (not ported).
+// 0x2d26c4, timeUpdate 0x2d28d0, getQuads 0x2d25dc (CParticleSystemDraw.cpp).
 #pragma once
 
 #include "core/CMatrix3.h"
@@ -17,6 +17,7 @@ public:
     explicit CParticleSystemShotDirected(int subtype);   // Ghidra 0x2d2624
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d26c4
+    void getQuads(CQuadPosUVColor4* quads, int& count) override;      // Ghidra 0x2d25dc (CParticleSystemDraw.cpp)
     void timeUpdate(Real dt) override;                               // Ghidra 0x2d28d0
     void setNewParticleData(CParticle*) {}                          // Ghidra 0x2d26c0
 

@@ -32,10 +32,6 @@
 namespace py {
 
 namespace {
-constexpr unsigned GL_TEXTURE0_ = 0x84C0;
-constexpr unsigned GL_DEPTH_TEST_ = 0x0B71, GL_CULL_FACE_ = 0x0B44, GL_BLEND_ = 0x0BE2;
-constexpr unsigned GL_SRC_ALPHA_ = 0x0302, GL_ONE_MINUS_SRC_ALPHA_ = 0x0303;
-const Vec3 kGray25(0.25f, 0.25f, 0.25f), kGray75(0.75f, 0.75f, 0.75f);
 
 // sscanf buffers: the original uses 20/20/256/1024-byte stack arrays (and
 // overflows them on longer words); the port uses one size with a width limit.
@@ -760,124 +756,7 @@ bool CLevel::initByScript(const std::string& file, bool fromSavegame) {
     return true;
 }
 
-// ------------------------------------------------------------------ drawing
-
-void CLevel::draw(const CCameraLevel& cam, float time) const {
-    if (cam.isStrategyView() && mMenuMesh && mSimpleShader && mBackground) {
-        mMenuMesh->bindBuffer();
-        mBackground->bind(GL_TEXTURE0_);
-        mSimpleShader->startDraw();
-        gl::Disable(GL_DEPTH_TEST_);
-        gl::DepthMask(0);
-        gl::Disable(GL_CULL_FACE_);
-        const Mat4 model = Mat4::transform({0, 0, 0}, Quat(), {4, 4, 4});
-        mSimpleShader->setUniformMVPMatrix(cam.viewProj() * model);
-        uint32_t f = 0, c = 0;
-        if (mMenuMesh->getSubMeshData("background", f, c)) mMenuMesh->draw(f, c);
-        mSimpleShader->endDraw();
-        gl::Enable(GL_DEPTH_TEST_);
-        gl::Enable(GL_CULL_FACE_);
-        gl::DepthMask(1);
-    }
-    drawSectors(cam);
-    if (!cam.isStrategyView()) drawAssets(cam);
-    drawMap(cam, time);
-}
-
-void CLevel::drawSectors(const CCameraLevel& cam) const {
-    // startSectorDraw / CSector::draw / endSectorDraw
-    if (!mMapMesh) return;
-    mMapMesh->bindBuffer();
-    auto colorOf = [](const CSector* s) { return s->mOwner ? s->mOwner->mColor : Vec3(0.7f, 0.7f, 0.7f); };
-    if (cam.isStrategyView()) {
-        if (!mSchematicShader) return;
-        mSchematicShader->startDraw();
-        mSchematicShader->setUniformMVPMatrix(cam.viewProj());
-        for (const auto& e : mSectors) {
-            mSchematicShader->setUniformPlayerColor(colorOf(e.second.get()) * 0.25f + kGray25);
-            mMapMesh->draw(e.second->mSchematicFirst, e.second->mSchematicCount);
-        }
-        mSchematicShader->endDraw();
-        return;
-    }
-    if (!mSectorShader || !mSectorTexture) return;
-    mSectorTexture->bind(GL_TEXTURE0_);
-    mSectorShader->startDraw();
-    mSectorShader->setUniformMVPMatrix(cam.viewProj());
-    for (const auto& e : mSectors) {
-        mSectorShader->setUniformPlayerColor(colorOf(e.second.get()));
-        mMapMesh->draw(e.second->mBorderFirst, e.second->mBorderCount);
-    }
-    mSectorShader->endDraw();
-}
-
-void CLevel::drawAssets(const CCameraLevel& cam) const {
-    if (!mAssetMesh || !mAssetShader || !mAssetTexture) return;
-    mAssetMesh->bindBuffer();
-    mAssetShader->startDraw();
-    mAssetTexture->bind(GL_TEXTURE0_);
-    for (const auto& a : mAssets) {
-        // (the original also culls against the frustum planes with radius ~100)
-        const Mat4 model = Mat4::transform(a.position, a.rotation, a.scale);
-        mAssetShader->setUniformMVPMatrix(cam.viewProj() * model);
-        mAssetShader->setUniformLightColor(mLightColor);   // x FOW visibility in the original
-        mAssetShader->setUniformLightDir(a.rotation.inverse().rotate(mLightDir));
-        mAssetMesh->draw(a.firstTri, a.triCount);
-    }
-    mAssetShader->endDraw();
-}
-
-void CLevel::drawMap(const CCameraLevel& cam, float time) const {
-    if (!mMapMesh) return;
-    if (!cam.isStrategyView()) {
-        if (mMapShader && mMixTexture) {
-            mMapMesh->bindBuffer();
-            mMapShader->startDraw();
-            mMixTexture->bind(GL_TEXTURE0_);
-            for (int i = 0; i < 3; ++i)
-                if (mDetail[i]) mDetail[i]->bind(GL_TEXTURE0_ + 1 + static_cast<unsigned>(i));
-            mMapShader->setUniformMVPMatrix(cam.viewProj());
-            mMapShader->setUniformPlayerColor(mMixBaseColor);
-            mMapMesh->draw(mMapFirst, mMapCount);
-            mMapShader->endDraw();
-        }
-        // water (only if "wateractive" and the water option is on)
-        if (mWaterActive && mWaterShader && mWaterCube && mWaterNormal && mWaterCount) {
-            mWaterShader->startDraw();
-            mWaterCube->bind(GL_TEXTURE0_);
-            mWaterNormal->bind(GL_TEXTURE0_ + 1);
-            const Mat4 model = Mat4::identity();
-            mWaterShader->setUniformMVPMatrix(cam.viewProj() * model);
-            mWaterShader->setUniformMMatrix(model);
-            mWaterShader->setUniformEyePosition(cam.eye());   // eye in object space (identity model)
-            mWaterShader->setUniformPlayerColor(mWaterColor);
-            mWaterShader->setUniformTime(time);
-            gl::Enable(GL_BLEND_);
-            gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
-            mMapMesh->draw(mWaterFirst, mWaterCount);
-            gl::Disable(GL_BLEND_);
-            mWaterShader->endDraw();
-        }
-        return;
-    }
-    // strategy view: "mm<id>" in gray25, then "mmborder<id>" in gray75 (blended), 20 units down
-    if (!mSchematicShader) return;
-    mMapMesh->bindBuffer();
-    mSchematicShader->startDraw();
-    const Mat4 model = Mat4::transform({0, 0, -20.0f}, Quat(), {1, 1, 1});
-    mSchematicShader->setUniformMVPMatrix(cam.viewProj() * model);
-    uint32_t f = 0, c = 0;
-    mMapMesh->getSubMeshData(mMMName, f, c);
-    mSchematicShader->setUniformPlayerColor(kGray25);
-    mMapMesh->draw(f, c);
-    gl::Enable(GL_BLEND_);
-    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
-    mMapMesh->getSubMeshData(mMMBorderName, f, c);
-    mSchematicShader->setUniformPlayerColor(kGray75);
-    mMapMesh->draw(f, c);
-    gl::Disable(GL_BLEND_);
-    mSchematicShader->endDraw();
-}
+// Drawing: CLevelDraw.cpp
 
 // ------------------------------------------------------------------ unit grids
 

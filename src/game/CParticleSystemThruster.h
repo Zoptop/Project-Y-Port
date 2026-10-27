@@ -6,13 +6,13 @@
 // each spawn draws 4 normals and 2 uniforms from CRng. The owner sets
 // mPosition and mOrientation (CBomber::draw does it every frame).
 //
-// [!] getQuads (not ported, renderer phase) also draws one CRng::GetUniform
+// [!] getQuads (CParticleSystemDraw.cpp) also draws one CRng::GetUniform
 // for every type-1 particle it draws (a flicker), and only when the system
 // is visible and the camera is not in strategy view. The renderer must
 // reproduce that draw to keep the CRng stream (and so the AI) faithful.
 //
 // Ghidra: ctor 0x2d372c, setNewParticleData 0x2d37c8, init 0x2d3a84,
-// timeUpdate 0x2d3c3c, getQuads 0x2d2b98 (not ported).
+// timeUpdate 0x2d3c3c, getQuads 0x2d2b98 (CParticleSystemDraw.cpp).
 #pragma once
 
 #include "core/CQuaternion.h"
@@ -25,6 +25,7 @@ public:
     explicit CParticleSystemThruster(int subtype);   // Ghidra 0x2d372c
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d3a84
+    void getQuads(CQuadPosUVColor4* quads, int& count) override;      // Ghidra 0x2d2b98 (CParticleSystemDraw.cpp)
     void timeUpdate(Real dt) override;                               // Ghidra 0x2d3c3c
     void setNewParticleData(CParticle* p);                           // Ghidra 0x2d37c8
 

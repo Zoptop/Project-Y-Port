@@ -16,20 +16,26 @@
 // docs/re/sim_phase4.md).
 //
 // Ghidra: CCraterManager 0x160574, ~ 0x160698, addCrater 0x160970,
-// timeUpdate 0x160c64. Not ported: addShadow* (per-frame render batching),
-// checkVisibility, draw, save/load.
+// timeUpdate 0x160c64; checkVisibility 0x160d2c and draw 0x160e84 are in
+// CCraterManagerDraw.cpp. Not ported: addShadow* (the original's shadow
+// batching moved to CFakeShadow, nothing calls these), save/load.
 #pragma once
 
 #include <list>
 #include <memory>
+#include <vector>
 
 #include "core/CVector2.h"
 #include "core/CVector3.h"
 #include "core/Real.h"
+#include "render/CQuad.h"
 
 namespace py {
 
+class CCameraLevel;
 class CEngine;
+class CGLSLProgram;
+class CTexture;
 
 // ProjectY::CCrater (0x30 bytes)
 struct CCrater {
@@ -44,7 +50,7 @@ struct CCrater {
 
 class CCraterManager {
 public:
-    CCraterManager();    // Ghidra 0x160574 (shader/texture/quad buffer: render only)
+    CCraterManager();    // Ghidra 0x160574 (shader/texture: initGraphics)
 
     // Ghidra 0x160970. 'size' is the crater radius before the random factor.
     void addCrater(const CVector3& position, Real size, bool permanent);
@@ -53,7 +59,21 @@ public:
 
     const std::list<std::unique_ptr<CCrater>>& craters() const { return mCraters; }
 
+    // ---- drawing (CCraterManagerDraw.cpp)
+    void initGraphics();                             // shadow.gfx, craters.png (the ctor's GL part)
+    // Ghidra 0x160d2c: the crater's sphere (centre, radius = its size) against the frustum
+    bool checkVisibility(const CCrater& crater, const CCameraLevel& cam) const;
+    // Ghidra 0x160e84: one TTL quad per visible crater (alpha = TTL), at most
+    // 1000, at z = 1 / zoom, drawn blended without depth writes; not in the
+    // strategy view.
+    void draw();
+    int quadCount() const { return mQuadCount; }
+
     CEngine* mEngine = nullptr;                      // +0x00
+    CGLSLProgram* mShader = nullptr;                 // +0x04 shadow.gfx
+    CTexture* mTexture = nullptr;                    // +0x08 craters.png
+    int mQuadCount = 0;                              // +0x10
+    std::vector<CQuadPosUVTTL> mQuads;               // +0x14 (1000)
     std::list<std::unique_ptr<CCrater>> mCraters;    // +0x18
 };
 

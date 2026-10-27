@@ -15,6 +15,8 @@ public:
 
     void distributeMods() override;   // Ghidra 0x3b74fc
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3b7b40
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3b7dc0 (CUnitAmplifierDraw.cpp)
+    void drawSelection() override;                    // +0x48 Ghidra 0x3b7e1c
 
     Real mAmplifyDistance = 0.0f;       // +0x1524 "UnitAmplifierAmplifyDistance"
     Real mAmplifyDistanceSq = 0.0f;     // +0x1528

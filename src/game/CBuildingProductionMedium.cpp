@@ -9,6 +9,9 @@ namespace py {
 
 // Ghidra 0x1407b8. The unit type is fixed up before CBuildingProduction::init.
 void CBuildingProductionMedium::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
+    // The building's mesh in gameobjects.3DS.mesh (+0x1c8/+0x1cc): drawing only (the
+    // HQ's is also what its destruction breaks into pieces).
+    getSubMeshData("Production");
     loadConfigSettings("Production");
     mUnitType = subtype;
     mFlags = OF_SELECTABLE | OF_CAN_RALLY | OF_HAS_PRODUCTION | OF_COMMANDABLE;   // 0x330

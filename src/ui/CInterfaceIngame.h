@@ -31,6 +31,7 @@
 
 #include "core/CVector2.h"
 #include "core/CVector3.h"
+#include "render/CIngameQuads.h"
 #include "render/CQuad.h"
 #include "ui/CInterface.h"
 
@@ -47,13 +48,7 @@ class CInterfaceIngame : public CInterface {
 public:
     static constexpr int kMaxQuads = 999;
 
-    // a queued selection/range circle (0x20 bytes)
-    struct CCircleInfo {
-        Vec3 position;     // +0x00
-        Vec3 color;        // +0x0c
-        float radius = 0;  // +0x18
-        float alpha = 0;   // +0x1c
-    };
+    using CCircleInfo = CIngameQuads::CCircleInfo;   // a queued selection/range circle (0x20 bytes)
 
     CInterfaceIngame();             // Ghidra 0x19e154
     ~CInterfaceIngame() override;   // Ghidra 0x19e1d4
@@ -137,18 +132,17 @@ public:
     CTexture* mInterfaceTexture = nullptr;          // +0x54 interface.png
     float mSelectionQuadZ = 0.0f;                   // +0x58
     float mSelectionQuadYaw = 0.0f;                 // +0x5c (advances with the game time)
-    int mNumStandardQuads = 0;                      // +0x60
+    // the world-space queues (+0x60/+0x78 standard, +0x68/+0x80 coloured,
+    // +0x6c/+0x8c coloured4, +0xb4 circles): the game objects' draw code
+    // fills them through CDrawContext::quads (phase 5b), so they live in a
+    // CIngameQuads that this interface owns
+    CIngameQuads mWorldQuads;
     int mNumScreenQuads = 0;                        // +0x64
-    int mNumColoredQuads = 0;                       // +0x68
-    int mNumColored4Quads = 0;                      // +0x6c
     int mNumColoredScreenQuads = 0;                 // +0x70
     int mNumColored4ScreenQuads = 0;                // +0x74
-    std::vector<CQuadPosUV> mStandardQuads;         // +0x78
     std::vector<CQuadPosUV> mScreenQuads;           // +0x7c
-    std::vector<CQuadPosUVColor> mColoredQuads;     // +0x80
     std::vector<CQuadPosUVColor> mColoredScreenQuads;   // +0x84
     std::vector<CQuadPosUVColor4> mColored4ScreenQuads; // +0x88
-    std::vector<CQuadPosUVColor4> mColored4Quads;   // +0x8c
     int mSplitMode = 0;                             // +0x90 0 single, 1 split screen
     int mCurrentIPP = 0;                            // +0x94
     CInterfaceIngamePerPlayer* mIPP[2] = {nullptr, nullptr};   // +0x98/+0x9c
@@ -157,7 +151,6 @@ public:
     int mWidth = 1;                                 // +0xa8
     bool mLandscape = true;                         // +0xac
     CMesh* mCircleMesh = nullptr;                   // +0xb0 circletest.3DS.mesh
-    std::vector<CCircleInfo> mCircles;              // +0xb4
     uint32_t mCircleSub[6][2] = {};                 // +0xc0 circle10/25/50/100/150/200 (first, count)
 
 private:

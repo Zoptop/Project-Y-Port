@@ -12,6 +12,7 @@ class CWeaponTurretRocketLauncher : public CWeapon {
 public:
     CWeaponTurretRocketLauncher();                                        // Ghidra 0x3e52d8
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3e54ec
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3e5b94 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3e6238
     void calcChecksum() override;                                         // Ghidra 0x3e6588
     void holdState() override;                                            // Ghidra 0x3e4ebc

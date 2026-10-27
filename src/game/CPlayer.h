@@ -14,7 +14,7 @@
 // towards 64. getVisibilityValue reads it as value / 256; the radar grid
 // (same size, 1 = covered) is reported through its bool*. The original keeps
 // the grids in CRasterizer frame buffers and uploads them as textures; the
-// textures are not ported, the grids are. The computer player has no FOW grid
+// textures are made and uploaded by CPlayerDraw.cpp (drawing only). The computer player has no FOW grid
 // (it sees everything: getVisibilityValue = 1) but does have a radar grid.
 //
 // Ghidra: CPlayer::CPlayer 0x375124, getBonus 0x374454, calcChecksum 0x373430.
@@ -78,12 +78,14 @@ public:
     // +0x10 save / +0x14 load: savegames are not ported yet; +0x18 draw: empty
     virtual bool isAI() const { return false; }                // +0x1c
     virtual void initFOWTexture();                             // +0x20 Ghidra 0x374168 (grid only)
-    virtual void updateFOWtexture() {}                         // +0x24 Ghidra 0x373230 (texture upload only)
+    virtual void updateFOWtexture();                           // +0x24 Ghidra 0x373230 (texture upload only, CPlayerDraw.cpp)
+    void genFOWTexture();                                      // Ghidra 0x37409c (CPlayerDraw.cpp)
     virtual void FOWtimeupdate();                              // +0x28 Ghidra 0x372918
     virtual void drawFOWCirclePlayer(const CVector2& pos, Real radius);   // +0x2c Ghidra 0x372ffc
     virtual void drawFOWCircleTeam(const CVector2& pos, Real radius);     // +0x30 Ghidra 0x373934
     virtual Real getVisibilityValue(const CVector2& pos, bool* radar);    // +0x34 Ghidra 0x3729fc
-    // +0x38 bindFOWtexture, +0x3c stopThreads: rendering / empty
+    virtual void bindFOWtexture(unsigned textureUnit);         // +0x38 Ghidra 0x37329c (CPlayerDraw.cpp)
+    // +0x3c stopThreads: empty
     virtual void reInit();                                     // +0x40 Ghidra 0x3741e0
     virtual bool isFriend(const CPlayer* other) const { return mTeam == other->mTeam; }   // +0x44
     virtual int getBrainCap();                                 // +0x48 Ghidra 0x3732bc
@@ -155,6 +157,7 @@ public:
     unsigned mTeam = 0;                 // +0x78
     Real mFOWFadeRemainder = 0.0f;      // +0x7c fractional part of dt*10 not yet faded
     std::vector<uint8_t> mFOWMap;       // +0x80 FOW grid (empty until initFOWTexture)
+    unsigned mFOWTexture = 0;           // +0x84 GL texture of mFOWMap (drawing only; 0 without GL)
     std::unique_ptr<CRasterizer> mFOWRasterizer;   // +0x88
     bool mLost = false;                 // +0x8c "PlayerLost"
     bool mWon = false;                  // +0x8d "PlayerWon"

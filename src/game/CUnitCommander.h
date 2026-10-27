@@ -16,6 +16,8 @@ public:
 
     void distributeMods() override;   // Ghidra 0x3b9710
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3b9bfc
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3b9eb4 (CUnitCommanderDraw.cpp)
+    void drawSelection() override;                    // +0x48 Ghidra 0x3b9f10
 
     Real mXPBonusDistance = 0.0f;       // +0x1524 "UnitCommanderXPBonusDistance"
     Real mXPBonusDistanceSq = 0.0f;     // +0x1528

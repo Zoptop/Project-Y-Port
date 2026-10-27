@@ -19,6 +19,9 @@ public:
     void deCloak() override { mCloakTimeout = 5.0f; }    // Ghidra 0x3b8a98
     bool isCloaked() override { return mCloakTimeout == 0.0f; }   // Ghidra 0x3b8aac
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3b8f8c
+    bool doAlphaDraw() override;                      // +0xac Ghidra 0x3b8a5c (CUnitCloakSuitDraw.cpp)
+    Real getCurrentAlpha() override;                  // +0xb0 Ghidra 0x3b8b30
+    void drawMinimap() override;                      // +0x30 Ghidra 0x3b8f08
     void createWeapons() override;                       // Ghidra 0x3b8ae4
 
     Real mCloakTimeout = 5.0f;   // +0x153c "CloakTimeout" (CUnit::cloakValue)

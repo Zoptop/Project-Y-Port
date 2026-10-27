@@ -18,6 +18,7 @@
 #include "game/CSceneObject.h"
 #include "game/CUnit.h"
 #include "game/CWeapon.h"
+#include "render/CFakeShadow.h"
 #include "render/CMesh.h"
 
 namespace py {
@@ -49,7 +50,7 @@ void CGame::createPlayerFromPlayerSetup(unsigned index) {
     mPlayers.insert({index, std::move(p)});   // insert_unique
 }
 
-// Ghidra 0x17cf28 (graphics and the lobby status left out)
+// Ghidra 0x17cf28 (the lobby status left out; the GL resources: initGraphics)
 bool CGame::init(bool fromSavegame, bool headless) {
     CEngine* e = mEngine;
     CUtils::log("Init Game (from save: %i)", fromSavegame ? 1 : 0);
@@ -61,6 +62,8 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mFeatures.reset();
     mCraterManager = std::make_unique<CCraterManager>();   // +0xb8
     mGameObjectsMesh = CMeshManager::get().getMesh("gameobjects.3DS.mesh", true, false);   // +0xc4
+    mFakeShadow = std::make_unique<CFakeShadow>();       // +0xb4
+    if (!headless) initGraphics();                       // shaders, textures, flag mesh (CGameDraw.cpp)
     updateAIFactorsFromDifficulty();
     for (unsigned i = 0; i <= mNumPlayers; ++i) createPlayerFromPlayerSetup(i);
     mLevel = std::make_unique<CLevel>();

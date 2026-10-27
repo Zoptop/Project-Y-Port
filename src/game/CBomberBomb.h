@@ -14,7 +14,7 @@
 //
 // Ghidra: CBomberBomb 0x12f4fc, init 0x12f370, timeUpdate 0x12e924,
 // calcChecksum 0x12f9fc, holdState 0x12dae4, restoreState 0x12db50.
-// Not ported: draw, timeUpdateSimple, save/load.
+// Drawing: CBomberBombDraw.cpp. Not ported: timeUpdateSimple, save/load.
 #pragma once
 
 #include "core/CVector3.h"
@@ -36,6 +36,7 @@ public:
     void holdState() override;      // Ghidra 0x12dae4
     void restoreState() override;   // Ghidra 0x12db50
     void calcChecksum() override;   // Ghidra 0x12f9fc
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x12dbbc (CBomberBombDraw.cpp)
 
     bool mReadyToDeleteHeld = false;  // +0x1d
     CVector3 mPosition;               // +0x78 "BombPosition"

@@ -31,15 +31,13 @@ void CInterfaceIngame::init() {
     mPointerCounter = 1;
     mSelectionQuadZ = 0.0f;
     mSelectionQuadYaw = 0.0f;
-    mStandardQuads.assign(kMaxQuads + 1, CQuadPosUV());
     mScreenQuads.assign(kMaxQuads + 1, CQuadPosUV());
-    mColoredQuads.assign(kMaxQuads + 1, CQuadPosUVColor());
     mColoredScreenQuads.assign(kMaxQuads + 1, CQuadPosUVColor());
     mColored4ScreenQuads.assign(kMaxQuads + 1, CQuadPosUVColor4());
-    mColored4Quads.assign(kMaxQuads + 1, CQuadPosUVColor4());
-    mNumStandardQuads = mNumScreenQuads = mNumColoredQuads = mNumColored4Quads = 0;
-    mNumColoredScreenQuads = mNumColored4ScreenQuads = 0;
+    mNumScreenQuads = mNumColoredScreenQuads = mNumColored4ScreenQuads = 0;
+    mWorldQuads = CIngameQuads();
     if (!gl::isLoaded()) return;   // [PC] headless (tests): no GL resources
+    mWorldQuads.initGraphics();
     CGLSLProgramManager& pm = CGLSLProgramManager::get();
     mSelectShader = pm.getGLSLProgram("select.gfx");
     if (mSelectShader) mSelectShader->setupUniformTextureUnit("DIFFUSE", 0);
@@ -360,19 +358,20 @@ void pixelToScreen(const CCamera* cam, const CVector2& p, const CVector2& s, CVe
 }
 }  // namespace
 
+namespace {
+CVector3 cv3(const Vec3& v) { return CVector3(v.x, v.y, v.z); }
+}  // namespace
+
 // Ghidra 0x19e880: rotating selection quad (z rises by 0.02 per quad)
 void CInterfaceIngame::addSelectionQuad(const Vec3& pos, float size) {
     mSelectionQuadZ = mSelectionQuadZ + 0.02f;   // 0x3ca3d70a
-    const Vec3 c(pos.x, pos.y, mSelectionQuadZ + 0.5f);
-    if (mNumStandardQuads < kMaxQuads)
-        mStandardQuads[mNumStandardQuads++] =
-            CQuadPosUV(c, CVector2(size, size), CVector2(0.0f, 0.0f), CVector2(0.25f, 0.25f), mSelectionQuadYaw);
+    mWorldQuads.addStandardQuad(CVector3(pos.x, pos.y, mSelectionQuadZ + 0.5f), CVector2(0.0f, 0.0f),
+                                CVector2(0.25f, 0.25f), size);
 }
 
 // Ghidra 0x19e96c
 void CInterfaceIngame::addStandardQuad(const Vec3& center, const CVector2& uvTL, const CVector2& uvSize, float half) {
-    if (mNumStandardQuads < kMaxQuads)
-        mStandardQuads[mNumStandardQuads++] = CQuadPosUV(center, CVector2(half, half), uvTL, uvSize, 0.0f);
+    mWorldQuads.addStandardQuad(cv3(center), uvTL, uvSize, half);
 }
 
 // Ghidra 0x19e9dc
@@ -380,7 +379,7 @@ void CInterfaceIngame::addStandardQuadScreenSpace(const CVector2& pos, const CVe
                                                   const CVector2& size) {
     const CVector2 half(size.x * 0.5f, size.y * 0.5f);
     const CCamera* cam = getCamera();
-    const Vec3 c(pos.x * cam->mAspect, pos.y, 0.0f);
+    const CVector3 c(pos.x * cam->mAspect, pos.y, 0.0f);
     if (mNumScreenQuads < kMaxQuads) mScreenQuads[mNumScreenQuads++] = CQuadPosUV(c, half, uvTL, uvSize, 0.0f);
 }
 
@@ -395,9 +394,7 @@ void CInterfaceIngame::addStandardQuadPixel(const CVector2& topLeft, const CVect
 // Ghidra 0x19eefc (yaw = the camera's, +0x19c)
 void CInterfaceIngame::addColored4Quad(const Vec3& center, const CVector2& uvTL, const CVector2& uvSize,
                                        const CVector2& half, const Vec3& color, float alpha) {
-    if (mNumColored4Quads < kMaxQuads)
-        mColored4Quads[mNumColored4Quads++] =
-            CQuadPosUVColor4(center, half, uvTL, uvSize, color, alpha, getCamera()->mYaw, nullptr);
+    mWorldQuads.addColored4Quad(cv3(center), uvTL, uvSize, half, cv3(color), alpha, getCamera()->mYaw);
 }
 
 // Ghidra 0x19ef9c
@@ -406,7 +403,7 @@ void CInterfaceIngame::addColored4QuadPixel(const CVector2& topLeft, const CVect
     CVector2 p, s;
     pixelToScreen(getCamera(), topLeft, size, p, s);
     if (mNumColored4ScreenQuads < kMaxQuads)
-        mColored4ScreenQuads[mNumColored4ScreenQuads++] = CQuadPosUVColor4(p, s, uvTL, uvSize, color, alpha, yaw);
+        mColored4ScreenQuads[mNumColored4ScreenQuads++] = CQuadPosUVColor4(p, s, uvTL, uvSize, cv3(color), alpha, yaw);
 }
 
 // Ghidra 0x19f29c
@@ -415,14 +412,14 @@ void CInterfaceIngame::addColoredQuadPixel(const CVector2& topLeft, const CVecto
     CVector2 p, s;
     pixelToScreen(getCamera(), topLeft, size, p, s);
     if (mNumColoredScreenQuads < kMaxQuads)
-        mColoredScreenQuads[mNumColoredScreenQuads++] = CQuadPosUVColor(p, s, uvTL, uvSize, color);
+        mColoredScreenQuads[mNumColoredScreenQuads++] = CQuadPosUVColor(p, s, uvTL, uvSize, cv3(color));
 }
 
 // Ghidra 0x19f58c
 void CInterfaceIngame::addStandardQuadScreenSpaceAdjustOnlyAspect(const CVector2& pos, const CVector2& uvTL,
                                                                   const CVector2& uvSize, const CVector2& size) {
     const CVector2 half(size.x * 0.5f, size.y * 0.5f);
-    const Vec3 c(pos.x * getCamera()->mAspect, pos.y, 0.0f);
+    const CVector3 c(pos.x * getCamera()->mAspect, pos.y, 0.0f);
     if (mNumScreenQuads < kMaxQuads) mScreenQuads[mNumScreenQuads++] = CQuadPosUV(c, half, uvTL, uvSize, 0.0f);
 }
 
@@ -431,35 +428,26 @@ void CInterfaceIngame::addColoredQuadScreenSpaceAdjustOnlyAspect(const CVector2&
                                                                  const CVector2& uvSize, const CVector2& size,
                                                                  const Vec3& color) {
     const CVector2 half(size.x * 0.5f, size.y * 0.5f);
-    const Vec3 c(pos.x * getCamera()->mAspect, pos.y, 0.0f);
+    const CVector3 c(pos.x * getCamera()->mAspect, pos.y, 0.0f);
     if (mNumColoredScreenQuads < kMaxQuads)
-        mColoredScreenQuads[mNumColoredScreenQuads++] = CQuadPosUVColor(c, half, uvTL, uvSize, color, 0.0f);
+        mColoredScreenQuads[mNumColoredScreenQuads++] = CQuadPosUVColor(c, half, uvTL, uvSize, cv3(color), 0.0f);
 }
 
 // Ghidra 0x19f99c
 void CInterfaceIngame::addColoredQuad(const Vec3& center, const CVector2& uvTL, const CVector2& uvSize, float half,
                                       const Vec3& color) {
-    if (mNumColoredQuads < kMaxQuads)
-        mColoredQuads[mNumColoredQuads++] =
-            CQuadPosUVColor(center, CVector2(half, half), uvTL, uvSize, color, getCamera()->mYaw);
+    mWorldQuads.addColoredQuad(cv3(center), uvTL, uvSize, half, cv3(color), getCamera()->mYaw);
 }
 
 // Ghidra 0x19fa38
 void CInterfaceIngame::addColoredQuad(const Vec3& center, const CVector2& uvTL, const CVector2& uvSize,
                                       const CVector2& half, const Vec3& color) {
-    if (mNumColoredQuads < kMaxQuads)
-        mColoredQuads[mNumColoredQuads++] = CQuadPosUVColor(center, half, uvTL, uvSize, color, getCamera()->mYaw);
+    mWorldQuads.addColoredQuad(cv3(center), uvTL, uvSize, half, cv3(color), getCamera()->mYaw);
 }
 
 // Ghidra 0x1a0df0
-void CInterfaceIngame::addCircleQuad(const Vec3& pos, float radius, float /*width*/, const Vec3& color,
-                                     float alpha) {
-    CCircleInfo c;
-    c.position = pos;
-    c.color = color;
-    c.radius = radius;
-    c.alpha = alpha;
-    mCircles.push_back(c);
+void CInterfaceIngame::addCircleQuad(const Vec3& pos, float radius, float width, const Vec3& color, float alpha) {
+    mWorldQuads.addCircleQuad(cv3(pos), radius, width, cv3(color), alpha);
 }
 
 // Ghidra 0x1a0d38
@@ -484,7 +472,7 @@ void CInterfaceIngame::endDrawCircle() {
 void CInterfaceIngame::drawCircle(const CCircleInfo& c, CCamera* cam) {
     CGLSLProgram* sh = mCircleUniformShader;
     if (!sh || !mCircleMesh || !cam) return;
-    sh->setUniformPlayerColor(c.color);
+    sh->setUniformPlayerColor(Vec3(c.color.x, c.color.y, c.color.z));
     sh->setUniformAlpha(c.alpha);
     const float r = c.radius;
     int idx;
@@ -498,7 +486,7 @@ void CInterfaceIngame::drawCircle(const CCircleInfo& c, CCamera* cam) {
     sh->setUniformSize(r);
     const float inv = 1.0f / base;
     const Vec3 scale(r * 1.0f * inv, r * 1.0f * inv, r * 1.0f * inv);
-    const Mat4 model = Mat4::transform(c.position, Quat(), scale);
+    const Mat4 model = Mat4::transform(Vec3(c.position.x, c.position.y, c.position.z), Quat(), scale);
     sh->setUniformMVPMatrix(cam->mViewProj * model);
     mCircleMesh->draw(mCircleSub[idx][0], mCircleSub[idx][1]);
 }

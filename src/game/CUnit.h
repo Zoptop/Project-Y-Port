@@ -85,6 +85,17 @@ public:
     void processActionBarAction(int action) override;  // +0x98 Ghidra 0x3ace54
     bool isDefendable(CGameObject* by) override;       // +0xbc
     void resetMods() override;                         // +0xc0 Ghidra 0x3a4b48
+    // drawing (CUnitDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3a8390
+    void drawMinimap() override;                       // +0x30 Ghidra 0x3af8b0
+    void drawRadarMarker(bool minimap) override;       // +0x34 Ghidra 0x3af85c
+    bool checkVisibility() override;                   // +0x3c Ghidra 0x3a3fb8
+    void drawSelection() override;                     // +0x48 Ghidra 0x3a52a8
+    // The health bar (and, in GameType 3, the cargo bar) above the unit;
+    // part of CUnit::draw, shared by the subclasses that draw themselves.
+    void drawStatusBars(float alpha);
+    // The body + shadow + weapons part of CUnit::draw.
+    void drawBody(bool alphaPass, float alpha);
 
     // ---- CUnit virtuals (vtable slot)
     virtual void setScriptedControlled(bool on);       // +0xcc Ghidra 0x3a4dc0

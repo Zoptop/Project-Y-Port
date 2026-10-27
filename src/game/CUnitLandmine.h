@@ -19,6 +19,8 @@ public:
     void deCloak() override { mIsDetected = true; }      // Ghidra 0x3be3b0
     bool isCloaked() override { return !mIsDetected; }   // Ghidra 0x3be368
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3be9a4
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3be4f8 (CUnitLandmineDraw.cpp)
+    void drawMinimap() override;                      // +0x30 Ghidra 0x3be568
     // Ghidra 0x3be384
     void getInfluenceAndFalloff(Real* influence, Real* falloff, Real* range) override {
         *influence = 0.0f;

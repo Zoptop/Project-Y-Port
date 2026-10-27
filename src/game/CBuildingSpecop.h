@@ -27,6 +27,8 @@ public:
     bool isCommanded() override { return !mContainedBrains.empty(); }   // +0x88 Ghidra 0x148cd8
     void removeCommander() override;                // +0x8c Ghidra 0x1491b8
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x14988c
+    // drawing (CBuildingSpecopDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x149be8
     void doOp(const CVector2& target) override;     // +0xd0 Ghidra 0x148d24
     void enter(unsigned brainId) override;          // +0xd8 Ghidra 0x149814
 

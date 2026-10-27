@@ -1,6 +1,6 @@
 // CParticle.h - port of ProjectY::CParticle (0x40 bytes): one particle of a
 // CParticleSystem. Logic and state only; the quads are built by the systems'
-// getQuads (renderer phase).
+// getQuads (CParticleSystemDraw.cpp).
 //
 // Ghidra: CParticle() 0x36c244, CParticle(pos, speed, yaw, yawRate, life)
 // 0x36c270, timeUpdate 0x36c328, setUVtile 0x36c454. Not ported: save/load.

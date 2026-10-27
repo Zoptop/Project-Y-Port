@@ -4,8 +4,8 @@
 // type-1 particles are re-spawned while the system lives.
 //
 // Ghidra: ctor 0x2cf66c, setNewParticleData 0x2d0384, genParticles 0x2d0648,
-// init 0x2d07cc, timeUpdate 0x2d0894. Not ported: getQuads 0x2cf938 and
-// the screen-position helpers (render).
+// init 0x2d07cc, timeUpdate 0x2d0894. getQuads 0x2cf938: CParticleSystemDraw.cpp
+// (its text label waits for CTextRender).
 #pragma once
 
 #include <string>
@@ -19,6 +19,7 @@ public:
     explicit CParticleSystemInfo(int subtype);   // Ghidra 0x2cf66c
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d07cc
+    void getQuads(CQuadPosUVColor4* quads, int& count) override;      // Ghidra 0x2cf938 (CParticleSystemDraw.cpp)
     void timeUpdate(Real dt) override;                               // Ghidra 0x2d0894
     // Ghidra 0x2d0384: sets up `p` as a particle of `type`; true when the
     // particle is re-spawned for good (type 1 of subtype 1).

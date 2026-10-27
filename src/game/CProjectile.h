@@ -30,7 +30,7 @@ class CProjectile {
 public:
     CProjectile();                                     // Ghidra 0x376c00
     virtual ~CProjectile() = default;                  // +0x00/+0x04
-    virtual void drawMesh() {}                         // +0x08 (pure in the original; rendering)
+    virtual void drawMesh() {}                         // +0x08 (pure in the original; the draw files)
     virtual void update() = 0;                         // +0x0c per step
     // +0x10 Ghidra 0x376770
     virtual void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
@@ -40,7 +40,8 @@ public:
     virtual void restoreState();                       // +0x20 Ghidra 0x3766dc
     virtual void updateSimple() {}                     // +0x24 render extrapolation
     virtual void calcChecksum();                       // +0x28 Ghidra 0x376b78
-    virtual void drawMeshExtra() {}                    // +0x34 (rendering)
+    virtual void drawMeshExtra() {}                    // +0x34 Ghidra 0x37676c (lightning pass of CGame::draw)
+    void checkVisibility();                            // Ghidra 0x376d68 (CProjectileDraw.cpp)
 
     unsigned mId = 0;                    // +0x1c projectile id
     int mType = 0;                       // +0x38 "Type"
@@ -61,10 +62,13 @@ public:
     CEngine* mEngine = nullptr;          // +0x114
     CPlayer* mOwner = nullptr;           // +0x130 "Owner"
     Real mCullRadius = 1.0f;             // +0x134
+    CVector3 mVisibilityCenter;          // +0x138 (drawing)
+    bool mVisible = false;               // +0x144 checkVisibility result (drawing)
     Real mTimeOfFlight = 0.0f;           // +0x160 "TimeOfFlight"
     Real mTimeOfFlightHeld = 0.0f;       // +0x164
     bool mReady2Delete = false;          // +0x180 "Ready2Delete"
     bool mReady2DeleteHeld = false;      // +0x181
+    Real mAlpha = 1.0f;                  // +0x188 FOW visibility of the last draw (drawing)
 
 protected:
     // The shield test the shielded projectiles repeat inline (e.g.

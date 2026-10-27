@@ -13,6 +13,7 @@ class CWeaponLaserSingleBTurretGun : public CWeapon {
 public:
     CWeaponLaserSingleBTurretGun();                                       // Ghidra 0x3db99c
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3dbb8c
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3dc3f0 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3dce6c
     void calcChecksum() override;                                         // Ghidra 0x3dd190
     void holdState() override;                                            // Ghidra 0x3db568

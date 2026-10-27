@@ -1,16 +1,17 @@
-#include "CQuad.h"
+// CQuad.cpp - see CQuad.h.
+#include "render/CQuad.h"
 
-#include <cmath>
+#include "core/FloatBits.h"
+#include "core/fdlibm.h"
 
 namespace py {
 
 namespace {
-
-// Six vertices from the four corners: p0 p1 p2 p0 p2 p3.
-constexpr int kCorner[6] = {0, 1, 2, 0, 2, 3};
+// q0 q1 q2 q0 q2 q3
+constexpr int kOrder[6] = {0, 1, 2, 0, 2, 3};
 
 template <class V>
-void setPosUV(V& v, const Vec3& p, const CVector2& uv) {
+void setPosUV(V& v, const CVector3& p, const CVector2& uv) {
     v.pos[0] = p.x;
     v.pos[1] = p.y;
     v.pos[2] = p.z;
@@ -18,248 +19,230 @@ void setPosUV(V& v, const Vec3& p, const CVector2& uv) {
     v.uv[1] = uv.y;
 }
 
-// x' = ((x*m0 + y*m1) + z*m2) + m3 per row of a row-major CMatrix4
-// (the order the original's unrolled code adds in).
-Vec3 transformRowMajor(const float m[16], float x, float y, float z) {
-    Vec3 r;
-    r.x = ((x * m[0] + y * m[1]) + z * m[2]) + m[3];
-    r.y = ((x * m[4] + y * m[5]) + z * m[6]) + m[7];
-    r.z = ((x * m[8] + y * m[9]) + z * m[10]) + m[11];
-    return r;
+void cornerUVs(CVector2* uv, const CVector2& tl, const CVector2& size) {
+    uv[0] = CVector2(tl.x, tl.y + size.y);
+    uv[1] = CVector2(tl.x + size.x, tl.y + size.y);
+    uv[2] = CVector2(tl.x + size.x, tl.y);
+    uv[3] = CVector2(tl.x, tl.y);
 }
-
-// Corners and UVs of the matrix constructors (Ghidra 0x3824e0 / 0x380b1c).
-// Note the original adds 0 to tl.x / tl.y for p0..p2 but not for p3.
-void matrixCorners(float z, const float m[16], const CVector2& half, const CVector2& uvTL, const CVector2& uvSize,
-                   Vec3 p[4], CVector2 uv[4]) {
-    const float hx = half.x, hy = half.y;
-    p[0] = transformRowMajor(m, -hx, -hy, z);
-    p[1] = transformRowMajor(m, hx, -hy, z);
-    p[2] = transformRowMajor(m, hx, hy, z);
-    p[3] = transformRowMajor(m, -hx, hy, z);
-    const float u0 = uvTL.x + 0.0f;
-    const float vBottom = uvSize.y + uvTL.y;
-    const float u1 = uvTL.x + uvSize.x;
-    const float vTop = uvTL.y + 0.0f;
-    uv[0] = CVector2(u0, vBottom);
-    uv[1] = CVector2(u1, vBottom);
-    uv[2] = CVector2(u1, vTop);
-    uv[3] = CVector2(uvTL.x, uvTL.y);
-}
-
-// The 2D constructors: top-left corner + full size -> centre (z = 0) + half.
-void cornerToCenter(const CVector2& topLeft, const CVector2& size, Vec3& center, CVector2& half) {
-    const float hx = size.x * 0.5f;
-    const float hy = size.y * 0.5f;
-    center = Vec3(topLeft.x + hx, topLeft.y - hy, 0.0f);
-    half = CVector2(hx, hy);
-}
-
 }  // namespace
 
-// ELF 0x36fefc (Ghidra 0x37fefc)
-void getQuadVertices(Vec3 outPos[4], CVector2 outUV[4], const Vec3& c, const CVector2& half,
-                     const CVector2& uvTL, const CVector2& uvSize, float yaw, const Mat3RowMajor* rot) {
-    const float hx = half.x, hy = half.y;
-    Vec3 p[4] = {Vec3(-hx, -hy, 0.0f), Vec3(hx, -hy, 0.0f), Vec3(hx, hy, 0.0f), Vec3(-hx, hy, 0.0f)};
+// Ghidra 0x37fefc (ELF 0x36fefc, from the disassembly). The rotation axis
+// for yaw != 0 is +z (CMatrix3::FromAxisAngle on a global axis constant).
+void getQuadVertices(CVector3* pos, CVector2* uv, const CVector3& center, const CVector2& halfSize,
+                     const CVector2& uvTopLeft, const CVector2& uvSize, float yaw, const CMatrix3* rot) {
+    const Real sx = halfSize.x, sy = halfSize.y;
+    pos[0] = CVector3(-sx, -sy, 0.0f);
+    pos[1] = CVector3(sx, -sy, 0.0f);
+    pos[2] = CVector3(sx, sy, 0.0f);
+    pos[3] = CVector3(-sx, sy, 0.0f);
     if (yaw == 0.0f) {
-        if (rot == nullptr) {
-            for (int i = 0; i < 4; ++i) outPos[i] = Vec3(c.x + p[i].x, c.y + p[i].y, c.z + 0.0f);
-        } else {
-            const float* m = rot->m;
+        if (rot) {
             for (int i = 0; i < 4; ++i) {
-                const Vec3 q(m[0] * p[i].x + m[1] * p[i].y + m[2] * p[i].z,
-                             m[3] * p[i].x + m[4] * p[i].y + m[5] * p[i].z,
-                             m[6] * p[i].x + m[7] * p[i].y + m[8] * p[i].z);
-                outPos[i] = Vec3(q.x + c.x, q.y + c.y, q.z + c.z);
+                const CVector3 r = *rot * pos[i];
+                pos[i] = CVector3(r.x + center.x, r.y + center.y, r.z + center.z);
             }
+        } else {
+            for (int i = 0; i < 4; ++i)
+                pos[i] = CVector3(center.x + pos[i].x, center.y + pos[i].y, center.z + 0.0f);
         }
     } else {
-        // CMatrix3::FromAxisAngle(UNIT_Z, yaw), times rot when given [?]: the
-        // product order with rot is not verified (no caller passes both).
-        const float cs = std::cos(yaw), sn = std::sin(yaw);
-        float m[9] = {cs, -sn, 0.0f, sn, cs, 0.0f, 0.0f, 0.0f, 1.0f};
-        if (rot != nullptr) {
-            float r[9];
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
-                    r[i * 3 + j] = rot->m[i * 3 + 0] * m[0 * 3 + j] + rot->m[i * 3 + 1] * m[1 * 3 + j] +
-                                   rot->m[i * 3 + 2] * m[2 * 3 + j];
-            for (int i = 0; i < 9; ++i) m[i] = r[i];
-        }
+        CMatrix3 r;
+        r.FromAxisAngle(CVector3::UNIT_Z, yaw);
+        const CMatrix3 m = rot ? (*rot * r) : r;
         for (int i = 0; i < 4; ++i) {
-            const Vec3 q(m[0] * p[i].x + m[1] * p[i].y + m[2] * p[i].z, m[3] * p[i].x + m[4] * p[i].y + m[5] * p[i].z,
-                         m[6] * p[i].x + m[7] * p[i].y + m[8] * p[i].z);
-            outPos[i] = Vec3(q.x + c.x, q.y + c.y, q.z + c.z);
+            const CVector3 p = m * pos[i];
+            pos[i] = CVector3(p.x + center.x, p.y + center.y, p.z + center.z);
         }
     }
-    outUV[0] = CVector2(uvTL.x, uvTL.y + uvSize.y);
-    outUV[1] = CVector2(uvTL.x + uvSize.x, uvTL.y + uvSize.y);
-    outUV[2] = CVector2(uvTL.x + uvSize.x, uvTL.y);
-    outUV[3] = CVector2(uvTL.x, uvTL.y);
+    cornerUVs(uv, uvTopLeft, uvSize);
 }
 
-// ---------------------------------------------------------------- CQuadPosUV
+// CQuadPosUV / CQuadPosUVTTL (float z, CMatrix4&, ...): Ghidra 0x3824e0 / 0x380b1c
+void getQuadVerticesTransform(CVector3* pos, CVector2* uv, float z, const CMatrix4& m, const CVector2& halfSize,
+                              const CVector2& uvTopLeft, const CVector2& uvSize) {
+    const Real sx = halfSize.x, sy = halfSize.y;
+    const Real cx[4] = {-sx, sx, sx, -sx};
+    const Real cy[4] = {-sy, -sy, sy, sy};
+    for (int i = 0; i < 4; ++i) {
+        pos[i].x = cx[i] * m.m[0][0] + cy[i] * m.m[0][1] + Real(z) * m.m[0][2] + m.m[0][3];
+        pos[i].y = cx[i] * m.m[1][0] + cy[i] * m.m[1][1] + Real(z) * m.m[1][2] + m.m[1][3];
+        pos[i].z = cx[i] * m.m[2][0] + cy[i] * m.m[2][1] + Real(z) * m.m[2][2] + m.m[2][3];
+    }
+    uv[0] = CVector2(uvTopLeft.x + 0.0f, uvSize.y + uvTopLeft.y);
+    uv[1] = CVector2(uvTopLeft.x + uvSize.x, uvSize.y + uvTopLeft.y);
+    uv[2] = CVector2(uvTopLeft.x + uvSize.x, uvTopLeft.y + 0.0f);
+    uv[3] = CVector2(uvTopLeft.x, uvTopLeft.y);
+}
 
-// Ghidra 0x382c38
-CQuadPosUV::CQuadPosUV(const Vec3& center, const CVector2& half, const CVector2& uvTL, const CVector2& uvSize,
-                       float yaw) {
-    Vec3 p[4];
-    CVector2 uv[4];
-    getQuadVertices(p, uv, center, half, uvTL, uvSize, yaw);
+CQuadPosUV::CQuadPosUV(const CVector3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                       const CVector2& uvSize, float yaw) {
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVertices(p, t, center, halfSize, uvTopLeft, uvSize, yaw, nullptr);
     for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
-        v[i].unused[0] = v[i].unused[1] = v[i].unused[2] = 0.0f;
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
+        v[i].pad[0] = v[i].pad[1] = v[i].pad[2] = 0.0f;
     }
 }
 
-// Ghidra 0x3829f0
-CQuadPosUV::CQuadPosUV(const CVector2& topLeft, const CVector2& size, const CVector2& uvTL,
+CQuadPosUV::CQuadPosUV(float z, const CMatrix4& m, const CVector2& halfSize, const CVector2& uvTopLeft,
                        const CVector2& uvSize) {
-    Vec3 c;
-    CVector2 half;
-    cornerToCenter(topLeft, size, c, half);
-    *this = CQuadPosUV(c, half, uvTL, uvSize, 0.0f);
-}
-
-// Ghidra 0x3824e0
-CQuadPosUV::CQuadPosUV(float z, const float m[16], const CVector2& half, const CVector2& uvTL,
-                       const CVector2& uvSize) {
-    Vec3 p[4];
-    CVector2 uv[4];
-    matrixCorners(z, m, half, uvTL, uvSize, p, uv);
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVerticesTransform(p, t, z, m, halfSize, uvTopLeft, uvSize);
     for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
-        v[i].unused[0] = v[i].unused[1] = v[i].unused[2] = 0.0f;
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
+        v[i].pad[0] = v[i].pad[1] = v[i].pad[2] = 0.0f;
     }
 }
 
-// Ghidra 0x382df4: a band of the given width from `from` to `to`.
-CQuadPosUV::CQuadPosUV(const Vec3& from, const Vec3& to, float width, const CVector2& uvTL,
+// Ghidra 0x382df4. d = normalize(end - start) (if longer than 1e-8),
+// side = (Z.z dy - Z.y dz, Z.x dz - Z.z dx, Z.y dx - Z.x dy) * width / 2;
+// vertices end+s, end-s, start-s, end+s, start-s, start+s.
+CQuadPosUV::CQuadPosUV(const CVector3& start, const CVector3& end, float width, const CVector2& uvTopLeft,
                        const CVector2& uvSize) {
-    const float h = width * 0.5f;
-    float dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
-    const float len = std::sqrt(dx * dx + dy * dy + dz * dz);
-    if (len > 1e-8f) {
-        const float inv = 1.0f / len;
+    const Real h = Real(width) * 0.5f;
+    Real dx = end.x - start.x, dy = end.y - start.y, dz = end.z - start.z;
+    const Real len = fdlibm::sqrtf(dx * dx + dy * dy + dz * dz);
+    if (len > bitsf(0x322bcc77)) {
+        const Real inv = 1.0f / len;
         dx = dx * inv;
         dy = dy * inv;
         dz = dz * inv;
     }
-    // d x UNIT_Z
-    const Vec3 off(h * (1.0f * dy - 0.0f * dz), h * (0.0f * dz - 1.0f * dx), h * (0.0f * dx - 0.0f * dy));
-    const Vec3 p0(off.x + to.x, off.y + to.y, off.z + to.z);
-    const Vec3 p1(to.x - off.x, to.y - off.y, to.z - off.z);
-    const Vec3 p2(from.x - off.x, from.y - off.y, from.z - off.z);
-    const Vec3 p3(off.x + from.x, off.y + from.y, off.z + from.z);
-    const float uR = uvTL.x + uvSize.x, vB = uvTL.y + uvSize.y;
-    const Vec3 pos[6] = {p0, p1, p2, p0, p2, p3};
-    const CVector2 uv[6] = {CVector2(uR, uvTL.y), CVector2(uR, vB), CVector2(uvTL.x, vB),
-                            CVector2(uR, uvTL.y), CVector2(uvTL.x, vB), CVector2(uvTL.x, uvTL.y)};
+    const CVector3& Z = CVector3::UNIT_Z;
+    const Real sx = h * (Z.z * dy - Z.y * dz);
+    const Real sy = h * (Z.x * dz - Z.z * dx);
+    const Real sz = h * (Z.y * dx - Z.x * dy);
+    const CVector3 ep(sx + end.x, sy + end.y, sz + end.z);
+    const CVector3 em(end.x - sx, end.y - sy, end.z - sz);
+    const CVector3 sm(start.x - sx, start.y - sy, start.z - sz);
+    const CVector3 sp(sx + start.x, sy + start.y, sz + start.z);
+    const Real u0 = uvTopLeft.x, v0 = uvTopLeft.y;
+    const Real u1 = u0 + uvSize.x, v1 = v0 + uvSize.y;
+    const CVector3 p[6] = {ep, em, sm, ep, sm, sp};
+    const CVector2 t[6] = {CVector2(u1, v0), CVector2(u1, v1), CVector2(u0, v1),
+                           CVector2(u1, v0), CVector2(u0, v1), CVector2(u0, v0)};
     for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], pos[i], uv[i]);
-        v[i].unused[0] = v[i].unused[1] = v[i].unused[2] = 0.0f;
+        setPosUV(v[i], p[i], t[i]);
+        v[i].pad[0] = v[i].pad[1] = v[i].pad[2] = 0.0f;
     }
 }
 
-// ----------------------------------------------------------- CQuadPosUVColor
-
-// Ghidra 0x3821d8
-CQuadPosUVColor::CQuadPosUVColor(const Vec3& center, const CVector2& half, const CVector2& uvTL,
-                                 const CVector2& uvSize, const Vec3& color, float yaw) {
-    Vec3 p[4];
-    CVector2 uv[4];
-    getQuadVertices(p, uv, center, half, uvTL, uvSize, yaw);
+CQuadPosUVTTL::CQuadPosUVTTL(const CVector3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                             const CVector2& uvSize, float ttl, float yaw, const CMatrix3* rot) {
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVertices(p, t, center, halfSize, uvTopLeft, uvSize, yaw, rot);
     for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
+        v[i].ttl = ttl;
+        v[i].pad[0] = v[i].pad[1] = 0.0f;
+    }
+}
+
+CQuadPosUVTTL::CQuadPosUVTTL(float z, const CMatrix4& m, const CVector2& halfSize, const CVector2& uvTopLeft,
+                             const CVector2& uvSize, float ttl) {
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVerticesTransform(p, t, z, m, halfSize, uvTopLeft, uvSize);
+    for (int i = 0; i < 6; ++i) {
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
+        v[i].ttl = ttl;
+        v[i].pad[0] = v[i].pad[1] = 0.0f;
+    }
+}
+
+CQuadPosUVColor::CQuadPosUVColor(const CVector3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                                 const CVector2& uvSize, const CVector3& color, float yaw) {
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVertices(p, t, center, halfSize, uvTopLeft, uvSize, yaw, nullptr);
+    for (int i = 0; i < 6; ++i) {
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
         v[i].color[0] = color.x;
         v[i].color[1] = color.y;
         v[i].color[2] = color.z;
     }
 }
 
-// Ghidra 0x381e48
-CQuadPosUVColor::CQuadPosUVColor(const CVector2& topLeft, const CVector2& size, const CVector2& uvTL,
-                                 const CVector2& uvSize, const Vec3& color) {
-    Vec3 c;
-    CVector2 half;
-    cornerToCenter(topLeft, size, c, half);
-    *this = CQuadPosUVColor(c, half, uvTL, uvSize, color, 0.0f);
-}
+CQuadPosUVColor::CQuadPosUVColor(const CVector2& topLeft, const CVector2& size, const CVector2& uvTopLeft,
+                                 const CVector2& uvSize, const CVector3& color)
+    : CQuadPosUVColor(CVector3(topLeft.x + size.x * 0.5f, topLeft.y - size.y * 0.5f, 0.0f),
+                      CVector2(size.x * 0.5f, size.y * 0.5f), uvTopLeft, uvSize, color, 0.0f) {}
 
-// ---------------------------------------------------------- CQuadPosUVColor4
-
-// Ghidra 0x3813e0
-CQuadPosUVColor4::CQuadPosUVColor4(const Vec3& center, const CVector2& half, const CVector2& uvTL,
-                                   const CVector2& uvSize, const Vec3& color, float alpha, float yaw,
-                                   const Mat3RowMajor* rot) {
-    Vec3 p[4];
-    CVector2 uv[4];
-    getQuadVertices(p, uv, center, half, uvTL, uvSize, yaw, rot);
+CQuadPosUVColor4::CQuadPosUVColor4(const CVector3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                                   const CVector2& uvSize, const CVector3& color, float alpha, float yaw,
+                                   const CMatrix3* rot) {
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVertices(p, t, center, halfSize, uvTopLeft, uvSize, yaw, rot);
     for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
         v[i].color[0] = color.x;
         v[i].color[1] = color.y;
         v[i].color[2] = color.z;
         v[i].color[3] = alpha;
-        for (float& u : v[i].unused) u = 0.0f;
+        v[i].width = 0.0f;
+        for (float& f : v[i].pad) f = 0.0f;
     }
 }
 
-// Ghidra 0x3816f8 / 0x381aa0
-CQuadPosUVColor4::CQuadPosUVColor4(const CVector2& topLeft, const CVector2& size, const CVector2& uvTL,
-                                   const CVector2& uvSize, const Vec3& color, float alpha, float yaw) {
-    Vec3 c;
-    CVector2 half;
-    cornerToCenter(topLeft, size, c, half);
-    *this = CQuadPosUVColor4(c, half, uvTL, uvSize, color, alpha, yaw);
-}
+CQuadPosUVColor4::CQuadPosUVColor4(const CVector2& topLeft, const CVector2& size, const CVector2& uvTopLeft,
+                                   const CVector2& uvSize, const CVector3& color, float alpha, float yaw)
+    : CQuadPosUVColor4(CVector3(topLeft.x + size.x * 0.5f, topLeft.y - size.y * 0.5f, 0.0f),
+                       CVector2(size.x * 0.5f, size.y * 0.5f), uvTopLeft, uvSize, color, alpha, yaw, nullptr) {}
 
-// ----------------------------------------------------- CQuadPosUVColor4Width
+// ---------------------------------------------------------------- UI overloads
+
+namespace {
+CMatrix4 fromRowMajor(const float m[16]) {
+    CMatrix4 r;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j) r.m[i][j] = m[i * 4 + j];
+    return r;
+}
+CVector3 cv(const Vec3& v) { return CVector3(v.x, v.y, v.z); }
+}  // namespace
+
+CQuadPosUV::CQuadPosUV(float z, const float rowMajor4x4[16], const CVector2& halfSize, const CVector2& uvTopLeft,
+                       const CVector2& uvSize)
+    : CQuadPosUV(z, fromRowMajor(rowMajor4x4), halfSize, uvTopLeft, uvSize) {}
+
+CQuadPosUV::CQuadPosUV(const Vec3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                       const CVector2& uvSize, float yaw)
+    : CQuadPosUV(cv(center), halfSize, uvTopLeft, uvSize, yaw) {}
+
+// Ghidra 0x3829f0
+CQuadPosUV::CQuadPosUV(const CVector2& topLeft, const CVector2& size, const CVector2& uvTopLeft,
+                       const CVector2& uvSize)
+    : CQuadPosUV(CVector3(topLeft.x + size.x * 0.5f, topLeft.y - size.y * 0.5f, 0.0f),
+                 CVector2(size.x * 0.5f, size.y * 0.5f), uvTopLeft, uvSize, 0.0f) {}
+
+CQuadPosUVTTL::CQuadPosUVTTL(float z, const float rowMajor4x4[16], const CVector2& halfSize,
+                             const CVector2& uvTopLeft, const CVector2& uvSize, float ttl)
+    : CQuadPosUVTTL(z, fromRowMajor(rowMajor4x4), halfSize, uvTopLeft, uvSize, ttl) {}
+
+CQuadPosUVColor4::CQuadPosUVColor4(const Vec3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                                   const CVector2& uvSize, const Vec3& color, float alpha, float yaw)
+    : CQuadPosUVColor4(cv(center), halfSize, uvTopLeft, uvSize, cv(color), alpha, yaw, nullptr) {}
 
 // Ghidra 0x38104c
 CQuadPosUVColor4Width::CQuadPosUVColor4Width(const Vec3& center, float r, float width, const Vec3& color,
                                              float alpha) {
     const float w = width / r;
-    Vec3 p[4];
-    CVector2 uv[4];
-    getQuadVertices(p, uv, center, CVector2(r, r), CVector2(-1.0f, -1.0f), CVector2(2.0f, 2.0f), 0.0f);
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVertices(p, t, cv(center), CVector2(r, r), CVector2(-1.0f, -1.0f), CVector2(2.0f, 2.0f), 0.0f, nullptr);
     for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
         v[i].color[0] = color.x;
         v[i].color[1] = color.y;
         v[i].color[2] = color.z;
         v[i].color[3] = alpha;
         v[i].width = w;
-        for (float& u : v[i].unused) u = 0.0f;
-    }
-}
-
-// ------------------------------------------------------------- CQuadPosUVTTL
-
-// Ghidra 0x38093c
-CQuadPosUVTTL::CQuadPosUVTTL(const Vec3& center, const CVector2& half, const CVector2& uvTL,
-                             const CVector2& uvSize, float ttl, float yaw, const Mat3RowMajor* rot) {
-    Vec3 p[4];
-    CVector2 uv[4];
-    getQuadVertices(p, uv, center, half, uvTL, uvSize, yaw, rot);
-    for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
-        v[i].ttl = ttl;
-        v[i].unused[0] = v[i].unused[1] = 0.0f;
-    }
-}
-
-// Ghidra 0x380b1c
-CQuadPosUVTTL::CQuadPosUVTTL(float z, const float m[16], const CVector2& half, const CVector2& uvTL,
-                             const CVector2& uvSize, float ttl) {
-    Vec3 p[4];
-    CVector2 uv[4];
-    matrixCorners(z, m, half, uvTL, uvSize, p, uv);
-    for (int i = 0; i < 6; ++i) {
-        setPosUV(v[i], p[kCorner[i]], uv[kCorner[i]]);
-        v[i].ttl = ttl;
-        v[i].unused[0] = v[i].unused[1] = 0.0f;
+        for (float& f : v[i].pad) f = 0.0f;
     }
 }
 
