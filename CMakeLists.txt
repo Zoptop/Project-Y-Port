@@ -109,13 +109,12 @@ endif()
 # Engine library: rendering + game code (OpenGL entry points are loaded at
 # runtime, so this links without an OpenGL SDK)
 # ---------------------------------------------------------------------------
-file(GLOB PROJECTY_GAME_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/game/*.cpp)
+file(GLOB PROJECTY_GAME_SOURCES CONFIGURE_DEPENDS
+  ${PROJECT_SOURCE_DIR}/src/render/*.cpp
+  ${PROJECT_SOURCE_DIR}/src/game/*.cpp
+  ${PROJECT_SOURCE_DIR}/src/ui/*.cpp)
 add_library(projecty_engine STATIC
   src/platform/GLFunctions.cpp
-  src/render/CTexture.cpp
-  src/render/CMesh.cpp
-  src/render/CGLSLProgram.cpp
-  src/render/CCamera.cpp
   ${PROJECTY_GAME_SOURCES}
 )
 if(MSVC)
