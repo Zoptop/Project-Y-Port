@@ -12,9 +12,9 @@ A personal, faithful PC port of **ProjectY** (Luminence Labs, Android, 2015, v1.
 | 1 | Bit-exact maths core: fdlibm float, `CMath` (OGRE-derived) + trig tables, `CRng`/`CRngSafe` | done, verified |
 | 2 | Assets and renderer: meshes, textures, GLSL shaders, camera, terrain/water | done (map viewer; all 46 original shaders compile) |
 | 3 | Level loading and map scripts | done (all 29 maps load; script parsing verified against the original engine) |
-| 4 | Simulation: units, buildings, weapons, navmesh | next |
-| 5 | Mouse/keyboard input, HUD, menus | |
-| 6 | AI | |
+| 4 | Simulation: units, buildings, weapons, projectiles, navmesh, players, AI, bombers, scripts | done: all 11 skirmish maps identical to the original for 400 steps (checksum and RNG state, under emulation) |
+| 5 | Drawing the game, mouse/keyboard input, HUD, menus | done: skirmish playable from the menus |
+| 6 | AI | done as part of phase 4 (bit-exact) |
 | 7 | Campaign | |
 | 8 | Audio, particles, saves, polish | |
 | 9 | LAN multiplayer (lockstep) | |
@@ -43,9 +43,34 @@ python tools\extract_assets.py --apk path\to\ProjectY.apk --maps path\to\map_zip
 
 This fills `data/` (see [data/README.md](data/README.md)). Then run `build\Release\ProjectY.exe` from the repository folder, or pass `--data <folder>`.
 
-Command-line options: `--data <dir>`, `--width N`, `--height N`, `--fullscreen`, `--frames N` (quit after N frames), `--map ID` (start map, default 1), `--zoom Z`, `--cam X Y`, `--yaw DEG`, `--screenshot file.png` (saves the last frame; use with `--frames`), `--check-shaders` (compile every `.gfx` and exit).
+## Playing
 
-### Map viewer controls (phase 2)
+Run `ProjectY.exe`. The game starts like the original: intro, main menu, **Singleplayer → Custom Game**, pick a map and settings, **Start Game**. Your options are saved in your user folder (`%APPDATA%\LuminenceLabs\ProjectY` on Windows; `--save-dir` overrides it).
+
+The original was a touch game. On PC the controls are:
+
+| Input | Action |
+|---|---|
+| Left click | Select (a click on empty ground clears the selection) |
+| Left drag | Box select |
+| Right click | Command the selection: move, attack, enter, capture, ... (the original's "best action" for each selected unit) |
+| Shift + right click, or hold right > 0.3 s | The original's long-press action: rally point, defend, production/upgrade menus |
+| Double click on the ground | Zoom in / overview (the original's double tap) |
+| Mouse wheel | Zoom; zooming out past 1.0 switches to the strategy view |
+| Middle drag, WASD / arrows, screen edges | Scroll |
+| Q / E, Alt + drag, drag on the top bar | Rotate the camera |
+| Space / Tab | Strategy view on/off |
+| Ctrl + 1..9 / 1..9 | Assign / select a control group (press again to centre on it) |
+| F1..F12 | Action bar buttons, from the left |
+| Dial (radial) menu | Click a button, or press 1..9; right click or Esc closes it |
+| Enter / click | Continue a speaker text |
+| Esc | Pause menu |
+
+Command-line options: `--data <dir>`, `--save-dir <dir>`, `--width N`, `--height N`, `--fullscreen`, `--skirmish MAP` (start a game directly; with `--players N`, `--fow`, `--minimap 0..3`), `--viewer` (the map viewer below, `--map ID`, `--zoom Z`, `--cam X Y`, `--yaw DEG`), `--check-shaders`. For automated tests: `--frames N`, `--screenshot file.png`, `--input script` (timed input events; see `docs/re/ui_phase5.md`).
+
+Not ported yet: sound, the campaign, savegames, multiplayer.
+
+### Map viewer controls (`--viewer`)
 
 | Input | Action |
 |---|---|
@@ -60,8 +85,9 @@ Command-line options: `--data <dir>`, `--width N`, `--height N`, `--fullscreen`,
 
 ```
 src/core/       deterministic engine code (no platform dependencies)
-src/render/     meshes, textures, shaders, camera (CMesh, CTexture, CGLSLProgram, CCameraLevel)
-src/game/       game classes: CEngine (game state), CGame, CPlayer, CLevel, CSector, CScript*, units/buildings (creation only so far)
+src/render/     meshes, textures, shaders, cameras, text, quads, shadows
+src/game/       game classes: CEngine, CGame, CPlayer(KI), CLevel, CNav, units, buildings, weapons, projectiles, particles, scripts (drawing in *Draw.cpp)
+src/ui/         interfaces: intro, menus, ingame HUD (action bar, dial menu, group bar, event bar), PC input
 third_party/    stb_image / stb_image_write (public domain)
 src/platform/   SDL2 shell replacing the Android Java layer, GL function loading
 tests/          unit tests + cross-platform determinism digest
