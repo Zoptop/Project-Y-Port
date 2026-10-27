@@ -19,7 +19,9 @@
 //   CTextRender::draw
 //   if minimap: CGame::drawMinimap
 //
-// The HUD port replaces this class; it is not simulation code.
+// The game itself now draws through CInterfaceIngamePerPlayer::draw (the HUD
+// port, ui/CIngameWorldDraw.cpp); only the --viewer map viewer still uses
+// this class. It is not simulation code.
 #pragma once
 
 #include "render/CCamera.h"

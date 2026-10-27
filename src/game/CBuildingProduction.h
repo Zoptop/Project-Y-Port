@@ -35,7 +35,7 @@ public:
 
     // +0xf4 Ghidra 0x13caf4: the "unit produced" icon in the owner's event
     // bar (user interface only, not ported).
-    virtual void addUnitProducedEvent(unsigned /*unitId*/) {}
+    virtual void addUnitProducedEvent(unsigned unitId);   // Ghidra 0x13caf4 (IIngameUI)
 
     // Ghidra 0x13d264: production time of mUnitType for this owner, with the
     // tech bonus and the HQ's sector bonus.

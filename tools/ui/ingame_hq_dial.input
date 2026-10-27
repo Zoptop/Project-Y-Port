@@ -1,0 +1,18 @@
+# [PC] ingame HUD: select the HQ and use its dial menu (docs/re/ui_phase5.md
+# "Phase 5c"), 1280x720, 60 fps clock:
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 1 \
+#       --frames 400 --input tools/ui/ingame_hq_dial.input
+# Checks (the "state" lines on stdout):
+#   select_hq: the selection is the HQ (building t1)
+#   dial_open: a dial menu is open on it
+#   dial_sent: the dial is closed again (cmdProcessDialButton was sent)
+30 dump start
+40 click left 640 360                  # HQ: left click selects (ACTION_SELECT only)
++2 dump select_hq
+50 click right 640 360                 # right click on the selected HQ: the production dial
++2 dump dial_open
+60 mousemove 760 300                   # hover a dial button (the angle selection)
++5 screenshot ingame_hq_dial.png
+70 key 2                               # number key: the second dial button
++2 dump dial_sent
+100 screenshot ingame_after_dial.png

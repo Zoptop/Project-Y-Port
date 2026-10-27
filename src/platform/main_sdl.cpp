@@ -25,6 +25,9 @@
 //   --save-dir <dir>     where options.txt and the savegames live
 //                        (default: SDL_GetPrefPath, the user's app data)
 //   --check-shaders      compile every .gfx and exit
+//   --skirmish <map>     [PC] start a skirmish on map <map> directly in the
+//                        ingame screen (--players N, default the map's; --fow; the
+//                        minimap with --minimap 0..3, default 2)
 //   --viewer             the phase-2 map viewer instead of the game
 //                        (--map N, --zoom Z, --cam X Y, --yaw DEG;
 //                        PageUp/PageDown cycle maps, Esc quits)
@@ -58,6 +61,8 @@
 #include "render/CTextRender.h"
 #include "ui/CInputScript.h"
 #include "ui/CInterface.h"
+#include "ui/CInterfaceIngame.h"
+#include "ui/CInterfaceIngamePerPlayer.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
@@ -88,6 +93,9 @@ struct Options {
     bool noSim = false;         // --no-sim: draw the map without running the game
     int steps = 0;              // --steps N: simulate N steps (0.1 s) before the first frame
     bool viewer = false;        // --viewer: the phase-2 map viewer
+    int skirmish = 0;           // --skirmish <map> [PC]
+    int players = 0;            // --players N (with --skirmish; 0 = the map's "set numplayers")
+    int minimap = 2;            // --minimap 0..3 (with --skirmish)
 };
 
 Options parseArgs(int argc, char** argv) {
@@ -117,6 +125,9 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--no-sim") o.noSim = true;
         else if (a == "--steps") o.steps = std::atoi(nextS().c_str());
         else if (a == "--viewer") o.viewer = true;
+        else if (a == "--skirmish") o.skirmish = std::atoi(nextS().c_str());
+        else if (a == "--players") o.players = std::atoi(nextS().c_str());
+        else if (a == "--minimap") o.minimap = std::atoi(nextS().c_str());
     }
     if (o.fps <= 0.0f && o.frames > 0) o.fps = 60.0f;
     return o;
@@ -315,8 +326,25 @@ int runGame(const Options& opt, SDL_Window* window) {
     engine->mOpenURLHook = [](const std::string& url) { SDL_OpenURL(url.c_str()); };   // [PC] Java openURL
     engine->initInterfaces();
     engine->setResolution(w, h);
+    if (opt.skirmish > 0) {
+        // [PC] straight into a game (the menu's initSingleplayerGame without the menu)
+        engine->mMinimapSize = opt.minimap;
+        const unsigned players = opt.players >= 1 && opt.players <= 4 ? static_cast<unsigned>(opt.players)
+                                                                    : mapPlayerCount(opt.skirmish);
+        if (!CInterfaceIngame::startSkirmish(static_cast<unsigned>(opt.skirmish), players, opt.fow, w, h)) {
+            std::fprintf(stderr, "--skirmish %d: the map did not load\n", opt.skirmish);
+            return 4;
+        }
+    }
 
     const PixelMapper pm{window};
+    SDL_Cursor* cursors[6] = {SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW),
+                              SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND),
+                              SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR),
+                              SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL),
+                              SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND),
+                              SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND)};
+    int cursorShown = -1;
     unsigned scriptButtons = 0;
     int frame = 0;
     bool running = true;
@@ -392,12 +420,28 @@ int runGame(const Options& opt, SDL_Window* window) {
         for (const ScriptEvent* se : script.eventsAt(frame)) {
             if (se->kind == ScriptEvent::SCREENSHOT) shotThisFrame = se->text;
             else if (se->kind == ScriptEvent::QUIT) running = false;
+            else if (se->kind == ScriptEvent::DUMP) {
+                // [PC] the ingame state for the script checks
+                auto* ig = dynamic_cast<CInterfaceIngame*>(engine->mIngameInterface.get());
+                const std::string st = ig && ig->ipp(0) ? ig->ipp(0)->debugState() : std::string("no ingame interface");
+                CUtils::log("state %s: %s", se->text.c_str(), st.c_str());
+                std::printf("state %s: %s\n", se->text.c_str(), st.c_str());
+                std::fflush(stdout);
+            }
             else CInputScript::dispatch(*se, engine->mCurrentInterface, scriptButtons);
         }
 
         const float now = opt.fps > 0.0f ? static_cast<float>(frame + 1) * (1000.0f / opt.fps)
                                          : CUtils::getTimer();
         engine->draw(now);
+        if (engine->mCurrentInterface) {   // [PC] the cursor shape for the hovered action
+            int hint = engine->mCurrentInterface->getCursorHint();
+            if (hint < 0 || hint > 5) hint = 0;
+            if (hint != cursorShown && cursors[hint]) {
+                SDL_SetCursor(cursors[hint]);
+                cursorShown = hint;
+            }
+        }
 
         ++frame;
         const bool last = (opt.frames > 0 && frame >= opt.frames) || !running || engine->mQuitRequested;
@@ -408,6 +452,8 @@ int runGame(const Options& opt, SDL_Window* window) {
     }
     CUtils::log("frames: %d%s", frame, engine->mQuitRequested ? " (quit from the menu)" : "");
     engine->releaseInterfaces();
+    for (SDL_Cursor* c : cursors)
+        if (c) SDL_FreeCursor(c);
     return 0;
 }
 

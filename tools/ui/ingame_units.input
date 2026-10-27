@@ -1,0 +1,39 @@
+# [PC] ingame HUD: box select, move order, control groups, camera (docs/re/
+# ui_phase5.md "Phase 5c"), 1280x720, 60 fps clock, map 1:
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 1 \
+#       --frames 2400 --input tools/ui/ingame_units.input
+# By frame 1800 six RoboBrains (and two empty vehicles) stand next to the HQ.
+# Checks (the "state" lines on stdout):
+#   box: several units (t1) selected
+#   moved: their orders are "move to location" (order 2) with the destination under the right click
+#   deselected: empty selection; group1: the units again (key 1 after Ctrl+1)
+1800 screenshot ingame_units_before.png
+1802 mousedown left 630 140            # left drag: the selection rectangle
++1 mousemove 760 220
++1 mousemove 900 310
++1 screenshot ingame_units_box.png
++1 mouseup left 900 310
++2 dump box
++5 key ctrl+1                          # assign control group 1
++2 dump group_assigned
++5 mousemove 500 450                   # hover the ground: the move cursor
++2 click right 500 450                 # right click: move there
++2 dump moved
++30 screenshot ingame_units_moving.png
++5 click left 1000 600                 # left click on empty ground: deselect
++2 dump deselected
++5 key 1                               # select group 1
++2 dump group1
++5 key 1                               # again: centre on the group
++60 dump group1_centred
++5 wheel -3 640 360                    # zoom out three notches at the screen centre
++2 dump zoomed
++5 key space                           # strategy view
++60 dump strategic
++1 screenshot ingame_strategic.png
++5 key space                           # back
++60 dump normal
++5 keydown q                           # rotate left for half a second
++30 keyup q
++2 dump rotated
++10 screenshot ingame_units_end.png

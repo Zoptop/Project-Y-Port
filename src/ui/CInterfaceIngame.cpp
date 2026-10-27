@@ -11,7 +11,11 @@
 #include "render/CGLSLProgram.h"
 #include "render/CMesh.h"
 #include "render/CTexture.h"
+#include "game/CScript.h"
+#include "ui/CEventBar.h"
+#include "ui/CGroupBar.h"
 #include "ui/CIngameWorldDraw.h"
+#include "ui/CUISound.h"
 #include "ui/CInterfaceIngamePerPlayer.h"
 
 namespace py {
@@ -23,7 +27,10 @@ CInterfaceIngame::CInterfaceIngame() {
 }
 
 // Ghidra 0x19e1d4
-CInterfaceIngame::~CInterfaceIngame() = default;
+CInterfaceIngame::~CInterfaceIngame() {
+    if (IIngameUI::get() == this) IIngameUI::set(nullptr);
+    if (CScriptManager::ui() == this) CScriptManager::setUI(nullptr);
+}
 
 // Ghidra 0x19e27c
 void CInterfaceIngame::init() {
@@ -65,6 +72,8 @@ void CInterfaceIngame::initSingleplayer(int width, int height, unsigned player) 
     mIPP[0]->init(this, mEngine->mGame ? mEngine->mGame->getPlayer(player) : nullptr);
     setResolution(width, height);
     mCurrentIPP = 0;
+    IIngameUI::set(this);          // [PC] the game objects' and scripts' way to the HUD
+    CScriptManager::setUI(this);
 }
 
 // Ghidra 0x19e734
@@ -79,6 +88,32 @@ void CInterfaceIngame::initSplitscreen(int width, int height, unsigned p1, unsig
     mIPP[1]->init(this, mEngine->mGame->getPlayer(p2));
     setResolution(width, height);
     mCurrentIPP = 0;
+    IIngameUI::set(this);
+    CScriptManager::setUI(this);
+}
+
+CInterfaceIngame* CInterfaceIngame::startSkirmish(unsigned mapId, unsigned players, bool fow, int width,
+                                                 int height) {
+    CEngine* e = CEngine::getSingletonPtr();
+    e->setupSkirmish(mapId, players);
+    e->mUseFOW = fow;
+    e->mGameType = 0;
+    e->mLocalPlayer = 1;
+    e->pauseGame();
+    e->mNetworkMode = 0;
+    e->setGame(std::make_unique<CGame>());
+    if (!e->mGame->init(false, !gl::isLoaded())) {   // [PC] headless without a GL context (tests)
+        CUtils::log("skirmish: map %u failed to load", mapId);
+        e->setGame(nullptr);
+        return nullptr;
+    }
+    auto ingame = std::make_unique<CInterfaceIngame>();
+    ingame->initSingleplayer(width, height, e->mLocalPlayer);
+    CInterfaceIngame* r = ingame.get();
+    e->mIngameInterface = std::move(ingame);
+    e->mCurrentInterface = e->mIngameInterface.get();
+    e->resumeGame(e->mFrameTime);
+    return r;
 }
 
 // Ghidra 0x19dc2c
@@ -489,6 +524,70 @@ void CInterfaceIngame::drawCircle(const CCircleInfo& c, CCamera* cam) {
     const Mat4 model = Mat4::transform(Vec3(c.position.x, c.position.y, c.position.z), Quat(), scale);
     sh->setUniformMVPMatrix(cam->mViewProj * model);
     mCircleMesh->draw(mCircleSub[idx][0], mCircleSub[idx][1]);
+}
+
+
+// ---------------------------------------------------------------------------
+// IIngameUI / IScriptUI: what the game objects and the scripts reach through
+// getInterfaceForPlayer in the original
+
+bool CInterfaceIngame::hasInterface(CPlayer* player) { return getInterfaceForPlayer(player) != nullptr; }
+
+void CInterfaceIngame::addEvent(CPlayer* player, int type, unsigned objId, const CVector2& position, bool unique,
+                                const std::string& shortText) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (p && p->getEventBar()) p->getEventBar()->addEvent(type, objId, position, unique, shortText);
+}
+
+void CInterfaceIngame::enableUnderAttackWarning(CPlayer* player, unsigned unitId) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (p && p->getGroupBar()) p->getGroupBar()->enableUnderAttackWarning(unitId);
+}
+
+unsigned CInterfaceIngame::getFirstGroupUnit(CPlayer* player, unsigned groupId) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    return p && p->getGroupBar() ? p->getGroupBar()->getFirstGroupUnit(groupId) : 0u;
+}
+
+void CInterfaceIngame::addUnitToGroup(CPlayer* player, unsigned groupId, unsigned unitId) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (!p || !p->getGroupBar()) return;
+    if (CGroupInfo* g = p->getGroupBar()->getGroupInfo(groupId)) p->getGroupBar()->addUnitToGroup(*g, unitId);
+}
+
+bool CInterfaceIngame::isGameObjectSelected(CPlayer* player, unsigned id) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    return p && p->isGameObjectSelected(id);
+}
+
+void CInterfaceIngame::selectGameObject(CPlayer* player, unsigned id) {
+    if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player)) p->selectGameObject(id);
+}
+
+void CInterfaceIngame::showGameEndText(CPlayer* player, const std::string& text, int callerScript,
+                                       const CVector2* scrollTo) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (!p) return;
+    p->setOverlayText(text, "", 0.0f, callerScript, false, true, "");
+    if (scrollTo) p->getCamera()->slowScrollTo(*scrollTo, 1.0f);
+    uisound::play("ringringring");
+}
+
+// CScriptUnitTrigger type 5: CGroupBar::isUnitInGroup(id)
+bool CInterfaceIngame::isUnitInGroup(CPlayer* player, unsigned id) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    return p && p->getGroupBar() && p->getGroupBar()->isUnitInGroup(id);
+}
+
+// CScriptSpeaker::run (Ghidra 0x38f... the speaker part)
+bool CInterfaceIngame::showSpeakerText(CPlayer* player, const CScriptSpeaker& sp) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (!p) return false;
+    if (sp.mIconName.empty()) p->setOverlayText(sp.mText, sp.mCmdText, sp.mShowTime, sp.mId, sp.mNoPause, false, "");
+    else p->setOverlayText(sp.mText, sp.mCmdText, sp.mShowTime, sp.mId, sp.mNoPause, true, sp.mIconName);
+    if (sp.mHasScrollTo) p->getCamera()->slowScrollTo(sp.mScrollTo, 1.0f);
+    uisound::play("ringringring");
+    return true;
 }
 
 }  // namespace py

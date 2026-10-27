@@ -4,8 +4,6 @@
 // the [PC] mouse/keyboard mapping in CInterfaceIngamePerPlayerPC.cpp.
 #include "ui/CInterfaceIngamePerPlayer.h"
 
-#include <cmath>
-
 #include "core/CMath.h"
 #include "core/CMatrix3.h"
 #include "core/CQuaternion.h"

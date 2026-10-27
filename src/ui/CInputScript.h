@@ -21,6 +21,7 @@ struct ScriptEvent {
     enum Kind {
         MOUSE_DOWN, MOUSE_UP, MOUSE_MOVE, WHEEL, KEY_DOWN, KEY_UP, TEXT,
         TOUCH_DOWN, TOUCH_MOVE, TOUCH_UP, BACK, MENU, MENU_ACTION, SCREENSHOT, QUIT,
+        DUMP,   // [PC] the shell logs the ingame state (selection, orders, camera)
     };
     int frame = 0;
     Kind kind = QUIT;

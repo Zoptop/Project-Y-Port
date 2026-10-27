@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "core/CTxtLoc.h"
+#include "core/CUtils.h"
 #include "core/FloatBits.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
@@ -265,9 +266,10 @@ void CEventBar::drawEvent(CEvent& e) {
         tr->drawStringPixelBoundedYaw(e.drawPos.x + g * 70.0f, e.drawPos.y + g * 21.0f, g * 22.0f, 1.0f, 1.0f, 0.0f,
                                       alpha, g * 350.0f, g * -5.0f, 10000, 0, 0.0f, "%s", e.label.c_str());
     const float two = g + g;
-    // quirk: the short text is passed as the format string
+    // (the original passes the short text as the format string; its texts are
+    // plain numbers, so "%s" draws the same)
     tr->drawStringPixel(e.drawPos.x + two, two + e.drawPos.y, g * 32.0f, 1.0f, 1.0f, 1.0f, alpha, 0,
-                        e.shortText.c_str());
+                        "%s", e.shortText.c_str());
     int n = 0;
     for (const CEvent* o : mEvents)
         if (o->type == e.type) ++n;

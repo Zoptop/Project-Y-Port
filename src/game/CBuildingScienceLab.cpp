@@ -4,6 +4,7 @@
 // (user interface) and the command that "random research" sends through the
 // command queue (CGame +0x178, TODO(4.x commands)).
 #include "game/CBuildingScienceLab.h"
+#include "game/IIngameUI.h"
 
 #include <vector>
 
@@ -70,7 +71,10 @@ void CBuildingScienceLab::timeUpdate() {
         }
     }
     if (mProductionCountdown < 0.0f) {
-        // (event bar icon: UI)
+        // CBuildingScienceLab::addTechEventIcon (Ghidra 0x1443bc): the
+        // "tech researched" icon of the owner's event bar (UI only)
+        if (IIngameUI* ui = IIngameUI::get())
+            if (ui->hasInterface(mOwner)) ui->addEvent(mOwner, mCurrentTech + 0x1e, mId, CVector2(0.0f, 0.0f), false, "");
         mOwner->techResearched(static_cast<unsigned>(mCurrentTech), this);
         const int next = mNextTech;
         mNextTech = -1;

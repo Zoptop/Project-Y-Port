@@ -178,6 +178,9 @@ bool CInputScript::parse(const std::string& text, const KeyResolver& keyFromName
             e.kind = ScriptEvent::SCREENSHOT;
         } else if (cmd == "quit") {
             e.kind = ScriptEvent::QUIT;
+        } else if (cmd == "dump") {
+            e.text = nargs >= 1 ? arg(0) : std::string();
+            e.kind = ScriptEvent::DUMP;
         } else {
             return fail("unknown command '" + cmd + "'");
         }
@@ -222,7 +225,8 @@ void CInputScript::dispatch(const ScriptEvent& e, CInterface* t, unsigned& held)
         case ScriptEvent::MENU: t->addEventMenuKeyPressed(); break;
         case ScriptEvent::MENU_ACTION: t->addEventMenuAction(static_cast<int>(e.pointer)); break;
         case ScriptEvent::SCREENSHOT:
-        case ScriptEvent::QUIT: break;
+        case ScriptEvent::QUIT:
+        case ScriptEvent::DUMP: break;
     }
 }
 

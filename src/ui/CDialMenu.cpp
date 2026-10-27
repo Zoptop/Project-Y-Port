@@ -306,10 +306,15 @@ void CDialMenu::drawButton(CDialButton& b) {
                                           CMath::PI - a, "%s", s.c_str());
     };
     if (!b.label.empty()) {
-        // the label is a format string in the original ("%.0f%%  >>  ..." of the rank buttons)
-        char buf[256];
-        std::snprintf(buf, sizeof(buf), b.label.c_str());   // NOLINT: the original passes it as the format
-        drawLabel(g * 110.0f, mEngine->mBeginnerMode ? g * 40.0f : g * 5.0f, buf);
+        // the original passes the label as the format string; the only labels
+        // (the rank buttons' "50%%  >>  60%%") carry no arguments, so this is
+        // the same as turning "%%" into "%"
+        std::string text;
+        for (size_t i = 0; i < b.label.size(); ++i) {
+            text.push_back(b.label[i]);
+            if (b.label[i] == '%' && i + 1 < b.label.size() && b.label[i + 1] == '%') ++i;
+        }
+        drawLabel(g * 110.0f, mEngine->mBeginnerMode ? g * 40.0f : g * 5.0f, text);
     }
     if (b.type >= 0 && b.type < kNumDialButtonTypes) {
         mButtonCenters[b.type] = CVector2(size * 0.5f + tl.x, size * 0.5f + tl.y);

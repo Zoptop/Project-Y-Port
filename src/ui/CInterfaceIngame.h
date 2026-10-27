@@ -31,6 +31,8 @@
 
 #include "core/CVector2.h"
 #include "core/CVector3.h"
+#include "game/CScriptManager.h"
+#include "game/IIngameUI.h"
 #include "render/CIngameQuads.h"
 #include "render/CQuad.h"
 #include "ui/CInterface.h"
@@ -44,7 +46,7 @@ class CMesh;
 class CPlayer;
 class CTexture;
 
-class CInterfaceIngame : public CInterface {
+class CInterfaceIngame : public CInterface, public IIngameUI, public IScriptUI {
 public:
     static constexpr int kMaxQuads = 999;
 
@@ -80,6 +82,11 @@ public:
     void init();                                                  // Ghidra 0x19e27c (GL resources)
     void initSingleplayer(int width, int height, unsigned player);   // Ghidra 0x19e7fc
     void initSplitscreen(int width, int height, unsigned p1, unsigned p2);   // Ghidra 0x19e734
+    // [PC] the --skirmish shell option and the tests: CInterfaceMenu::
+    // initSingleplayerGame without the menu (setupSkirmish(map, players):
+    // player 1 human, the others AI; option UseFOW = fow), the new ingame
+    // interface made current. Returns it, or null if the map did not load.
+    static CInterfaceIngame* startSkirmish(unsigned mapId, unsigned players, bool fow, int width, int height);
 
     // ---- quad queues (Ghidra addresses in the .cpp)
     void addSelectionQuad(const Vec3& pos, float size);
@@ -108,6 +115,21 @@ public:
     void drawCircle(const CCircleInfo& c, CCamera* cam);   // Ghidra 0x1a028c
     void startDrawCircle();                                // Ghidra 0x1a0d38
     void endDrawCircle();                                  // Ghidra 0x1a0d78
+
+    // ---- IIngameUI (game objects -> HUD; installed while this interface exists)
+    bool hasInterface(CPlayer* player) override;
+    void addEvent(CPlayer* player, int type, unsigned objId, const CVector2& position, bool unique,
+                  const std::string& shortText) override;
+    void enableUnderAttackWarning(CPlayer* player, unsigned unitId) override;
+    unsigned getFirstGroupUnit(CPlayer* player, unsigned groupId) override;
+    void addUnitToGroup(CPlayer* player, unsigned groupId, unsigned unitId) override;
+    bool isGameObjectSelected(CPlayer* player, unsigned id) override;
+    void selectGameObject(CPlayer* player, unsigned id) override;
+    void showGameEndText(CPlayer* player, const std::string& text, int callerScript,
+                         const CVector2* scrollTo) override;
+    // ---- IScriptUI (the scripts' queries and the speaker)
+    bool isUnitInGroup(CPlayer* player, unsigned id) override;
+    bool showSpeakerText(CPlayer* player, const CScriptSpeaker& speaker) override;
 
     // ---- players
     CInterfaceIngamePerPlayer* getCurrentInterfacePerPlayer() const;   // Ghidra 0x19fac8

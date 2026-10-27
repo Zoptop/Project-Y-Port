@@ -1,0 +1,11 @@
+# [PC] the speaker text (CScriptSpeaker -> IPP::setOverlayText) on the
+# tutorial map, 1280x720, 60 fps clock:
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 201 \
+#       --frames 700 --input tools/ui/ingame_tutorial_text.input
+# The first text pauses the game until it is dismissed (Enter / Space / a
+# click); the tutorial then goes on with its next text.
+300 screenshot ingame_tutorial_1.png
+310 key return                         # dismiss: the script is done, the game resumes
+400 screenshot ingame_tutorial_2.png
+410 click left 640 400                 # a click dismisses as well
+600 screenshot ingame_tutorial_3.png

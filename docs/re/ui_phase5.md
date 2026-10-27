@@ -137,6 +137,76 @@ key escape                   # same frame: back to the main menu
 +80 click left 570 558       # "Exit": the menu sets CEngine::mQuitRequested
 ```
 
+## Phase 5c: the ingame HUD (status)
+
+Code in `src/ui/`: `CInterfaceIngame` (0x19dc18..0x1a0df0: IPP routing, quad queues, circles,
+`[PC] startSkirmish`), `CInterfaceIngamePerPlayer` = IPP (`.cpp` logic: touch state machine, selection,
+`getAvailableActions` / `tryAction*` / `processBestAction*`, overlay text, timer/counter/marker;
+`Draw.cpp`: `IPP::draw` in the order of B.1, title bar, chat, timer, overlay, info screen, marker,
+flushes; `PC.cpp`: the `[PC]` mouse/keyboard mapping), `CActionBar`, `CDialMenu` (+
+`CDialMenuButtons.cpp`: the objects' `addDialButtons` overrides), `CGroupBar`, `CEventBar`,
+`CIngameWorldDraw` (the calls into the phase-5b world drawing and `CDrawContext`). `CCameraLevel`
+(`render/CCamera.h`) now derives from the foundation `CCamera` and keeps the 5b draw API.
+
+The game objects reach the HUD through `game/IIngameUI.h` (the original's
+`getInterfaceForPlayer` calls): event icons (unit produced, sector under attack/lost/taken, special
+operation ready, tech researched, level up), the group under-attack warning, a factory's rally to a
+control group [!] (reads the local player's group bar, as the original), the game-ending texts. The
+scripts use `IScriptUI` (speaker text, `isGameObjectSelected`, `isUnitInGroup`). `CInterfaceIngame`
+implements both and installs itself; headless runs without it skip every call.
+
+### Ingame controls [PC]
+
+The touch path stays (SDL finger events → the original's touch events); the mouse does not emulate
+touch here (`mouseEmulatesTouch() == false`), every mouse/key action maps onto the original's functions:
+
+| input | action (original function) |
+|---|---|
+| left click | select: `processTouch` with only `ACTION_SELECT`; on empty ground: clear the selection |
+| left drag | box select (`doMultiSelect`; the red rectangle) |
+| double click on the ground | the double tap (`processDoubleTouch`: zoom to 2.0 at the point / strategy view) |
+| right click | the other single-tap actions for each selected object (move, attack, enter, gather, menus, ...) |
+| Shift + right click, right button held > 300 ms | the long-touch list (rally point, defend, menus ...; on a group slot: assign) |
+| middle drag | pan (the ground point stays under the cursor), with fling |
+| wheel | zoom ×1.1 per notch at the cursor (clamp [strategic, 5], held at 1.0 / 0.999 when crossing into / out of the strategy view, as the pinch) |
+| W A S D, arrows, screen edges | pan through the camera's velocity (inertia 0.95 per frame) |
+| Q / E, Alt + left drag, left drag on the title bar | rotate (the title-bar drag is the original's) |
+| Space / Tab | strategy view on / off (Space first advances a waiting speaker text) |
+| Enter, left click | advance the speaker text |
+| 1..9 / Ctrl + 1..9 | select control group (again: centre on it) / assign the selection |
+| F1..F12 | the action bar buttons from the left |
+| dial menu open | hover = the original's angle selection, click a button (or a direction) sends it, 1..9 picks a button, right click / Esc / click on the centre cancels |
+| Esc | pause menu (the original Back key) |
+| title bar right end | the menu button |
+
+The cursor shape follows the first action a right click would take (`getCursorHint`: attack =
+crosshair, move = arrows, enter/defend/call = hand). Split screen keeps its structure
+(`initSplitscreen`, pointer routing), but the PC input goes to IPP 0.
+
+### Checks
+
+```
+SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 1 --frames 400 --input tools/ui/ingame_hq_dial.input
+SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 1 --frames 2150 --input tools/ui/ingame_units.input
+SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --skirmish 201 --frames 601 --input tools/ui/ingame_tutorial_text.input
+```
+
+`--skirmish <map>` starts the game directly (`--players N`, default the map's; `--fow`; `--minimap 0..3`).
+The input-script command `dump [label]` prints `state <label>: selection [...] dial ... events [...]
+groups [...] cam ...` (the selected units' order, destination and target) for the checks.
+`tests/test_ingame.cpp` covers the action priority lists, the dial angle maths, the zoom clamp and snap,
+`getAvailableActions` / selection / move order / dial / groups / events / action bar on map 1.
+
+Quirks kept: `drawCounter` is never called (the overlay shows the counter); the factory gives no
+"produced" icon for unit types 4, 7, 0xb, 0xf..0x15; the action bar inserts an empty type-0 slot for
+selected unit types without a button; "Info" acts on the last selected id even if that object is gone;
+the dial labels / event short texts are format strings in the original.
+
+Not ported yet: avatar icons of speaker texts (need CCampaign), the 3D unit at the dial centre
+(`CUnitFactory::drawUnit`), the object-info screen's texts and model (`drawInfoscreen`), the
+off-screen arrow of selected units, chat input (network), sounds (no-op `uisound` calls at the sites),
+the selection hand-over when a brain enters/leaves a vehicle, `CUnit::rally`'s group copy, achievements.
+
 ## Phase 5d: the menus (status)
 
 Code: `src/ui/CInterfaceMenu.{h,cpp}` (events, drawing, quads, starting a game),
@@ -160,12 +230,10 @@ Starting a game: Start Game (action 0xd) → draw mode 1 (loading text) → mode
 (−599, −143)) → `initSingleplayerGame` (0x1af6cc): local player = the **last** human slot among 1..n
 [quirk, `localPlayerFromSetup`], pause, reseed CRng/CRngSafe, network mode 0, `new CGame`, `init(false)`,
 the ingame interface's `initSingleplayer(w, h, local)`, current interface = ingame, `resumeGame`.
-Until the HUD package lands, the ingame interface is `CInterfaceIngameStandIn` (`[PC] [STAND-IN]`):
-it draws the world with `CWorldView`, Back/Escape → `CEngine::showMenuInterface` (statistics screen),
-and when the local player has won or lost it adds the end-game script after 3 s; the script's
-`CScriptGamestate::run` → `CEngine::showAftermathInterface` → aftermath screen 12.
-`initSingleplayerGame` uses the real `CInterfaceIngame` once `ui/CInterfaceIngame.h` exists
-(`__has_include`).
+The ingame interface is `CInterfaceIngame` (phase 5c, below): Back/Escape →
+`CEngine::showMenuInterface` (statistics screen); when the local player has won or lost,
+`CGame::checkGameEndingCondition` shows the modal text whose dismissal adds the end-game script; the
+script's `CScriptGamestate::run` → `CEngine::showAftermathInterface` → aftermath screen 12.
 
 Quirks kept (and tested where testable): BarSlider scales the fraction by max, not max − min; its bar
 green is 0.9·2t; PlayerControl's colour cycle skips the config colour 0 and only some slots by n;

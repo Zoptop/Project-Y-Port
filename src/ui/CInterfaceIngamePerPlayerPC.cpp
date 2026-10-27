@@ -499,6 +499,18 @@ std::string CInterfaceIngamePerPlayer::debugState() const {
         }
     }
     o << "] dial " << (mDialMenu ? static_cast<int>(mDialMenu->mObjectId) : -1);
+    if (mEventBar) {
+        o << " events [";
+        for (const CEvent* e : mEventBar->mEvents)
+            o << ' ' << e->type << (e->active ? "" : "-") << (e->drawn ? "d" : "");
+        o << " ]";
+    }
+    if (mGroupBar) {
+        o << " groups [";
+        for (const CGroupInfo& g : mGroupBar->mGroups)
+            if (g.type == 0 && g.active) o << ' ' << g.id << ':' << g.units.size();
+        o << " ]";
+    }
     char buf[160];
     std::snprintf(buf, sizeof(buf), " cam %.1f,%.1f zoom %.3f yaw %.3f", static_cast<double>(mCamera->mTarget.x),
                   static_cast<double>(mCamera->mTarget.y), static_cast<double>(mCamera->mZoom),
