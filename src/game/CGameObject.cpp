@@ -42,7 +42,7 @@ void CGameObject::getSubMeshData(const char* name, uint32_t& first, uint32_t& co
     if (!mesh->getSubMeshData(name, first, count)) CUtils::log("CMesh::getSubMeshData %s existiert nicht!", name);
 }
 
-// Ghidra 0x1826b8. Rendering values (shadow, icon UVs) are not kept.
+// Ghidra 0x1826b8. The shadow and icon values are drawing state only.
 void CGameObject::loadConfigSettings(const char* name) {
     const char* prefix = mCategory == CATEGORY_UNIT ? "Unit" : mCategory == CATEGORY_BUILDING ? "Building" : "";
     const CConfig& cfg = CConfig::get();
@@ -56,8 +56,36 @@ void CGameObject::loadConfigSettings(const char* name) {
     std::snprintf(key, sizeof key, "%s%sWeight", prefix, name);
     cfg.updateConfigValue(mWeight, key);
     mWeightClass = mWeight < 2.0f ? 0 : mWeight < 12.0f ? 1 : 2;
+    // The shadow cell in shadow.png (8 x 8 tiles), shrunk by the factor on
+    // every side (drawing only).
+    std::snprintf(key, sizeof key, "%s%sShadowUVShinkFactor", prefix, name);
+    cfg.updateConfigValue(mShadowUVShrink, key);
+    std::snprintf(key, sizeof key, "%s%sShadowSizeHalf", prefix, name);
+    cfg.updateConfigValue(mShadowSizeHalf, key);
+    CVector2 uvSize, uvTopLeft;
+    std::snprintf(key, sizeof key, "%s%sShadowUVSize", prefix, name);
+    cfg.updateConfigValue(uvSize, key);
+    mShadowUVSize = CVector2(uvSize.x * 0.125f, uvSize.y * 0.125f);
+    std::snprintf(key, sizeof key, "%s%sShadowUVTopleft", prefix, name);
+    cfg.updateConfigValue(uvTopLeft, key);
+    {
+        const Real tlx = uvTopLeft.x * 0.125f, tly = uvTopLeft.y * 0.125f;
+        const Real f = mShadowUVShrink, sx = mShadowUVSize.x, sy = mShadowUVSize.y;
+        const Real dx = f * sx, dy = f * sy;
+        mShadowUVTopLeft = CVector2(tlx + dx, tly + dy);
+        const Real k = 1.0f - (f + f);
+        mShadowUVSize = CVector2(k * sx, k * sy);
+        mShadowSizeHalf = CVector2(k * mShadowSizeHalf.x, k * mShadowSizeHalf.y);
+    }
     std::snprintf(key, sizeof key, "%s%sIconRadius", prefix, name);
     cfg.updateConfigValue(mIconRadius, key);
+    // CUtils::getInterfaceBtnUVpos(x, y, 64) / getInterfaceBtnUVdefsize
+    // (Ghidra 0x3d2668 / 0x3d26f0): 64-pixel cells of the 1024^2 interface.png.
+    CVector2 icon;
+    std::snprintf(key, sizeof key, "%s%sIconUVtopleft", prefix, name);
+    cfg.updateConfigValue(icon, key);
+    mIconUVTopLeft = CVector2(i2f(f2i(icon.x)) * 64.0f * bitsf(0x3a800000), i2f(f2i(icon.y)) * 64.0f * bitsf(0x3a800000));
+    mIconUVSize = CVector2(0.0625f, 0.0625f);
 }
 
 // Ghidra 0x181848

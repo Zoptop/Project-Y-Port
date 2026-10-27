@@ -19,6 +19,8 @@ public:
     void ownerChanged(CPlayer* newOwner) override;       // Ghidra 0x3c6178
     void processActionBarAction(int action) override;    // Ghidra 0x3c61dc
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3c5c88
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3c612c (CUnitShieldTankDraw.cpp)
+    void drawShield() override;                       // +0xa0 Ghidra 0x3c595c
 
     bool isShieldEnabled() const { return mShieldEnabled; }   // Ghidra 0x3c5c3c
     void enableShield();    // Ghidra 0x3c5c48

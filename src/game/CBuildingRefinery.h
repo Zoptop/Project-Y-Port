@@ -13,6 +13,8 @@ class CBuildingRefinery : public CBuilding {
 public:
     CBuildingRefinery() = default;                  // Ghidra 0x142874
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x1428ac
+    // drawing (CBuildingRefineryDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x1429d0
 };
 
 }  // namespace py

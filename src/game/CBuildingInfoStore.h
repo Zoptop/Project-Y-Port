@@ -13,6 +13,8 @@ class CBuildingInfoStore : public CBuilding {
 public:
     CBuildingInfoStore() = default;                 // Ghidra 0x13c838
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x13c870
+    // drawing (CBuildingInfoStoreDraw.cpp)
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x13c930
 };
 
 }  // namespace py

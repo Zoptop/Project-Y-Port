@@ -22,6 +22,7 @@ public:
     void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
               unsigned starterUnit, Real damageBonus) override;           // Ghidra 0x379844
     void calcChecksum() override;                                         // Ghidra 0x379c00
+    void drawMeshExtra() override;                                        // Ghidra 0x378054 (CProjectileDraw.cpp)
 
     Real mShieldXPValue = 0.0f;          // +0x184
     unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (smoke 10)

@@ -16,6 +16,7 @@ public:
     bool isTouchable() override { return false; }        // Ghidra 0x3b7f74
     bool isCloaked() override { return true; }           // Ghidra 0x3b7f6c
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3b8024
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3b7f54 (CUnitBeaconDraw.cpp)
     Real getVisibilityRange() override { return 150.0f; }   // Ghidra 0x3b7f60
 };
 

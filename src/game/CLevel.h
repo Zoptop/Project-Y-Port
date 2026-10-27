@@ -75,7 +75,11 @@ public:
     void applySpecialSectorSetup(int mode, const std::vector<std::string>& lines);
     void initPotential(const std::string& name);
 
-    void draw(const CCameraLevel& cam, float time) const;
+    // ---- drawing (CLevelDraw.cpp); the camera, the FOW player and the
+    // options come from CDrawContext (the original asks the current interface)
+    void draw() const;            // Ghidra 0x2dc464
+    void drawMinimap() const;     // Ghidra 0x2dd1f4
+    CGLSLProgram* pointShader() const { return mPointShader; }   // +0x38 point.gfx
 
     // ---- accessors
     unsigned mapId() const { return mMapId; }
@@ -183,9 +187,12 @@ private:
     CTexture* texture(const std::string& name, unsigned type = 1) const;
     CGLSLProgram* shader(const std::string& name) const;
 
-    void drawSectors(const CCameraLevel& cam) const;
-    void drawAssets(const CCameraLevel& cam) const;
-    void drawMap(const CCameraLevel& cam, float time) const;
+    void startSectorDraw() const;   // Ghidra 0x2dbb44
+    void endSectorDraw() const;     // Ghidra 0x2dbc60
+    void drawSector(const CSector& sector) const;          // CSector::draw 0x3918e0
+    void drawSectorMinimap(const CSector& sector) const;   // CSector::drawMinimap 0x391f70
+    void drawAssets() const;        // Ghidra 0x2db704
+    void drawMap() const;           // Ghidra 0x2dbca0
 
     unsigned mMapId = 0;
     bool mHeadless = false;

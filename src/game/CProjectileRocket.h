@@ -26,6 +26,7 @@ public:
               unsigned starterUnit, Real damageBonus) override;           // Ghidra 0x37e160
     // holdState/restoreState (Ghidra 0x37e5bc/0x37e5c0) are CProjectile's
     void calcChecksum() override;                                         // Ghidra 0x37e5c4
+    void drawMesh() override;                                             // Ghidra 0x37c18c (CProjectileDraw.cpp)
 
     Real mShieldXPValue = 0.0f;          // +0x184 XP for a shield tank that stops it
     unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (smoke trail)

@@ -13,6 +13,9 @@ namespace py {
 
 // Ghidra 0x14cc38
 void CBuildingTraining::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
+    // The building's mesh in gameobjects.3DS.mesh (+0x1c8/+0x1cc): drawing only (the
+    // HQ's is also what its destruction breaks into pieces).
+    getSubMeshData("trainingce");
     loadConfigSettings("Training");
     CBuilding::init(position, rotation, sectorId, subtype);
     mFlags = OF_SELECTABLE;   // 0x200

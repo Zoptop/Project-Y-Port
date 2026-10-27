@@ -20,19 +20,26 @@
 // the desync-history recorder, which adds nothing) instead of calcChecksum
 // (+0x34), so weapon state never reaches the lockstep checksum.
 //
-// Rendering (drawMesh, shot quads via CWeaponFactory::addShot) and sound are
-// not ported. The beams' particle systems are (updateBeamParticleSystem).
+// Drawing: drawMesh (CWeaponDraw.cpp) and the turret guns' beams
+// (CWeaponFactory::addShot / draw, CWeaponFactoryDraw.cpp). Sound is not
+// ported. The beams' particle systems are (updateBeamParticleSystem).
 #pragma once
 
 #include <string>
+#include <vector>
 
+#include "core/CMatrix4.h"
+#include "core/CQuaternion.h"
 #include "core/CVector2.h"
 #include "core/CVector3.h"
 #include "core/Real.h"
+#include "render/CQuad.h"
 
 namespace py {
 
 class CEngine;
+class CGLSLProgram;
+class CTexture;
 class CPlayer;
 class CProjectile;
 class CUnit;
@@ -52,7 +59,7 @@ public:
     virtual ~CWeapon() = default;                      // +0x00/+0x04
     virtual void hit(Real damage);                     // +0x08 Ghidra 0x3d458c
     virtual void heal(Real amount);                    // +0x0c Ghidra 0x3d3d84
-    virtual void drawMesh(bool, float) {}              // +0x10 (rendering)
+    virtual void drawMesh(bool alphaPass, float alpha);   // +0x10 Ghidra 0x3d45e4 (CWeaponDraw.cpp)
     // +0x14: target (may be null), squared distance, angle (world yaw) to the
     // target, whether to aim (false: the turret keeps its yaw)
     virtual void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) = 0;
@@ -110,6 +117,10 @@ protected:
     // each of their timeUpdate does it: created on the first shot, then moved
     // every step (start, endpoint, range = |start - end|, rotation about z by
     // `yaw`); a beam that is gone clears `id`. Visual, no CRng draws.
+    // (port) the turret part of a weapon's drawMesh: shader (object, or alpha
+    // with ALPHA), MVP = unit MVP x local, colour, light, submesh.
+    void drawPart(bool alphaPass, float alpha, const CMatrix4& local, const CQuaternion& localRotation,
+                  const char* subMesh);
     void updateBeamParticleSystem(unsigned& id, int subtype, const CVector3& start, const CVector3& end, Real yaw);
 };
 
@@ -123,6 +134,28 @@ public:
     // The switch at the top of createWeapon: a new, not yet initialised
     // weapon of `type`, or null for 3, 9 and unknown types.
     static CWeapon* newWeapon(int type);
+
+    // ---- the beam batch (drawing; CWeaponFactoryDraw.cpp). The original
+    // creates the shader and texture in the constructor (Ghidra 0x3d8678).
+    // Ghidra 0x3d881c: a strip from `start` to `end` (the turret guns'
+    // lasers, queued by CWeaponTurretGun::timeUpdate). Each end is lifted by
+    // a growing offset (+0.002 per end) so that crossing beams do not
+    // z-fight; CWeaponFactory::draw resets the offset.
+    // [!] The original writes past its 1000 quads; the port drops them.
+    void addShot(CVector3 start, CVector3 end, float width, const CVector2& uvTopLeft, const CVector2& uvSize);
+    void drawReset() { mShotCount = 0; }   // Ghidra 0x3d893c (after each IPP frame)
+    void draw();                           // Ghidra 0x3d8948 (select.gfx, shot.png)
+    int shotCount() const { return mShotCount; }
+    const CQuadPosUV& shot(int i) const { return mShots[static_cast<size_t>(i)]; }
+
+private:
+    void initGraphics();
+    CGLSLProgram* mShader = nullptr;     // +0x00 select.gfx
+    CTexture* mTexture = nullptr;        // +0x04 shot.png
+    Real mZOffset = 0.0f;                // +0x08
+    int mShotCount = 0;                  // +0x10
+    std::vector<CQuadPosUV> mShots = std::vector<CQuadPosUV>(1000);   // +0x14
+    bool mGraphicsTried = false;
 };
 
 }  // namespace py

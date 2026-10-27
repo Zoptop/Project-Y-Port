@@ -12,6 +12,7 @@ class CWeaponLaserSingleShot : public CWeapon {
 public:
     CWeaponLaserSingleShot();                                             // Ghidra 0x3de0ec
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3de2cc
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3dd740 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3de938
     void calcChecksum() override;                                         // Ghidra 0x3dec14
     Real getYaw() override { return mYaw; }                               // Ghidra 0x3dd728

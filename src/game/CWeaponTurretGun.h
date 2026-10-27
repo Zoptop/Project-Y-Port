@@ -13,6 +13,7 @@ class CWeaponTurretGun : public CWeapon {
 public:
     CWeaponTurretGun();                                                   // Ghidra 0x3e3ccc
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3e3538
+    void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3e3ec8 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3e48b4
     void calcChecksum() override;                                         // Ghidra 0x3e4b4c
     void holdState() override;                                            // Ghidra 0x3e3110

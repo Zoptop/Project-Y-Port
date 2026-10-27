@@ -13,6 +13,7 @@ public:
     CUnitUberBrain() = default;   // Ghidra 0x3d09d8
 
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3d0a14
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3d0cd4 (CUnitUberBrainDraw.cpp)
 };
 
 }  // namespace py

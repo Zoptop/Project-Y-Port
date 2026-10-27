@@ -1,9 +1,8 @@
 // CParticleSystem.h - port of ProjectY::CParticleSystem, the base class of
 // the seven particle-system types (CParticleManager::createParticleSystem).
 //
-// Logic and state only. getQuads (vtable +0x08) and checkVisibility build
-// the quads for the renderer and are not ported yet; the state they read
-// (positions, ages, UV tiles, orientations) is kept.
+// getQuads (vtable +0x08), checkVisibility and interpolateColors build the
+// quads for the renderer: CParticleSystemDraw.cpp.
 //
 // [!] The systems draw from the unsynchronised CRng when they create or
 // re-spawn particles (Smoke/Thruster/Info setNewParticleData, Explosion
@@ -12,8 +11,8 @@
 // docs/re/sim_phase4.md.
 //
 // Ghidra: CParticleSystem(int) 0x36df90, init 0x36dd00, timeUpdate 0x36dcf4
-// (empty), interpolateValue 0x36e1c8 / 0x36e2a8 / 0x36e414. Not ported:
-// checkVisibility 0x36e038, interpolateColors 0x36e604.. (render),
+// (empty), interpolateValue 0x36e1c8 / 0x36e2a8 / 0x36e414. Drawing:
+// checkVisibility 0x36e038, interpolateColors 0x36e604.. Not ported:
 // save/load.
 #pragma once
 
@@ -28,6 +27,7 @@ namespace py {
 
 class CEngine;
 class CPlayer;
+struct CQuadPosUVColor4;
 
 // CParticleManager::createParticleSystem types (+0x48)
 enum EParticleSystemType {
@@ -50,6 +50,21 @@ public:
     // vtable +0x10. Ghidra 0x36dd00: position, player, bounding radius; the
     // subclasses create their particles first and then call this.
     virtual void init(const CVector3& position, CPlayer* player);
+    // vtable +0x08: appends this system's quads at quads[count] (count is
+    // advanced). Drawing; see CParticleSystemDraw.cpp. The base has none.
+    virtual void getQuads(CQuadPosUVColor4* /*quads*/, int& /*count*/) {}
+    // Ghidra 0x36e038: false when the fog of war hides the system's
+    // position (unless +0x4e) or it is outside the frustum (radius +0x30);
+    // always true outside the ingame interface. Writes +0x34 / +0x40.
+    bool checkVisibility();
+
+    // Colour versions of interpolateValue (Ghidra 0x36e604 / 0x36e7b0 /
+    // 0x36e9b0), component by component with the same arithmetic.
+    CVector3 interpolateColors(Real t, const CVector3& c0, Real t0, const CVector3& c1, Real t1) const;
+    CVector3 interpolateColors(Real t, const CVector3& c0, Real t0, const CVector3& c1, Real t1, const CVector3& c2,
+                               Real t2) const;
+    CVector3 interpolateColors(Real t, const CVector3& c0, Real t0, const CVector3& c1, Real t1, const CVector3& c2,
+                               Real t2, const CVector3& c3, Real t3) const;
 
     // Linear interpolation of a value over 2, 3 or 4 keys (t ascending).
     Real interpolateValue(Real t, Real v0, Real t0, Real v1, Real t1) const;   // Ghidra 0x36e1c8

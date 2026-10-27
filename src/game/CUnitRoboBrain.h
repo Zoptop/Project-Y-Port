@@ -27,6 +27,10 @@ public:
     void processActionBarAction(int action) override;    // Ghidra 0x3c47e8
     bool isDefendable(CGameObject* by) override;         // Ghidra 0x3c478c
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3c1cb0
+    void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3c2444 (CUnitRoboBrainDraw.cpp)
+    void drawMinimap() override;                      // +0x30 Ghidra 0x3c47c4
+    bool doAlphaDraw() override;                      // +0xac Ghidra 0x3c1220
+    Real getCurrentAlpha() override;                  // +0xb0 Ghidra 0x3c11c0
     void gainXP(Real xp, bool withCommanderBonus) override;   // Ghidra 0x3c15b0
     void leaveVehicle(bool force) override;              // Ghidra 0x3c3530
     void leaveBuilding() override;                       // Ghidra 0x3c3534

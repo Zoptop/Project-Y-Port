@@ -15,6 +15,7 @@
 // and @20 one of NORMAL vec3 / TEXCOORD1 vec2 / COLR vec3.
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>
@@ -22,6 +23,9 @@
 #include "render/Math3D.h"
 
 namespace py {
+
+class CMatrix4;
+struct CVector3;
 
 class CGLSLProgram {
 public:
@@ -33,6 +37,26 @@ public:
     void startDraw() const;   // glUseProgram + attribute pointers for the bound VBO
     void endDraw() const;
 
+    // Client-side vertex arrays (CGLSLProgram::startDrawLocal*, Ghidra
+    // 0x183cf8..0x1842d4). A core profile has no client arrays, so the port
+    // streams `bytes` bytes from `data` into a shared VBO first; the GL state
+    // changes (blend, depth mask/test) are the original's.
+    void startDrawLocalPosUVBlend(const void* data, size_t bytes) const;               // 0x183cf8
+    void endDrawLocalPosUVBlend() const;                                               // 0x183d94
+    void startDrawLocalPosUVColor4BlendNoDepth(const void* data, size_t bytes) const;  // 0x183db8
+    void endDrawLocalPosUVColor4BlendNoDepth() const;                                  // 0x183e8c
+    void startDrawLocalPosUVTTLBlend(const void* data, size_t bytes) const;            // 0x183ec8
+    void endDrawLocalPosUVTTLBlend() const;                                            // 0x183f8c
+    void startDrawLocalPosUVTTLBlendNoDepth(const void* data, size_t bytes) const;     // 0x183fb8
+    void endDrawLocalPosUVTTLBlendNoDepth() const;                                     // 0x18408c
+    void startDrawLocalPosUVColorBlendNoDepth(const void* data, size_t bytes) const;   // 0x1840c8
+    void endDrawLocalPosUVColorBlendNoDepth() const;                                   // 0x18419c
+    void startDrawLocalPosUVColorWidthBlendNoDepth(const void* data, size_t bytes) const;   // 0x1841d8
+    void endDrawLocalPosUVColorWidthBlendNoDepth() const;                              // 0x1842d4
+    // A plain position-only stream (CGame::drawMinimap's camera outline).
+    void startDrawLocalPos(const void* data, size_t bytes, int stride) const;
+    void endDrawLocalPos() const;
+
     void setUniformMVPMatrix(const Mat4& m) const;
     void setUniformMMatrix(const Mat4& m) const;
     void setUniformEyePosition(const Vec3& v) const;
@@ -43,6 +67,17 @@ public:
     void setUniformTime(float t) const;
     void setUniformAlpha(float a) const;
     void setUniformSize(float s) const;
+    // The original's CMatrix4 / CVector3 setters. CMatrix4 is OGRE's
+    // row-major matrix; the original uploads the transposed product it keeps
+    // for the GPU, the port uploads M (row-major) as column-major data,
+    // which is the same thing.
+    void setUniformMVPMatrix(const CMatrix4& m) const;
+    void setUniformMMatrix(const CMatrix4& m) const;
+    void setUniformPlayerColor(const CVector3& c) const;
+    void setUniformLightColor(const CVector3& c) const;
+    void setUniformLightDir(const CVector3& d) const;
+    void setUniformEyePosition(const CVector3& v) const;
+    void setUniformBlendColor(const CVector3& c) const;
 
     unsigned program() const { return mProgram; }
     const std::string& name() const { return mName; }
@@ -60,7 +95,9 @@ private:
     unsigned mProgram = 0;
     int uMVP = -1, uModel = -1, uEye = -1, uPlayerColor = -1, uLightColor = -1, uLightDir = -1;
     int uTime = -1, uSize = -1, uAlpha = -1, uBlendColor = -1;
-    int aPosition = -1, aTexcoord0 = -1, aTexcoord1 = -1, aNormal = -1, aColor = -1;
+    int aPosition = -1, aTexcoord0 = -1, aTexcoord1 = -1, aNormal = -1, aColor = -1, aTTL = -1, aWidth = -1;
+    void bindStream(const void* data, size_t bytes) const;
+    void attribLocal(int loc, int size, int stride, int offset) const;
     static bool sUseES;
 };
 
