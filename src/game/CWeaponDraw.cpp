@@ -145,9 +145,14 @@ void CWeaponVisionTower::drawMesh(bool alphaPass, float alpha) {
 
 // Ghidra 0x3d8d8c: only the hacking progress label.
 void CWeaponHacker::drawMesh(bool, float) {
-    // TODO(CTextRender): with unit alpha > 0.25 and a target (+0xc4), at the
-    // unit's getScreenPosForLabel(0, 16, 12), GUI scale x 30, colour green x
-    // 0.7: "%02.1f%%" of 100 - progress (+0xe0) x 100.
+    // while hacking: the target's remaining resistance above the unit
+    CTextRender* t = draw::text();
+    if (!t || !(Real(mUnit->mAlpha) > 0.25f) || mCurrentHackTarget == 0) return;
+    const float k = bitsf(0x3f333333);
+    const Vec3 col(CVector3::COL_GREEN.x * k, CVector3::COL_GREEN.y * k, CVector3::COL_GREEN.z * k);
+    const Real v = Real(100.0f) - mHackTargetResistance * 100.0f;
+    t->drawStringScreen(mUnit->getScreenPosForLabel(0.0f, 16.0f, 12.0f), draw::guiScale() * 30.0f, col, 1.0f, 1,
+                        "%02.1f%%", static_cast<double>(v));
 }
 
 }  // namespace py

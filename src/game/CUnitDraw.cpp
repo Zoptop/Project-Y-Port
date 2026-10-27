@@ -41,9 +41,19 @@ void CUnit::drawStatusBars(float /*alpha*/) {
                                  draw::cameraYaw());
     }
     if (mStunned) {
-        // TODO(CTextRender): CTextRender::drawStringScreen(project(x - 10,
-        // y - 5 / zoom, z + 12), size 22, 0.4, white, "Stun %.1fs",
-        // mStunCountdown) (engine +0x148).
+        // "Stun %.1fs" at the screen position of (x - 10, y - 5 / zoom, z + 12),
+        // size 22, colour (0.4, 1, 1), left aligned
+        if (CTextRender* t = draw::text()) {
+            const CMatrix4& m = draw::viewProj();
+            const Real x = mPosition.x - 10.0f;
+            const Real y = Real(-5.0f) / draw::cameraZoom() + mPosition.y;
+            const Real z = mPosition.z + 12.0f;
+            const Real w = Real(1.0f) / (x * m.m[3][0] + y * m.m[3][1] + z * m.m[3][2] + m.m[3][3]);
+            const Real sx = w * (x * m.m[0][0] + y * m.m[0][1] + z * m.m[0][2] + m.m[0][3]);
+            const Real sy = w * (x * m.m[1][0] + y * m.m[1][1] + z * m.m[1][2] + m.m[1][3]);
+            t->drawStringScreen(sx, sy, 22.0f, bitsf(0x3ecccccd), 1.0f, 1.0f, 1.0f, 0, "Stun %.1fs",
+                                static_cast<double>(mStunCountdown));
+        }
     }
     if (CEngine::getSingletonPtr()->mGameType == 3) {
         const Real cargo = mCurrentResGathered;

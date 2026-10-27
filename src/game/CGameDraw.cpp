@@ -304,10 +304,10 @@ void CGame::drawMinimap() {
                              hit[3].x, hit[3].y, 1.0f, hit[0].x, hit[0].y, 1.0f};
         gl::DepthMask(0);
         gl::Disable(GL_DEPTH_TEST_);
-        point->startDrawLocalPos(v, sizeof v, 12);
+        point->startDrawLocalPos(v, 12);
         point->setUniformMVPMatrix(mm->viewProjMatrix());
         point->setUniformPlayerColor(CVector3(1.0f, 1.0f, 1.0f));
-        gl::DrawArrays(GL_LINE_STRIP_, 0, 5);
+        CGLSLProgram::drawLocal(GL_LINE_STRIP_, 0, 5);
         point->endDrawLocalPos();
     }
     gl::Disable(GL_BLEND_);

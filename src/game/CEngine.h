@@ -9,12 +9,18 @@
 #include <memory>
 #include <string>
 
+#include "core/FloatBits.h"
 #include "game/CParticleManager.h"
 #include "render/Math3D.h"
 
 namespace py {
 
+class CCamera;
 class CGame;
+class CInterface;
+class CInterfaceIntro;
+class CInterfaceMenu;
+class CTextRender;
 
 // One player slot of the menu's game setup (engine+0x4c + i*0x2c).
 struct CPlayerSetup {
@@ -26,6 +32,8 @@ struct CPlayerSetup {
 
 class CEngine {
 public:
+    CEngine();
+    ~CEngine();
     static CEngine* getSingletonPtr();   // created on first use, like the original
     static void release();
 
@@ -52,12 +60,46 @@ public:
 
     CParticleManager* getParticleManager() const { return mParticleManager.get(); }
 
+    // ---- user interface (phase 5; src/ui). Needs a GL context except where noted.
+    // The UI part of CEngine::init (Ghidra 0x16d074): CTextRender (+0x148),
+    // the intro (+0x174, made current) and the menu (+0x16c, init(0)).
+    void initInterfaces();
+    void releaseInterfaces();   // also safe without a context
+    // Ghidra 0x1674dc: frame timing (updateFrameTime, game speed only while
+    // the current interface is the ingame one), then on the current
+    // interface: processEvents, draw, timeUpdate(frame dt). In a network game
+    // the ingame interface is also updated while the menu is current.
+    // Network clients, achievements and sound are not ported yet.
+    void draw(float nowMs);
+    // Ghidra 0x16888c: setResolution on ingame, menu and current interface
+    void setResolution(int width, int height);
+    // Ghidra 0x1688f0: pause (single player), show the menu at the ingame
+    // pause screen (11 / action 0x20 in the original; see CInterfaceMenu)
+    void showMenuInterface();
+    void pauseGame() { mPaused = true; }   // Ghidra 0x16889c-ish: sets +0x1c2
+    // Ghidra 0x168b80: unpause and restart the frame timer (the caller
+    // switches the interface back, e.g. CInterfaceMenu::processAction)
+    void resumeGame(float nowMs);
+    // Ghidra 0x1692f4 / 0x169238: DPI -> mGUIScaleDPI (+0x260), times the
+    // GUI scaling option table {0.25,0.5,0.75,1,1.5,2,3}[+0x25c] -> mGUIScale (+0x24c)
+    void setDPI(float xdpi, float ydpi, int widthPx, int heightPx);
+    void updateGUIScaling();
+
+    CTextRender* getTextRender() const { return mTextRender.get(); }
+    // The camera of the current interface (vtable +0x28), or null (no GL needed)
+    CCamera* getCurrentCamera() const;
+
     // ---- fields (original offsets)
     static constexpr int kMaxPlayers = 5;
     CPlayerSetup mPlayerSetup[kMaxPlayers];   // +0x4c
     unsigned mNumPlayers = 2;          // +0x128  (players 1..n; 0 is neutral)
     // +0x14c CParticleManager::getSingletonPtr() in CEngine::init (Ghidra 0x16d074)
     std::unique_ptr<CParticleManager> mParticleManager = std::make_unique<CParticleManager>();
+    std::unique_ptr<CTextRender> mTextRender;            // +0x148
+    CInterface* mCurrentInterface = nullptr;             // +0x168 (one of the three below)
+    std::unique_ptr<CInterfaceMenu> mMenuInterface;      // +0x16c
+    std::unique_ptr<CInterface> mIngameInterface;        // +0x170 a CInterfaceIngame (HUD package)
+    std::unique_ptr<CInterfaceIntro> mIntroInterface;    // +0x174
     CGame* mGame = nullptr;            // +0x178
     float mLastFrameTime = 0.0f;       // +0x180  timer (ms) of the previous frame
     float mFpsFrames = 0.0f;           // +0x184
@@ -77,12 +119,19 @@ public:
     float mGameSpeedFactor = 1.0f;     // +0x1d0
     int mSectorSetupMode = 0;          // +0x1d4  EGameSectorSetupModes (skirmish presets)
     int mUnitAvailabilityMode = 0;     // +0x1d8  EGameUnitAvailabilityModes
+    Vec3 mMenuColorR{bitsf(0x3e851eb8), bitsf(0x3eb851ec), bitsf(0x3f051eb8)};   // +0x224 (0.26 0.36 0.52)
+    Vec3 mMenuColorG{bitsf(0x3ef5c28f), bitsf(0x3f23d70a), 1.0f};                // +0x230 (0.48 0.64 1)
+    Vec3 mMenuColorB{bitsf(0x3f6b851f), bitsf(0x3dcccccd), bitsf(0x3ecccccd)};   // +0x23c (0.92 0.1 0.4)
+    float mGUIScale = 1.0f;            // +0x24c  GUI scale (pixel UI sizes are multiplied by it)
     bool mUseFOW = false;              // +0x250  option UseFOW
     unsigned mLocalPlayer = 1;         // +0x254
     bool mCratesEnabled = false;       // +0x258
+    unsigned mGUIScalingOption = 3;    // +0x25c  option "GUIScalingOptionsInt" (index, 3 = x1)
+    float mGUIScaleDPI = 1.0f;         // +0x260  from setDPI
     int mGameType = 0;                 // +0x2d0  0 standard, 1 campaign/scripted, 3 resources
     bool mUseAutoUpgrade = true;       // +0x2dc  option "UseAutoUpgrade" (ctor: true; loadOptions: false if missing)
     unsigned mCurrentStep = 0;         // +0x310  lockstep step being simulated (0 outside)
+    bool mQuitRequested = false;       // [PC] the shell exits its frame loop (menu "Exit")
 
 private:
     static std::unique_ptr<CEngine> sInstance;

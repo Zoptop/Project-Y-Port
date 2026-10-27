@@ -83,6 +83,10 @@ public:
     virtual void removeCommander() {}                 // +0x8c
     virtual bool isResourceGatherer();                // +0x90
     virtual void processActionBarAction(int /*EActionBarButtonTypes*/) {}          // +0x98
+    // +0x9c Ghidra 0x181e08: the screen position (normalised device x / y)
+    // of the point (ox, oy) turned by the camera yaw and scaled by GUI scale
+    // / zoom, oz above the object: where its text labels go (CGameObjectDraw.cpp).
+    virtual CVector2 getScreenPosForLabel(Real ox, Real oy, Real oz);
     virtual void drawShield() {}                      // +0xa0 Ghidra 0x180fa0
     virtual void decloakEnemys(const CVector2& pos, Real radius, bool evenIfNeutral);   // +0xa4
     virtual bool isFriend(CPlayer* player);           // +0xa8

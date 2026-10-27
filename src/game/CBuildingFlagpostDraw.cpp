@@ -5,6 +5,7 @@
 #include "render/CGLSLProgram.h"
 #include "render/CIngameQuads.h"
 #include "render/CMesh.h"
+#include "core/CTxtLoc.h"
 #include "platform/GLFunctions.h"
 
 namespace py {
@@ -48,11 +49,20 @@ void CBuildingFlagpost::drawFlag() {
 // Ghidra 0x13a5f4
 void CBuildingFlagpost::draw(bool alphaPass, float alpha) {
     if (!checkVisibility()) return;
-    // TODO(CTextRender): with alpha > 0.25 and no object-info screen, at
-    // getScreenPosForLabel(0, 10, 12) (strategy view: (0, 0, 12)), GUI
-    // scale x 30, colour sector owner * 0.3 + 0.7: "%02.0f%%" (+0x350); and
-    // while blocked (+0x384 > 0) CTxtLoc::getC(0x111) at (0, -16, 12),
-    // GUI scale x 22, yellow, with the time left.
+    // the capture state "%02.0f%%" above the post (centred) and, while the
+    // post is blocked after a capture, the time left (yellow)
+    CTextRender* t = draw::text();
+    if (t && Real(mAlpha) > 0.25f && !draw::ctx().objectInfoMode) {
+        const Vec3 col = draw::labelColor(mSector->mOwner->mColor);
+        const CVector2 at = draw::strategyView() ? getScreenPosForLabel(0.0f, 0.0f, 12.0f)
+                                                 : getScreenPosForLabel(0.0f, 10.0f, 12.0f);
+        t->drawStringScreen(at, draw::guiScale() * 30.0f, col, 1.0f, 1, "%02.0f%%", static_cast<double>(mLife));
+        if (mBlockTimeout > 0.0f) {
+            const CVector2 at2 = getScreenPosForLabel(0.0f, -16.0f, 12.0f);
+            t->drawStringScreen(at2, draw::guiScale() * 22.0f, draw::vec3(CVector3::COL_YELLOW), 1.0f, 1,
+                                CTxtLoc::get().getC(0x111), static_cast<double>(mBlockTimeout));
+        }
+    }
     CBuilding::draw(alphaPass, alpha);
 }
 

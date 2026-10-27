@@ -18,6 +18,7 @@
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
 #include "render/CCamera.h"
+#include "render/CTextRender.h"
 
 namespace py {
 namespace draw {
@@ -62,6 +63,17 @@ inline CVector3 colorByAlpha(Real alpha, const CPlayer* owner) {
     if (Real(alpha) > 0.25f || !n) return color(owner->mColor);
     return color(n->mColor);
 }
+
+// the engine's text renderer (+0x148), null in the headless runs
+inline CTextRender* text() { return CEngine::getSingletonPtr()->getTextRender(); }
+// GUI scale (engine +0x24c)
+inline float guiScale() { return CEngine::getSingletonPtr()->mGUIScale; }
+// the label colour of the original's draw functions: c * 0.3 + 0.7
+inline Vec3 labelColor(const Vec3& c) {
+    return Vec3(c.x * bitsf(0x3e99999a) + bitsf(0x3f333333), c.y * bitsf(0x3e99999a) + bitsf(0x3f333333),
+                c.z * bitsf(0x3e99999a) + bitsf(0x3f333333));
+}
+inline Vec3 vec3(const CVector3& c) { return Vec3(c.x, c.y, c.z); }
 
 inline CQuaternion yawQuat(Real yaw) {
     CQuaternion q;

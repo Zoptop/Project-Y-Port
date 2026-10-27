@@ -194,4 +194,56 @@ CQuadPosUVColor4::CQuadPosUVColor4(const CVector2& topLeft, const CVector2& size
     : CQuadPosUVColor4(CVector3(topLeft.x + size.x * 0.5f, topLeft.y - size.y * 0.5f, 0.0f),
                        CVector2(size.x * 0.5f, size.y * 0.5f), uvTopLeft, uvSize, color, alpha, yaw, nullptr) {}
 
+// ---------------------------------------------------------------- UI overloads
+
+namespace {
+CMatrix4 fromRowMajor(const float m[16]) {
+    CMatrix4 r;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j) r.m[i][j] = m[i * 4 + j];
+    return r;
+}
+CVector3 cv(const Vec3& v) { return CVector3(v.x, v.y, v.z); }
+}  // namespace
+
+CQuadPosUV::CQuadPosUV(float z, const float rowMajor4x4[16], const CVector2& halfSize, const CVector2& uvTopLeft,
+                       const CVector2& uvSize)
+    : CQuadPosUV(z, fromRowMajor(rowMajor4x4), halfSize, uvTopLeft, uvSize) {}
+
+CQuadPosUV::CQuadPosUV(const Vec3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                       const CVector2& uvSize, float yaw)
+    : CQuadPosUV(cv(center), halfSize, uvTopLeft, uvSize, yaw) {}
+
+// Ghidra 0x3829f0
+CQuadPosUV::CQuadPosUV(const CVector2& topLeft, const CVector2& size, const CVector2& uvTopLeft,
+                       const CVector2& uvSize)
+    : CQuadPosUV(CVector3(topLeft.x + size.x * 0.5f, topLeft.y - size.y * 0.5f, 0.0f),
+                 CVector2(size.x * 0.5f, size.y * 0.5f), uvTopLeft, uvSize, 0.0f) {}
+
+CQuadPosUVTTL::CQuadPosUVTTL(float z, const float rowMajor4x4[16], const CVector2& halfSize,
+                             const CVector2& uvTopLeft, const CVector2& uvSize, float ttl)
+    : CQuadPosUVTTL(z, fromRowMajor(rowMajor4x4), halfSize, uvTopLeft, uvSize, ttl) {}
+
+CQuadPosUVColor4::CQuadPosUVColor4(const Vec3& center, const CVector2& halfSize, const CVector2& uvTopLeft,
+                                   const CVector2& uvSize, const Vec3& color, float alpha, float yaw)
+    : CQuadPosUVColor4(cv(center), halfSize, uvTopLeft, uvSize, cv(color), alpha, yaw, nullptr) {}
+
+// Ghidra 0x38104c
+CQuadPosUVColor4Width::CQuadPosUVColor4Width(const Vec3& center, float r, float width, const Vec3& color,
+                                             float alpha) {
+    const float w = width / r;
+    CVector3 p[4];
+    CVector2 t[4];
+    getQuadVertices(p, t, cv(center), CVector2(r, r), CVector2(-1.0f, -1.0f), CVector2(2.0f, 2.0f), 0.0f, nullptr);
+    for (int i = 0; i < 6; ++i) {
+        setPosUV(v[i], p[kOrder[i]], t[kOrder[i]]);
+        v[i].color[0] = color.x;
+        v[i].color[1] = color.y;
+        v[i].color[2] = color.z;
+        v[i].color[3] = alpha;
+        v[i].width = w;
+        for (float& f : v[i].pad) f = 0.0f;
+    }
+}
+
 }  // namespace py

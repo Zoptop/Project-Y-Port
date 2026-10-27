@@ -95,6 +95,24 @@ void CGameObject::drawSelection() {
     dc.quads->addCircleQuad(CVector3(mPosition.x, mPosition.y, 5.0f), mIconRadius + 2.0f, 1.0f, red, bitsf(0x3f4ccccd));
 }
 
+// Ghidra 0x181e08
+CVector2 CGameObject::getScreenPosForLabel(Real ox, Real oy, Real oz) {
+    const Real yaw = draw::cameraYaw();
+    const Real c = CMath::SinTable(yaw + CMath::HALF_PI);
+    const Real s = CMath::SinTable(yaw);
+    const Real rx = ox * c - oy * s;
+    const Real ry = ox * s + oy * c;
+    const Real k = Real(1.0f) / draw::cameraZoom();
+    const Real g = draw::guiScale();
+    const Real x = g * (k * rx) + mPosition.x;
+    const Real y = g * (k * ry) + mPosition.y;
+    const Real z = oz + mPosition.z;
+    const CMatrix4& m = draw::viewProj();
+    const Real w = Real(1.0f) / (x * m.m[3][0] + y * m.m[3][1] + z * m.m[3][2] + m.m[3][3]);
+    return CVector2(w * (x * m.m[0][0] + y * m.m[0][1] + z * m.m[0][2] + m.m[0][3]),
+                    w * (x * m.m[1][0] + y * m.m[1][1] + z * m.m[1][2] + m.m[1][3]));
+}
+
 void CGameObject::drawPart(const CVector3& position, Real yaw, uint32_t first, uint32_t count, const CVector3& color,
                            const CMatrix4* local) {
     CGame* g = draw::game();

@@ -62,10 +62,10 @@ void CFakeShadow::draw(const CCameraLevel& cam) {
     if (mCount == 0) return;
     if (!cam.isStrategyView() && mShader && mTexture) {
         gl::DepthMask(0);
-        mShader->startDrawLocalPosUVTTLBlend(mQuads.data(), sizeof(CQuadPosUVTTL) * static_cast<size_t>(mCount));
+        mShader->startDrawLocalPosUVTTLBlend(mQuads.data()->v);
         mTexture->bind(GL_TEXTURE0_);
         mShader->setUniformMVPMatrix(cam.viewProjMatrix());
-        gl::DrawArrays(GL_TRIANGLES_, 0, mCount * 6);
+        CGLSLProgram::drawLocal(GL_TRIANGLES_, 0, mCount * 6);
         mShader->endDrawLocalPosUVTTLBlend();
         gl::DepthMask(1);
     }

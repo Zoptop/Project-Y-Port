@@ -12,17 +12,18 @@
 //   CLevel::draw
 //   (drawCircleQuads: HUD)
 //   CGame::draw
-//   (CTextRender::draw: TODO)
+//   CTextRender::draw
 //   if !strategyView: CWeaponFactory::draw
 //   CParticleManager::draw(cam, false)
 //   drawStandardQuads, drawColoredQuads, drawScreenSpaceQuadsColored4 (HUD) ...
-//   (CTextRender::draw: TODO)
+//   CTextRender::draw
 //   if minimap: CGame::drawMinimap
 //
 // The HUD port replaces this class; it is not simulation code.
 #pragma once
 
 #include "render/CCamera.h"
+#include "render/CCameraBase.h"
 #include "render/CIngameQuads.h"
 
 namespace py {
@@ -50,6 +51,7 @@ private:
     CIngameQuads mQuads;
     CCameraMinimap mMinimapCam;
     bool mGraphicsReady = false;
+    CCamera mTextCamera;   // CTextRender's screen space when no interface is current
 };
 
 }  // namespace py

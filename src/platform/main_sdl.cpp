@@ -3,19 +3,38 @@
 // The original Activity (com.luminencelabs.ProjectY.gf.ProjectY) created a
 // GLSurfaceView and forwarded to JNI: AppOnCreate -> CEngine::init,
 // GL2View.Draw -> CEngine::draw every frame, MotionEvent -> touch input,
-// AppOnPause/Resume, KeyBack/KeyMenu. This file plays that role with SDL2.
+// AppOnPause/Resume, KeyBack/KeyMenu. This file plays that role with SDL2:
+//   - window + GL context, CEngine::initInterfaces (intro -> menu);
+//   - the window size becomes CEngine::setResolution, and a phone-like DPI
+//     derived from it becomes the GUI scale (CEngine::setDPI) [PC];
+//   - SDL events become CInterface events on the current interface (mouse
+//     buttons/motion/wheel, keys, text; see ui/CInterface.h for how the left
+//     button and Escape also produce the original touch/Back events);
+//   - every frame calls CEngine::draw.
 //
-// Current scope (phase 2): a map viewer. It loads a map with the original
-// assets and draws it through the ported renderer (terrain, water, map
-// props, sector borders, strategy view), with mouse/keyboard camera control.
+// Options:
+//   --data <dir>         game data (default: data)
+//   --width/--height N   window size (default 1280x720), --fullscreen
+//   --frames N           quit after N frames
+//   --fps N              advance the engine clock by 1000/N ms per frame
+//                        instead of real time (default 60 when --frames is
+//                        given, so headless runs are reproducible)
+//   --screenshot f.png   write the last frame as PNG
+//   --input <file>       timed input script (docs/re/ui_phase5.md)
+//   --gui-scale F        override the GUI scale (CEngine::mGUIScale)
+//   --check-shaders      compile every .gfx and exit
+//   --viewer             the phase-2 map viewer instead of the game
+//                        (--map N, --zoom Z, --cam X Y, --yaw DEG;
+//                        PageUp/PageDown cycle maps, Esc quits)
 #include <SDL.h>
 
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-#include <set>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -34,6 +53,9 @@
 #include "render/CGLSLProgram.h"
 #include "render/CMesh.h"
 #include "render/CTexture.h"
+#include "render/CTextRender.h"
+#include "ui/CInputScript.h"
+#include "ui/CInterface.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
@@ -48,8 +70,11 @@ struct Options {
     int height = 720;
     bool fullscreen = false;
     int frames = -1;            // run N frames then quit (automated tests)
+    float fps = 0.0f;           // fixed engine clock (0 = real time)
     int map = 1;
     std::string screenshot;     // write a PNG of the last frame
+    std::string inputScript;    // --input
+    float guiScale = 0.0f;      // --gui-scale (0 = from the window size)
     float zoom = -1.0f;         // initial zoom (default 2.0 = closest)
     float camX = 1e9f, camY = 1e9f;
     float yawDeg = 0.0f;
@@ -59,6 +84,7 @@ struct Options {
     bool allAI = false;         // --all-ai: player 1 is a computer player too
     bool noSim = false;         // --no-sim: draw the map without running the game
     int steps = 0;              // --steps N: simulate N steps (0.1 s) before the first frame
+    bool viewer = false;        // --viewer: the phase-2 map viewer
 };
 
 Options parseArgs(int argc, char** argv) {
@@ -71,8 +97,11 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--height") o.height = std::atoi(nextS().c_str());
         else if (a == "--fullscreen") o.fullscreen = true;
         else if (a == "--frames") o.frames = std::atoi(nextS().c_str());
+        else if (a == "--fps") o.fps = static_cast<float>(std::atof(nextS().c_str()));
         else if (a == "--map") o.map = std::atoi(nextS().c_str());
         else if (a == "--screenshot") o.screenshot = nextS();
+        else if (a == "--input") o.inputScript = nextS();
+        else if (a == "--gui-scale") o.guiScale = static_cast<float>(std::atof(nextS().c_str()));
         else if (a == "--zoom") o.zoom = static_cast<float>(std::atof(nextS().c_str()));
         else if (a == "--cam") {
             o.camX = static_cast<float>(std::atof(nextS().c_str()));
@@ -83,7 +112,9 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--all-ai") o.allAI = true;
         else if (a == "--no-sim") o.noSim = true;
         else if (a == "--steps") o.steps = std::atoi(nextS().c_str());
+        else if (a == "--viewer") o.viewer = true;
     }
+    if (o.fps <= 0.0f && o.frames > 0) o.fps = 60.0f;
     return o;
 }
 
@@ -135,6 +166,7 @@ void initOpenGLState() {
 void saveScreenshot(const std::string& path, int w, int h) {
     std::vector<unsigned char> px(static_cast<size_t>(w) * h * 4);
     gl::ReadPixels(0, 0, w, h, 0x1908, 0x1401, px.data());   // GL_RGBA, GL_UNSIGNED_BYTE
+    for (size_t i = 3; i < px.size(); i += 4) px[i] = 255;   // the frame is opaque; ignore framebuffer alpha
     stbi_flip_vertically_on_write(1);
     if (stbi_write_png(path.c_str(), w, h, 4, px.data(), w * 4)) CUtils::log("screenshot written: %s", path.c_str());
 }
@@ -175,76 +207,192 @@ std::vector<int> availableMaps() {
     return ids;
 }
 
-}  // namespace
+// ---------------------------------------------------------------------------
+// Input translation [PC]
 
-int main(int argc, char** argv) {
-    const Options opt = parseArgs(argc, argv);
-    CUtils::setLogFile("projecty.log");
-    CUtils::setDataDir(opt.dataDir);
-    CUtils::startTimer();
-    CUtils::log("ProjectY PC port - starting (data: %s)", opt.dataDir.c_str());
+unsigned modifiersFromSDL(Uint16 mod) {
+    unsigned m = 0;
+    if (mod & KMOD_SHIFT) m |= MOD_SHIFT;
+    if (mod & KMOD_CTRL) m |= MOD_CTRL;
+    if (mod & KMOD_ALT) m |= MOD_ALT;
+    if (mod & KMOD_GUI) m |= MOD_GUI;
+    return m;
+}
 
-    // --- CEngine::init equivalents ---
-    CUtils::log("Math init");
-    CMath math(4096);
-    CUtils::log("Math init done");
-    if (!CConfig::get().load(CUtils::dataPath("config.txt"))) {
-        const std::string msg = "Could not read " + CUtils::dataPath("config.txt") +
-                                "\n\nRun tools/extract_assets.py to create the data folder, "
-                                "or start with --data <folder>.";
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ProjectY", msg.c_str(), nullptr);
-        return 1;
-    }
-    CTxtLoc::get().load("English");
-    const std::string version = CConfig::get().getString("Version", "?");
+unsigned buttonMaskFromSDL(Uint32 state) {
+    unsigned m = 0;
+    for (int b = 1; b <= 5; ++b)
+        if (state & SDL_BUTTON(b)) m |= 1u << (b - 1);
+    return m;
+}
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
-        CUtils::log("SDL_Init failed: %s", SDL_GetError());
-        return 1;
+// UTF-8 -> Latin-1 (the font's encoding); characters above U+00FF are dropped.
+std::string utf8ToLatin1(const char* s) {
+    std::string out;
+    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s); *p;) {
+        unsigned cp = 0;
+        int extra = 0;
+        if (*p < 0x80) cp = *p, extra = 0;
+        else if ((*p & 0xe0) == 0xc0) cp = *p & 0x1f, extra = 1;
+        else if ((*p & 0xf0) == 0xe0) cp = *p & 0x0f, extra = 2;
+        else cp = *p & 0x07, extra = 3;
+        ++p;
+        for (int i = 0; i < extra && *p; ++i, ++p) cp = (cp << 6) | (*p & 0x3f);
+        if (cp >= 0x20 && cp <= 0xff) out.push_back(static_cast<char>(cp));
     }
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    return out;
+}
 
-    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-    if (opt.fullscreen) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    SDL_Window* window = SDL_CreateWindow(("ProjectY " + version + " (PC port)").c_str(), SDL_WINDOWPOS_CENTERED,
-                                          SDL_WINDOWPOS_CENTERED, opt.width, opt.height, flags);
-    if (!window) {
-        CUtils::log("SDL_CreateWindow failed: %s", SDL_GetError());
-        return 1;
-    }
-    SDL_GLContext context = nullptr;
-    bool isES = false;
-    if (!createContext(window, &context, &isES)) {
-        CUtils::log("No usable OpenGL context: %s", SDL_GetError());
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ProjectY", "No usable OpenGL context.", window);
-        return 1;
-    }
-    SDL_GL_SetSwapInterval(1);
-    const int missing = gl::load(reinterpret_cast<gl::ProcLoader>(SDL_GL_GetProcAddress));
-    CUtils::log("GL vendor: %s | renderer: %s | version: %s | missing functions: %d",
-                reinterpret_cast<const char*>(gl::GetString(gl::VENDOR)),
-                reinterpret_cast<const char*>(gl::GetString(gl::RENDERER)),
-                reinterpret_cast<const char*>(gl::GetString(gl::VERSION)), missing);
-    CGLSLProgram::setUseES(isES);
-    if (!isES) {   // core profile needs a vertex array object
-        unsigned vao = 0;
-        gl::GenVertexArrays(1, &vao);
-        gl::BindVertexArray(vao);
-    }
-    initOpenGLState();
+int32_t keyFromName(const std::string& name) {
+    SDL_Keycode k = SDL_GetKeyFromName(name.c_str());
+    if (k == SDLK_UNKNOWN && name.size() == 1) k = static_cast<unsigned char>(std::tolower(name[0]));
+    return static_cast<int32_t>(k);
+}
 
-    if (opt.checkShaders) {
-        const int failed = checkAllShaders();
-        CGLSLProgramManager::get().clear();
-        SDL_GL_DeleteContext(context);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return failed == 0 ? 0 : 2;
+// Window coordinates (points) -> drawable pixels (differs on HiDPI displays).
+struct PixelMapper {
+    SDL_Window* win;
+    int px(int x) const {
+        int ww = 1, wh = 1, dw = 1, dh = 1;
+        SDL_GetWindowSize(win, &ww, &wh);
+        SDL_GL_GetDrawableSize(win, &dw, &dh);
+        return ww > 0 ? x * dw / ww : x;
+    }
+    int py(int y) const {
+        int ww = 1, wh = 1, dw = 1, dh = 1;
+        SDL_GetWindowSize(win, &ww, &wh);
+        SDL_GL_GetDrawableSize(win, &dw, &dh);
+        return wh > 0 ? y * dh / wh : y;
+    }
+};
+
+// [PC] A phone-like DPI for the window: the original sized its HUD by the
+// display DPI (CEngine::setDPI, (xdpi + ydpi) / 436.21). On PC we pretend the
+// window's short side is a 2.7-inch phone screen side, so the HUD keeps the
+// proportions it had on a phone (1080 px -> 400 dpi -> scale 1.83).
+void applyWindowDPI(CEngine* engine, const Options& opt, int w, int h) {
+    const float dpi = static_cast<float>(w < h ? w : h) / 2.7f;
+    engine->setDPI(dpi, dpi, w, h);
+    if (opt.guiScale > 0.0f) engine->mGUIScale = opt.guiScale;
+}
+
+// ---------------------------------------------------------------------------
+// The game
+
+int runGame(const Options& opt, SDL_Window* window) {
+    CEngine* engine = CEngine::getSingletonPtr();
+    CInputScript script;
+    if (!opt.inputScript.empty() && !script.load(opt.inputScript, keyFromName)) {
+        CUtils::log("input script: %s", script.error().c_str());
+        std::fprintf(stderr, "input script %s: %s\n", opt.inputScript.c_str(), script.error().c_str());
+        return 3;
     }
 
-    // --- level ---
+    int w = 0, h = 0;
+    SDL_GL_GetDrawableSize(window, &w, &h);
+    applyWindowDPI(engine, opt, w, h);
+    engine->initInterfaces();
+    engine->setResolution(w, h);
+
+    const PixelMapper pm{window};
+    unsigned scriptButtons = 0;
+    int frame = 0;
+    bool running = true;
+    const float t0 = CUtils::getTimer();
+    engine->mLastFrameTime = opt.fps > 0.0f ? 0.0f : t0;   // CEngine::startTimer
+    while (running) {
+        CInterface* cur = engine->mCurrentInterface;
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            cur = engine->mCurrentInterface;
+            switch (e.type) {
+                case SDL_QUIT: running = false; break;
+                case SDL_WINDOWEVENT:
+                    if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                        SDL_GL_GetDrawableSize(window, &w, &h);
+                        applyWindowDPI(engine, opt, w, h);
+                        engine->setResolution(w, h);
+                    }
+                    break;
+                case SDL_MOUSEBUTTONDOWN:
+                    if (cur && e.button.which != SDL_TOUCH_MOUSEID)
+                        cur->addEventMouseButtonDown(e.button.button, pm.px(e.button.x), pm.py(e.button.y),
+                                                     modifiersFromSDL(SDL_GetModState()), e.button.clicks);
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    if (cur && e.button.which != SDL_TOUCH_MOUSEID)
+                        cur->addEventMouseButtonUp(e.button.button, pm.px(e.button.x), pm.py(e.button.y),
+                                                   modifiersFromSDL(SDL_GetModState()));
+                    break;
+                case SDL_MOUSEMOTION:
+                    if (cur && e.motion.which != SDL_TOUCH_MOUSEID)
+                        cur->addEventMouseMove(pm.px(e.motion.x), pm.py(e.motion.y), buttonMaskFromSDL(e.motion.state),
+                                               modifiersFromSDL(SDL_GetModState()));
+                    break;
+                case SDL_MOUSEWHEEL: {
+                    int mx = 0, my = 0;
+                    SDL_GetMouseState(&mx, &my);
+                    float dx = static_cast<float>(e.wheel.x), dy = static_cast<float>(e.wheel.y);
+                    if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) dx = -dx, dy = -dy;
+                    if (cur) cur->addEventMouseWheel(dx, dy, pm.px(mx), pm.py(my), modifiersFromSDL(SDL_GetModState()));
+                    break;
+                }
+                case SDL_KEYDOWN:
+                    if (cur) cur->addEventKeyDown(e.key.keysym.sym, modifiersFromSDL(e.key.keysym.mod), e.key.repeat != 0);
+                    break;
+                case SDL_KEYUP:
+                    if (cur) cur->addEventKeyUp(e.key.keysym.sym, modifiersFromSDL(e.key.keysym.mod));
+                    break;
+                case SDL_TEXTINPUT: {
+                    const std::string t = utf8ToLatin1(e.text.text);
+                    if (cur && !t.empty()) cur->addEventTextInput(t);
+                    break;
+                }
+                case SDL_FINGERDOWN:
+                case SDL_FINGERMOTION:
+                case SDL_FINGERUP: {
+                    // real touch screens: the original's touch events, one pointer per finger
+                    const int x = static_cast<int>(e.tfinger.x * static_cast<float>(w));
+                    const int y = static_cast<int>(e.tfinger.y * static_cast<float>(h));
+                    const unsigned id = static_cast<unsigned>(e.tfinger.fingerId & 0xff);
+                    if (!cur) break;
+                    if (e.type == SDL_FINGERDOWN) cur->addEventActionDown(id, x, y);
+                    else if (e.type == SDL_FINGERUP) cur->addEventActionUp(id, x, y);
+                    else cur->addEventActionMove(id, x, y);
+                    break;
+                }
+                default: break;
+            }
+        }
+
+        // scripted input of this frame
+        std::string shotThisFrame;
+        for (const ScriptEvent* se : script.eventsAt(frame)) {
+            if (se->kind == ScriptEvent::SCREENSHOT) shotThisFrame = se->text;
+            else if (se->kind == ScriptEvent::QUIT) running = false;
+            else CInputScript::dispatch(*se, engine->mCurrentInterface, scriptButtons);
+        }
+
+        const float now = opt.fps > 0.0f ? static_cast<float>(frame + 1) * (1000.0f / opt.fps)
+                                         : CUtils::getTimer();
+        engine->draw(now);
+
+        ++frame;
+        const bool last = (opt.frames > 0 && frame >= opt.frames) || !running || engine->mQuitRequested;
+        if (!shotThisFrame.empty()) saveScreenshot(shotThisFrame, w, h);
+        if (last && !opt.screenshot.empty()) saveScreenshot(opt.screenshot, w, h);
+        SDL_GL_SwapWindow(window);
+        if (last) running = false;
+    }
+    CUtils::log("frames: %d%s", frame, engine->mQuitRequested ? " (quit from the menu)" : "");
+    engine->releaseInterfaces();
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// The phase-2 map viewer (--viewer)
+
+int runViewer(const Options& opt, SDL_Window* window, const std::string& version) {
     const std::vector<int> maps = availableMaps();
     int mapId = opt.map;
     std::unique_ptr<CGame> game;
@@ -259,6 +407,9 @@ int main(int argc, char** argv) {
         CMeshManager::get().clear();
         CTextureManager::get().clear();
         CGLSLProgramManager::get().clear();
+        // the text renderer (labels), on the freshly cleared resources
+        engine->mTextRender = std::make_unique<CTextRender>();
+        if (!engine->mTextRender->init()) CUtils::log("CTextRender: font resources missing");
         // Viewer setup: the map's own player count (the menu decides this in
         // the game), slot 1 human, the rest AI; campaign maps are "scripted".
         engine->setupSkirmish(static_cast<unsigned>(id), mapPlayerCount(id));
@@ -393,15 +544,89 @@ int main(int argc, char** argv) {
         SDL_GL_SwapWindow(window);
         if (last) running = false;
     }
+    CEngine::getSingletonPtr()->mGame = nullptr;
+    game.reset();
+    return 0;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    const Options opt = parseArgs(argc, argv);
+    CUtils::setLogFile("projecty.log");
+    CUtils::setDataDir(opt.dataDir);
+    CUtils::startTimer();
+    CUtils::log("ProjectY PC port - starting (data: %s)", opt.dataDir.c_str());
+
+    // --- CEngine::init equivalents ---
+    CUtils::log("Math init");
+    CMath math(4096);
+    CUtils::log("Math init done");
+    if (!CConfig::get().load(CUtils::dataPath("config.txt"))) {
+        const std::string msg = "Could not read " + CUtils::dataPath("config.txt") +
+                                "\n\nRun tools/extract_assets.py to create the data folder, "
+                                "or start with --data <folder>.";
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ProjectY", msg.c_str(), nullptr);
+        return 1;
+    }
+    CTxtLoc::get().load("English");
+    const std::string version = CConfig::get().getString("Version", "?");
+
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
+        CUtils::log("SDL_Init failed: %s", SDL_GetError());
+        return 1;
+    }
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
+    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+    if (opt.fullscreen) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    SDL_Window* window = SDL_CreateWindow(("ProjectY " + version + " (PC port)").c_str(), SDL_WINDOWPOS_CENTERED,
+                                          SDL_WINDOWPOS_CENTERED, opt.width, opt.height, flags);
+    if (!window) {
+        CUtils::log("SDL_CreateWindow failed: %s", SDL_GetError());
+        return 1;
+    }
+    SDL_GLContext context = nullptr;
+    bool isES = false;
+    if (!createContext(window, &context, &isES)) {
+        CUtils::log("No usable OpenGL context: %s", SDL_GetError());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ProjectY", "No usable OpenGL context.", window);
+        return 1;
+    }
+    SDL_GL_SetSwapInterval(opt.frames > 0 ? 0 : 1);
+    const int missing = gl::load(reinterpret_cast<gl::ProcLoader>(SDL_GL_GetProcAddress));
+    CUtils::log("GL vendor: %s | renderer: %s | version: %s | missing functions: %d",
+                reinterpret_cast<const char*>(gl::GetString(gl::VENDOR)),
+                reinterpret_cast<const char*>(gl::GetString(gl::RENDERER)),
+                reinterpret_cast<const char*>(gl::GetString(gl::VERSION)), missing);
+    CGLSLProgram::setUseES(isES);
+    if (!isES) {   // core profile needs a vertex array object
+        unsigned vao = 0;
+        gl::GenVertexArrays(1, &vao);
+        gl::BindVertexArray(vao);
+    }
+    initOpenGLState();
+
+    int rc = 0;
+    if (opt.checkShaders) {
+        const int failed = checkAllShaders();
+        rc = failed == 0 ? 0 : 2;
+    } else if (opt.viewer) {
+        rc = runViewer(opt, window, version);
+    } else {
+        rc = runGame(opt, window);
+    }
 
     CUtils::log("shutting down");
     CEngine::getSingletonPtr()->mGame = nullptr;
-    game.reset();
+    CEngine::getSingletonPtr()->releaseInterfaces();
     CMeshManager::get().clear();
     CTextureManager::get().clear();
     CGLSLProgramManager::get().clear();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return 0;
+    return rc;
 }

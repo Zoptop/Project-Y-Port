@@ -48,13 +48,13 @@ void CParticleManager::draw(const CCameraLevel& cam, bool menu) {
     };
     auto flush = [&](std::vector<CQuadPosUVColor4>& buf, int n, bool depthTest) {
         if (!mShader || !mTexture) return;
-        mShader->startDrawLocalPosUVColor4BlendNoDepth(buf.data(), sizeof(CQuadPosUVColor4) * static_cast<size_t>(n));
+        mShader->startDrawLocalPosUVColor4BlendNoDepth(buf.data()->v);
         if (depthTest) gl::Enable(GL_DEPTH_TEST_);
         else gl::Disable(GL_DEPTH_TEST_);
         mTexture->bind(0x84C0);
         mShader->setUniformMVPMatrix(cam.viewProjMatrix());
         gl::Disable(GL_CULL_FACE_);
-        gl::DrawArrays(4, 0, n * 6);
+        CGLSLProgram::drawLocal(4, 0, n * 6);
         gl::Enable(GL_CULL_FACE_);
         if (!depthTest) gl::Enable(GL_DEPTH_TEST_);
         mShader->endDrawLocalPosUVColor4BlendNoDepth();

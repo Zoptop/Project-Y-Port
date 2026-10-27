@@ -11,6 +11,8 @@
 #include "game/CParticleManager.h"
 #include "game/CWeapon.h"
 #include "platform/GLFunctions.h"
+#include "render/CCameraBase.h"
+#include "render/CTextRender.h"
 
 namespace py {
 
@@ -49,11 +51,23 @@ void CWorldView::draw(CCameraLevel& cam, int w, int h) {
     dc.quads = &mQuads;
     dc.minimapEnabled = minimap;
 
+    // The text camera: the current interface's (the HUD), or, in the viewer
+    // without one, a plain w x h camera for CTextRender's screen space.
+    CEngine* engine = CEngine::getSingletonPtr();
+    CTextRender* text = engine->getTextRender();
+    const bool ownTextCam = text && !engine->getCurrentCamera();
+    if (ownTextCam) {
+        mTextCamera.mWidth = w;
+        mTextCamera.mHeight = h;
+        mTextCamera.mAspect = static_cast<float>(w) / static_cast<float>(h > 0 ? h : 1);
+        text->setCameraOverride(&mTextCamera);
+    }
+
     cam.activateGLviewport();
     mGame->updateVisibility();
     if (level) level->draw();
     mGame->draw();
-    // TODO(CTextRender): CTextRender::draw (world-space labels queued so far)
+    if (text) text->draw();   // the labels queued so far
     if (!cam.isStrategyView()) CWeaponFactory::getSingletonPtr()->draw();
     CEngine::getSingletonPtr()->getParticleManager()->draw(cam, false);
     gl::Enable(0x0BE2);
@@ -62,11 +76,12 @@ void CWorldView::draw(CCameraLevel& cam, int w, int h) {
     mQuads.drawColoredQuads(cam.viewProjMatrix());
     mQuads.drawColored4Quads(cam.viewProjMatrix());
     gl::Disable(0x0BE2);
-    // TODO(CTextRender): CTextRender::draw
+    if (text) text->draw();
     if (minimap) mGame->drawMinimap();
     mQuads.circles().clear();   // (drawCircleQuads belongs to the HUD)
     // CInterfaceIngame::draw, after all IPPs
     CWeaponFactory::getSingletonPtr()->drawReset();
+    if (ownTextCam) text->setCameraOverride(nullptr);
 }
 
 }  // namespace py

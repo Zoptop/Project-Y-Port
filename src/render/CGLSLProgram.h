@@ -15,7 +15,6 @@
 // and @20 one of NORMAL vec3 / TEXCOORD1 vec2 / COLR vec3.
 #pragma once
 
-#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>
@@ -26,6 +25,11 @@ namespace py {
 
 class CMatrix4;
 struct CVector3;
+struct CVertexPosUV;
+struct CVertexPosUVColor;
+struct CVertexPosUVColor4;
+struct CVertexPosUVTTL;
+struct CVertexPosUvColor4Width;
 
 class CGLSLProgram {
 public:
@@ -37,24 +41,37 @@ public:
     void startDraw() const;   // glUseProgram + attribute pointers for the bound VBO
     void endDraw() const;
 
-    // Client-side vertex arrays (CGLSLProgram::startDrawLocal*, Ghidra
-    // 0x183cf8..0x1842d4). A core profile has no client arrays, so the port
-    // streams `bytes` bytes from `data` into a shared VBO first; the GL state
-    // changes (blend, depth mask/test) are the original's.
-    void startDrawLocalPosUVBlend(const void* data, size_t bytes) const;               // 0x183cf8
-    void endDrawLocalPosUVBlend() const;                                               // 0x183d94
-    void startDrawLocalPosUVColor4BlendNoDepth(const void* data, size_t bytes) const;  // 0x183db8
-    void endDrawLocalPosUVColor4BlendNoDepth() const;                                  // 0x183e8c
-    void startDrawLocalPosUVTTLBlend(const void* data, size_t bytes) const;            // 0x183ec8
-    void endDrawLocalPosUVTTLBlend() const;                                            // 0x183f8c
-    void startDrawLocalPosUVTTLBlendNoDepth(const void* data, size_t bytes) const;     // 0x183fb8
-    void endDrawLocalPosUVTTLBlendNoDepth() const;                                     // 0x18408c
-    void startDrawLocalPosUVColorBlendNoDepth(const void* data, size_t bytes) const;   // 0x1840c8
-    void endDrawLocalPosUVColorBlendNoDepth() const;                                   // 0x18419c
-    void startDrawLocalPosUVColorWidthBlendNoDepth(const void* data, size_t bytes) const;   // 0x1841d8
-    void endDrawLocalPosUVColorWidthBlendNoDepth() const;                              // 0x1842d4
-    // A plain position-only stream (CGame::drawMinimap's camera outline).
-    void startDrawLocalPos(const void* data, size_t bytes, int stride) const;
+    // Client-side vertex drawing (Ghidra 0x183cf8..0x1842d4). The original
+    // points the attributes at CPU memory and calls glDrawArrays itself; a
+    // core profile needs a buffer object, so the port records the pointer at
+    // startDrawLocal* and the caller draws with drawLocal(mode, first, count)
+    // instead of glDrawArrays: it streams those vertices into a shared VBO
+    // (GL_STREAM_DRAW, orphaned per call) and draws them. Blend state, depth
+    // state and attribute layouts are the original's:
+    //   PosUVBlend                  stride 32  POSITION, TEXCOORD0; blend SRC_ALPHA / 1-SRC_ALPHA
+    //   PosUVTTLBlend[NoDepth]      stride 32  + TTL @0x14
+    //   PosUVColorBlendNoDepth      stride 32  + COLR vec3 @0x14
+    //   PosUVColor4BlendNoDepth     stride 64  + COLR vec4 @0x14
+    //   PosUVColorWidthBlendNoDepth stride 64  + COLR vec4 @0x14, WIDTH @0x24
+    // "NoDepth" variants also disable the depth test and depth writes; the
+    // matching endDraw* restores them (depth test on, depth mask on).
+    void startDrawLocalPosUVBlend(const CVertexPosUV* v) const;
+    void endDrawLocalPosUVBlend() const;
+    void startDrawLocalPosUVColor4BlendNoDepth(const CVertexPosUVColor4* v) const;
+    void endDrawLocalPosUVColor4BlendNoDepth() const;
+    void startDrawLocalPosUVTTLBlend(const CVertexPosUVTTL* v) const;
+    void endDrawLocalPosUVTTLBlend() const;
+    void startDrawLocalPosUVTTLBlendNoDepth(const CVertexPosUVTTL* v) const;
+    void endDrawLocalPosUVTTLBlendNoDepth() const;
+    void startDrawLocalPosUVColorBlendNoDepth(const CVertexPosUVColor* v) const;
+    void endDrawLocalPosUVColorBlendNoDepth() const;
+    void startDrawLocalPosUVColorWidthBlendNoDepth(const CVertexPosUvColor4Width* v) const;
+    void endDrawLocalPosUVColorWidthBlendNoDepth() const;
+    // [PC] replaces the glDrawArrays(mode, first, count) that follows a startDrawLocal*.
+    static void drawLocal(unsigned mode, int first, int count);
+    // [PC] a position-only stream (vec3 POSITION @0, `stride` bytes per
+    // vertex): CGame::drawMinimap's camera outline (point.gfx).
+    void startDrawLocalPos(const float* v, int stride) const;
     void endDrawLocalPos() const;
 
     void setUniformMVPMatrix(const Mat4& m) const;
@@ -63,7 +80,9 @@ public:
     void setUniformPlayerColor(const Vec3& c) const;
     void setUniformLightColor(const Vec3& c) const;
     void setUniformLightDir(const Vec3& d) const;
-    void setUniformBlendColor(const Vec3& c) const;
+    void setUniformBlendColor(const Vec3& c) const;   // alpha 1
+    // BLENDCOLOR is a vec4 (glUniform4fv in the original, Ghidra 0x184474)
+    void setUniformBlendColor(float r, float g, float b, float a) const;
     void setUniformTime(float t) const;
     void setUniformAlpha(float a) const;
     void setUniformSize(float s) const;
@@ -95,10 +114,15 @@ private:
     unsigned mProgram = 0;
     int uMVP = -1, uModel = -1, uEye = -1, uPlayerColor = -1, uLightColor = -1, uLightDir = -1;
     int uTime = -1, uSize = -1, uAlpha = -1, uBlendColor = -1;
-    int aPosition = -1, aTexcoord0 = -1, aTexcoord1 = -1, aNormal = -1, aColor = -1, aTTL = -1, aWidth = -1;
-    void bindStream(const void* data, size_t bytes) const;
-    void attribLocal(int loc, int size, int stride, int offset) const;
+    int aPosition = -1, aTexcoord0 = -1, aTexcoord1 = -1, aNormal = -1, aColor = -1;
+    int aTTL = -1, aWidth = -1;
     static bool sUseES;
+
+    // client-side drawing state (see drawLocal)
+    void bindLocal(const void* base, int stride) const;
+    static const void* sLocalBase;
+    static int sLocalStride;
+    static unsigned sStreamVBO;
 };
 
 class CGLSLProgramManager {

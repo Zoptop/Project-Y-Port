@@ -35,11 +35,11 @@ void CCraterManager::draw() {
     }
     if (mQuadCount == 0 || cam->isStrategyView() || !mShader || !mTexture) return;
     gl::DepthMask(0);
-    mShader->startDrawLocalPosUVTTLBlend(mQuads.data(), sizeof(CQuadPosUVTTL) * static_cast<size_t>(mQuadCount));
+    mShader->startDrawLocalPosUVTTLBlend(mQuads.data()->v);
     gl::BlendFunc(0x0302, 0x0303);   // GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
     mTexture->bind(0x84C0);
     mShader->setUniformMVPMatrix(cam->viewProjMatrix());
-    gl::DrawArrays(4, 0, mQuadCount * 6);
+    CGLSLProgram::drawLocal(4, 0, mQuadCount * 6);
     mShader->endDrawLocalPosUVTTLBlend();
     gl::DepthMask(1);
 }

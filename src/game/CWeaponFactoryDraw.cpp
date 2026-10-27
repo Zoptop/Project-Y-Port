@@ -38,10 +38,10 @@ void CWeaponFactory::draw() {
     if (mShotCount == 0) return;
     if (cam && mShader && mTexture) {
         gl::DepthMask(0);
-        mShader->startDrawLocalPosUVBlend(mShots.data(), sizeof(CQuadPosUV) * static_cast<size_t>(mShotCount));
+        mShader->startDrawLocalPosUVBlend(mShots.data()->v);
         mTexture->bind(0x84C0);
         mShader->setUniformMVPMatrix(cam->viewProjMatrix());
-        gl::DrawArrays(4, 0, mShotCount * 6);
+        CGLSLProgram::drawLocal(4, 0, mShotCount * 6);
         mShader->endDrawLocalPosUVBlend();
         gl::DepthMask(1);
     }

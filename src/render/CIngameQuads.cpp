@@ -74,10 +74,10 @@ void CIngameQuads::drawStandardQuads(const CMatrix4& viewProj) {
     if (mStandardCount <= 0) return;
     if (mStandardShader && mTexture) {
         gl::DepthMask(0);
-        mStandardShader->startDrawLocalPosUVBlend(mStandard.data(), sizeof(CQuadPosUV) * static_cast<size_t>(mStandardCount));
+        mStandardShader->startDrawLocalPosUVBlend(mStandard.data()->v);
         mTexture->bind(GL_TEXTURE0_);
         mStandardShader->setUniformMVPMatrix(viewProj);
-        gl::DrawArrays(GL_TRIANGLES_, 0, mStandardCount * 6);
+        CGLSLProgram::drawLocal(GL_TRIANGLES_, 0, mStandardCount * 6);
         mStandardShader->endDrawLocalPosUVBlend();
         gl::DepthMask(1);
     }
@@ -88,11 +88,10 @@ void CIngameQuads::drawStandardQuads(const CMatrix4& viewProj) {
 void CIngameQuads::drawColoredQuads(const CMatrix4& viewProj) {
     if (mColoredCount <= 0) return;
     if (mColoredShader && mTexture) {
-        mColoredShader->startDrawLocalPosUVColorBlendNoDepth(mColored.data(),
-                                                             sizeof(CQuadPosUVColor) * static_cast<size_t>(mColoredCount));
+        mColoredShader->startDrawLocalPosUVColorBlendNoDepth(mColored.data()->v);
         mTexture->bind(GL_TEXTURE0_);
         mColoredShader->setUniformMVPMatrix(viewProj);
-        gl::DrawArrays(GL_TRIANGLES_, 0, mColoredCount * 6);
+        CGLSLProgram::drawLocal(GL_TRIANGLES_, 0, mColoredCount * 6);
         mColoredShader->endDrawLocalPosUVColorBlendNoDepth();
     }
     mColoredCount = 0;
@@ -102,11 +101,10 @@ void CIngameQuads::drawColoredQuads(const CMatrix4& viewProj) {
 void CIngameQuads::drawColored4Quads(const CMatrix4& viewProj) {
     if (mColored4Count <= 0) return;
     if (mColored4Shader && mTexture) {
-        mColored4Shader->startDrawLocalPosUVColor4BlendNoDepth(
-            mColored4.data(), sizeof(CQuadPosUVColor4) * static_cast<size_t>(mColored4Count));
+        mColored4Shader->startDrawLocalPosUVColor4BlendNoDepth(mColored4.data()->v);
         mTexture->bind(GL_TEXTURE0_);
         mColored4Shader->setUniformMVPMatrix(viewProj);
-        gl::DrawArrays(GL_TRIANGLES_, 0, mColored4Count * 6);
+        CGLSLProgram::drawLocal(GL_TRIANGLES_, 0, mColored4Count * 6);
         mColored4Shader->endDrawLocalPosUVColor4BlendNoDepth();
     }
     mColored4Count = 0;
@@ -116,11 +114,10 @@ void CIngameQuads::drawColored4Quads(const CMatrix4& viewProj) {
 void CIngameQuads::drawColoredQuadsMinimap(const CMatrix4& viewProj) {
     if (mColoredCount <= 0) return;
     if (mColoredMMShader && mTexture) {
-        mColoredMMShader->startDrawLocalPosUVColorBlendNoDepth(
-            mColored.data(), sizeof(CQuadPosUVColor) * static_cast<size_t>(mColoredCount));
+        mColoredMMShader->startDrawLocalPosUVColorBlendNoDepth(mColored.data()->v);
         mTexture->bind(GL_TEXTURE0_);
         mColoredMMShader->setUniformMVPMatrix(viewProj);
-        gl::DrawArrays(GL_TRIANGLES_, 0, mColoredCount * 6);
+        CGLSLProgram::drawLocal(GL_TRIANGLES_, 0, mColoredCount * 6);
         mColoredMMShader->endDrawLocalPosUVColorBlendNoDepth();
     }
     mColoredCount = 0;
