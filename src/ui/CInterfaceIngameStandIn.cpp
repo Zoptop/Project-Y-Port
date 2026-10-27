@@ -32,6 +32,7 @@ void CInterfaceIngameStandIn::initSingleplayer(int width, int height, unsigned l
         }
         mCamera.setTarget(x, y);
     }
+    mWorld.reset(game, game ? game->getPlayer(localPlayer) : nullptr);
     setResolution(width, height);
 }
 
@@ -50,10 +51,8 @@ void CInterfaceIngameStandIn::draw() {
     gl::ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
     mCamera.refresh();
-    if (game && game->getLevel()) {
-        game->getLevel()->draw(mCamera, mEngine->mGameTime);
-        game->drawPreview(mCamera);
-    }
+    if (game) mWorld.draw(mCamera, mWidth, mHeight);   // the world drawing of IPP::draw (game/CWorldView.h)
+    mHudCamera.activateGLviewport();
     if (CTextRender* tr = mEngine->getTextRender()) {
         const float g = mEngine->mGUIScale;
         tr->drawStringPixel(8.0f * g, 8.0f * g, 14.0f * g, 1.0f, 1.0f, 0.0f, 1.0f, 0,

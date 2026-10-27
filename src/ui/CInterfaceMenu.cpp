@@ -253,7 +253,8 @@ void CInterfaceMenu::processEventMouseWheel(CInterfaceEvent* e) {
 void CInterfaceMenu::addColoredQuad(const Vec3& center, const CVector2& uv, const CVector2& uvSize,
                                     const CVector2& half, const Vec3& color) {
     if (static_cast<int>(mColoredQuads.size()) >= kMaxColoredQuads) return;
-    mColoredQuads.emplace_back(center, half, uv, uvSize, color, 0.0f);
+    mColoredQuads.emplace_back(CVector3(center.x, center.y, center.z), half, uv, uvSize,
+                                CVector3(color.x, color.y, color.z), 0.0f);
 }
 
 // Ghidra 0x1ae464
@@ -300,7 +301,7 @@ void CInterfaceMenu::addColored4QuadPixel(const CVector2& pos, const CVector2& u
     if (static_cast<int>(mColor4Quads.size()) >= kMaxPixelQuads) return;
     CVector2 p, s;
     pixelToScreen(*mCamera, pos, size, p, s);
-    mColor4Quads.emplace_back(p, s, uv, uvSize, color, alpha, 0.0f);
+    mColor4Quads.emplace_back(p, s, uv, uvSize, CVector3(color.x, color.y, color.z), alpha, 0.0f);
 }
 
 // Ghidra 0x1ae4e0: select.gfx, depth off, the camera's text matrix (x / aspect)

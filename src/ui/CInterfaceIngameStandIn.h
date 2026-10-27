@@ -6,8 +6,8 @@
 // NOT A PORT. It only does what the menu flow needs:
 //   - initSingleplayer(w, h, localPlayer) like CInterfaceIngame's
 //     (Ghidra 0x19e7fc): a level camera over the local player's start;
-//   - draw: the level and the game objects (CLevel::draw, CGame::drawPreview,
-//     the phase-2/4 viewer drawing) plus a one-line notice;
+//   - draw: the game world through CWorldView (phase 5b: level, objects,
+//     particles, minimap in IPP::draw order) plus a one-line notice;
 //   - timeUpdate: CInterfaceIngame::timeUpdate's command manager step
 //     (vtable +0x50 of game+0x178), so the simulation runs;
 //   - Back/Escape and the Menu key: CInterfaceIngame::processEventMenuKeyPressed
@@ -26,6 +26,7 @@
 #include <memory>
 
 #include "render/CCamera.h"
+#include "game/CWorldView.h"
 #include "render/CCameraBase.h"
 #include "ui/CInterface.h"
 
@@ -55,6 +56,7 @@ public:
 
     CCameraLevel mCamera;   // the level view
     CCamera mHudCamera;     // the viewport for screen text (CTextRender reads it)
+    CWorldView mWorld;      // the world drawing (the simulation is advanced by CEngine)
     unsigned mLocalPlayer = 1;
     int mWidth = 1, mHeight = 1;
     float mEndTimer = -1.0f;   // seconds since the local player won/lost (-1: still playing)
