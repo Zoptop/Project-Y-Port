@@ -6,6 +6,8 @@
 // fields the game code reads, under their original offsets.
 #pragma once
 
+#include <functional>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -22,12 +24,20 @@ class CInterfaceIntro;
 class CInterfaceMenu;
 class CTextRender;
 
-// One player slot of the menu's game setup (engine+0x4c + i*0x2c).
+// One player slot of the menu's game setup (engine+0x4c + i*0x2c; the
+// offsets below are relative to the slot).
 struct CPlayerSetup {
-    std::string name;        // +0x4c
-    int colorIndex = 0;      // +0x54 index into the player colour table
-    int type = 0;            // +0x58 0 = human, 1 = neutral, 2 = AI
-    unsigned team = 0;       // +0x5c
+    std::string name;        // +0x00 (config Player<i>Name by the menus)
+    int id = 0;              // +0x04 the slot number (set by the tutorial/campaign starts)
+    int colorIndex = 0;      // +0x08 index into the player colour table (engine+0x12c)
+    int type = 0;            // +0x0c 0 = human, 1 = neutral, 2 = AI, 3 = closed ("-")
+    unsigned team = 0;       // +0x10
+    int ready = 0;           // +0x14 lobby: ready flag
+    int unknown18 = 0;       // +0x18
+    int ping = -1;           // +0x1c lobby columns (PlayerControl, networked)
+    int score = -1;          // +0x20
+    int rank = 0;            // +0x24
+    int unknown28 = -1;      // +0x28
 };
 
 class CEngine {
@@ -42,8 +52,11 @@ public:
     float getSpeedFactor() const { return getSpeedFactor(mProductionSpeed); }
     static float getSpeedFactor(int setting);
 
-    // Player colour table (engine+0x12c): config Player<N>Color, N = 0..4.
+    // Player colour table (engine+0x12c, filled by CEngine::init): config
+    // Player0Color, then COL_RED, BLUE, GREEN, YELLOW, MAGENTA, CYAN, ORANGE,
+    // GRAY15, GRAY90, VIOLET, LIME, SPRINGGREEN, SKYBLUE, DARKMAGENTA.
     Vec3 getPlayerColor(int index) const;
+    static constexpr unsigned kNumPlayerColors = 15;
 
     // Defaults for a skirmish on map `mapId` with `players` players
     // (slot 0 = neutral, 1 = local human, the rest AI).
@@ -84,6 +97,40 @@ public:
     // GUI scaling option table {0.25,0.5,0.75,1,1.5,2,3}[+0x25c] -> mGUIScale (+0x24c)
     void setDPI(float xdpi, float ydpi, int widthPx, int heightPx);
     void updateGUIScaling();
+
+    // ---- options, profile, maps (phase 5d, menus)
+    // Ghidra 0x16b178: writes <saveDir>/options.txt (35 "Key value" lines in
+    // a fixed order; MapID >= 100 is written as 2).
+    void saveOptions();
+    // Ghidra 0x16b600: reads the same lines in the same order
+    // (CUtils::safeReadFromFile reads one line per key and fails on a
+    // mismatch; a failed key gets its default). Without the file only the
+    // account is reset (the constructor defaults stay). Ends with
+    // validateNameAndClan, CTxtLoc::load(language), updateGUIScaling and
+    // saveOptions.
+    void loadOptions();
+    // Ghidra 0x16ad2c: cleans the profile name (+0x1e8) and clan (+0x1ec)
+    void validateNameAndClan();
+    // Ghidra 0x167074: always true (the full version)
+    bool isMapPurchased(unsigned) const { return true; }
+    // Ghidra 0x16f170: cached per map id (engine+0x2c4: 0 unknown, 1 ok,
+    // 2 missing). [PC] "ok" = the map script map<id><Language>.txt exists;
+    // the original also checks every file the script names and their MD5s.
+    bool isMapDownloaded(unsigned id);
+    // Ghidra 0x168ac8: deletes the game and the ingame interface, clears the
+    // particles and the pause/loading flags, restarts the frame timer.
+    void resetGame();
+    // Ghidra 0x1680b8: [PC] ends the shell's frame loop (mQuitRequested)
+    void quit() { mQuitRequested = true; }
+    // [PC] takes ownership of a new game (the original keeps a raw CGame* at +0x178)
+    void setGame(std::unique_ptr<CGame> game);
+    // Ghidra 0x167f34 (JNI): [PC] logs and calls mOpenURLHook (the shell sets it)
+    void openURL(const std::string& url);
+    std::function<void(const std::string&)> mOpenURLHook;
+    // The UI half of CScriptGamestate::run (Ghidra 0x38db28): the menu
+    // becomes current at the aftermath screen (setupElements(12), action 0x21).
+    // Nothing without a menu interface (tests).
+    void showAftermathInterface();
 
     CTextRender* getTextRender() const { return mTextRender.get(); }
     // The camera of the current interface (vtable +0x28), or null (no GL needed)
@@ -132,6 +179,38 @@ public:
     bool mUseAutoUpgrade = true;       // +0x2dc  option "UseAutoUpgrade" (ctor: true; loadOptions: false if missing)
     unsigned mCurrentStep = 0;         // +0x310  lockstep step being simulated (0 outside)
     bool mQuitRequested = false;       // [PC] the shell exits its frame loop (menu "Exit")
+
+    // ---- options and profile (phase 5d; constructor defaults of Ghidra 0x16a6c4)
+    bool mShowDebug = false;           // +0x194 "ShowDebug" (loadOptions always clears it)
+    bool mDrawWater = true;            // +0x1bc "DrawWater"
+    bool mDrawCircles = true;          // +0x1be "DrawCircles" (the "Show range" option)
+    bool mGlobalChatEnabled = true;    // +0x1bf "GlobalChatEnabled"
+    bool mShowCompass = true;          // +0x1c0 "ShowCompass"
+    bool mLowResTextures = false;      // +0x1c1 "UseLowResTextureMode"
+    int mEventVerboseness = 0;         // +0x1dc "EventVerboseness"
+    bool mPublishServer = true;        // +0x1e0 "PublishServer"
+    unsigned mLastVersion = 0;         // +0x1e4 "LastVersion"
+    std::string mPlayerName;           // +0x1e8 "PlayerName"
+    std::string mPlayerClan;           // +0x1ec "PlayerClan"
+    std::string mSaveDir = ".";        // +0x208 where options.txt and the saves live ([PC] set by the shell)
+    bool mBeginnerMode = false;        // +0x274 "BeginnerMode"
+    std::string mCurrentUserAccount;   // +0x2c0 "CurrentUserAccount" ([PC] always "none": no device accounts)
+    std::map<unsigned, int> mMapDownloadState;   // +0x2c4 isMapDownloaded cache
+    bool mUseDoubleTouch = false;      // +0x2d4 "UseDoubleTouch" (loadOptions always clears it)
+    int mMinimapSize = 0;              // +0x2d8 "MinimapSize"
+    unsigned mCurrentCampaignId = 1;   // +0x2f8 the campaign slider's choice
+    long mAccountId = -1;              // +0x2fc "AccountId"
+    bool mProfilePrivate = false;      // +0x300 "ProfileIsPrivate"
+    bool mOnlineStatusPrivate = false; // +0x301 "OnlineStatusIsPrivate"
+    std::string mServerName = "IP";    // +0x304 "ServerName"
+    bool mOfflineMode = false;         // +0x318 "OfflineModeEnabled"
+    unsigned mTouchMinMovedDistanceID = 3;   // config+0xac "CfgTouchMinMovedDistanceID"
+    // [PC] stand-ins for the CSoundManager mixer volumes (+0x78/+0x7c/+0x80
+    // of the sound manager) until the sound package lands
+    unsigned mSFXVolume = 100;         // "SFXVolume"
+    unsigned mMusicVolume = 40;        // "BackgroundMusicVolume"
+    unsigned mMasterVolume = 100;      // "MasterVolume"
+    std::unique_ptr<CGame> mOwnedGame; // [PC] owner of mGame (see setGame)
 
 private:
     static std::unique_ptr<CEngine> sInstance;
