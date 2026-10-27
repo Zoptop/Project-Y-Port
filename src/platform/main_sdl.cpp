@@ -206,12 +206,8 @@ int checkAllShaders() {
 
 // "set numplayers N" of a map script (2 if missing).
 unsigned mapPlayerCount(int id) {
-    std::string text;
-    if (!CMemoryFile::readAll("map" + std::to_string(id) + "English.txt", text)) return 2;
-    const size_t p = text.find("set numplayers");
-    if (p == std::string::npos) return 2;
-    const int n = std::atoi(text.c_str() + p + 14);
-    return n >= 1 && n <= 4 ? static_cast<unsigned>(n) : 2u;
+    const unsigned n = CInterfaceIngame::mapNumPlayers(static_cast<unsigned>(id));
+    return n >= 1 && n <= 4 ? n : 2u;
 }
 
 std::vector<int> availableMaps() {

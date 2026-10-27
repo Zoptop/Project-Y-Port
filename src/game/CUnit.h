@@ -166,6 +166,8 @@ public:
     // category, type and owner id with squared distance < rangeSq.
     CUnit* findClosestUnitSlow(unsigned category, unsigned type, unsigned playerId, Real rangeSq);
     void enterVehicle(unsigned vehicleId);             // Ghidra 0x3ad240
+    // (port) the HUD part shared by CUnit::leaveVehicle and CUnitRoboBrain's
+    void handOverSelectionOnLeave(bool force);
     void enterBuilding(CBuilding* building);           // Ghidra 0x3a7bf0
     void setUnitOrderOnWatch();                        // Ghidra 0x3aca84
     void setUnitOrderHoldPosition();                   // Ghidra 0x3ac478

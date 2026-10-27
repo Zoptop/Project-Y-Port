@@ -13,6 +13,9 @@
 //
 // [!] Only the factory's rally-to-group (getFirstGroupUnit) feeds back into
 // the simulation, and only for the local human player, as in the original.
+// The selection hand-over (a brain entering / leaving a vehicle, a unit
+// rallied to a selected one, a vehicle changing owner, a unit taken over by
+// a script) only changes the HUD's selection and control groups.
 #pragma once
 
 #include <string>
@@ -38,9 +41,16 @@ public:
     virtual unsigned getFirstGroupUnit(CPlayer* player, unsigned groupId) = 0;
     // CGroupBar::getGroupInfo + addUnitToGroup (the factory's rally to a group)
     virtual void addUnitToGroup(CPlayer* player, unsigned groupId, unsigned unitId) = 0;
-    // IPP::isGameObjectSelected / selectGameObject
+    // IPP::isGameObjectSelected / selectGameObject / unselectGameObject
     virtual bool isGameObjectSelected(CPlayer* player, unsigned id) = 0;
     virtual void selectGameObject(CPlayer* player, unsigned id) = 0;
+    virtual void unselectGameObject(CPlayer* player, unsigned id) = 0;
+    // CUnit::rally to a friendly unit: CGroupBar::getGroupOfUnit(groupUnit)
+    // and, if it is in a group, CGroupBar::addUnitToGroup(group, unit)
+    virtual void addUnitToGroupOfUnit(CPlayer* player, unsigned groupUnit, unsigned unit) = 0;
+    // the current interface (engine +0x168) is this one (its type, +0x34, is 1):
+    // CUnit::enterVehicle tests it before it moves the selection
+    virtual bool isCurrentInterface() = 0;
     // CGame::checkGameEndingCondition's text: IPP::setOverlayText(text, "",
     // 0, callerScript, false, true, "") and, with scrollTo, slowScrollTo(pos, 1)
     virtual void showGameEndText(CPlayer* player, const std::string& text, int callerScript,

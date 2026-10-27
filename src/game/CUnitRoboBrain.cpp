@@ -286,12 +286,13 @@ void CUnitRoboBrain::timeUpdate() {
 
 // Ghidra 0x3c3530. The vehicle's commanderLeft runs first; the brain is put
 // 1.1 m beside it. A forced exit (the vehicle dies, the sector is lost) of a
-// living brain sends it to the owner's nearest HQ. The selection change of
-// the interface is not simulation.
+// living brain sends it to the owner's nearest HQ. Before that, the owner's
+// HUD moves the selection from the vehicle to the brain (not when forced).
 void CUnitRoboBrain::leaveVehicle(bool force) {
     if (!isCommander()) return;
     CGame* game = mEngine->mGame;
     if (CUnit* v = game->getAsUnit(mCommandedUnit)) {
+        handOverSelectionOnLeave(force);
         v->commanderLeft(force);
         mPosition.x = v->mPosition.x + bitsf(0x3f8ccccd);
         mPosition.y = v->mPosition.y + bitsf(0x3f8ccccd);

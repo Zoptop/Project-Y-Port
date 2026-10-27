@@ -1,6 +1,11 @@
 // CInterfaceIngame.cpp - see CInterfaceIngame.h.
 #include "ui/CInterfaceIngame.h"
 
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#include "core/CMemoryFile.h"
 #include "core/CUtils.h"
 #include "game/CCommandManager.h"
 #include "game/CEngine.h"
@@ -92,9 +97,54 @@ void CInterfaceIngame::initSplitscreen(int width, int height, unsigned p1, unsig
     CScriptManager::setUI(this);
 }
 
+// [PC] The "set numplayers N" line of map<id><language>.txt (0 without the
+// file or the line), read like the map list of the custom game screen
+// (CInterfaceMenu::createElementMapSlider).
+unsigned CInterfaceIngame::mapNumPlayers(unsigned mapId) {
+    CEngine* e = CEngine::getSingletonPtr();
+    std::string text;
+    const std::string lang = e->mLanguage.empty() ? std::string("English") : e->mLanguage;
+    if (!CMemoryFile::readAll("map" + std::to_string(mapId) + lang + ".txt", text)) return 0;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find('\n', pos);
+        if (end == std::string::npos) end = text.size();
+        const std::string line = text.substr(pos, end - pos);
+        pos = end + 1;
+        char w0[64] = "", w1[64] = "";
+        int n = 0;
+        if (std::sscanf(line.c_str(), "%63s %63s %i", w0, w1, &n) == 3 && std::strcmp(w0, "set") == 0 &&
+            std::strcmp(w1, "numplayers") == 0)
+            return n > 0 ? static_cast<unsigned>(n) : 0u;
+    }
+    return 0;
+}
+
+// [PC] A game with fewer players than the map's "set numplayers": the map
+// script still gives sectors to the missing players ("create sector 5 player
+// 2"); CGame::getPlayer logs "player 2 not found" and returns null, the
+// sector has no owner, and the first production building in it reads
+// through the null owner in CBuildingProduction::getUnitProductionTime
+// (Ghidra 0x13d264: the owner's vfunc +0x1c), in the original as well. The
+// original's menus never start such a game: the custom game screen takes
+// the player count from the map list ("set numplayers": createElementMapSlider
+// and action 0xf, the map slider) and the tutorial (action 0xe) sets 2 for
+// map 201. --skirmish
+// follows the menus and raises a smaller count.
+unsigned CInterfaceIngame::skirmishPlayerCount(unsigned mapId, unsigned requested) {
+    const unsigned need = mapNumPlayers(mapId);
+    if (requested < need) {
+        CUtils::log("skirmish: map %u needs %u players (set numplayers), not %u: starting with %u", mapId, need,
+                    requested, need);
+        return need;
+    }
+    return requested;
+}
+
 CInterfaceIngame* CInterfaceIngame::startSkirmish(unsigned mapId, unsigned players, bool fow, int width,
                                                  int height) {
     CEngine* e = CEngine::getSingletonPtr();
+    players = skirmishPlayerCount(mapId, players);
     e->setupSkirmish(mapId, players);
     e->mUseFOW = fow;
     e->mGameType = 0;
@@ -563,6 +613,19 @@ bool CInterfaceIngame::isGameObjectSelected(CPlayer* player, unsigned id) {
 void CInterfaceIngame::selectGameObject(CPlayer* player, unsigned id) {
     if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player)) p->selectGameObject(id);
 }
+
+void CInterfaceIngame::unselectGameObject(CPlayer* player, unsigned id) {
+    if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player)) p->unselectGameObject(id);
+}
+
+// Part of CUnit::rally (Ghidra 0x3ac6d8): the group bar of the IPP (+0x9c)
+void CInterfaceIngame::addUnitToGroupOfUnit(CPlayer* player, unsigned groupUnit, unsigned unit) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (!p || !p->getGroupBar()) return;
+    if (CGroupInfo* g = p->getGroupBar()->getGroupOfUnit(groupUnit)) p->getGroupBar()->addUnitToGroup(*g, unit);
+}
+
+bool CInterfaceIngame::isCurrentInterface() { return mEngine->mCurrentInterface == this; }
 
 void CInterfaceIngame::showGameEndText(CPlayer* player, const std::string& text, int callerScript,
                                        const CVector2* scrollTo) {

@@ -1066,8 +1066,9 @@ void CUnit::setUnitOrderGatherResourcesAtLocation(const CVector2& location, bool
     mLookAtSet = false;
 }
 
-// Ghidra 0x3ac6d8 (the interface's group/selection bookkeeping for a friendly
-// target is not ported).
+// Ghidra 0x3ac6d8. Rallied to a unit of the same owner, the unit also joins
+// that unit's control group and the selection when it is selected (the
+// owner's HUD only, IIngameUI).
 void CUnit::rally(unsigned targetId, const CVector2& position) {
     if (targetId == 0) {
         setUnitOrderMoveToLocation(position, true);
@@ -1095,6 +1096,12 @@ void CUnit::rally(unsigned targetId, const CVector2& position) {
                 setUnitOrderGatherResourcesAtLocation(u->mGatherResourceDestination, true, nullptr);
             else
                 setUnitOrderMoveToLocation(u->position2(), true);
+            if (IIngameUI* ui = IIngameUI::get()) {
+                if (ui->hasInterface(mOwner)) {
+                    ui->addUnitToGroupOfUnit(mOwner, targetId, mId);
+                    if (ui->isGameObjectSelected(mOwner, targetId)) ui->selectGameObject(mOwner, mId);
+                }
+            }
         }
     } else if (o->mCategory == CATEGORY_BUILDING) {
         if (o->isCommandable(mOwner) && hasCommanderAbility())
@@ -1340,12 +1347,19 @@ void CUnit::automateLevelUp(int mode) {
 // ------------------------------------------------------------------ brains
 
 // Ghidra 0x3ad240. The brain leaves the grids and drives; the vehicle takes
-// the brain's owner and its rank bonuses. (The interface moves the selection
-// from the brain to the vehicle.)
+// the brain's owner and its rank bonuses. The owner's HUD moves the
+// selection from the brain to the vehicle, if the ingame interface is the
+// current one (interface type +0x34 == 1).
 void CUnit::enterVehicle(unsigned vehicleId) {
     CGame* game = mEngine->mGame;
     CUnit* v = game->getAsUnit(vehicleId);
     if (!v) return;
+    if (IIngameUI* ui = IIngameUI::get()) {
+        if (ui->isCurrentInterface() && ui->hasInterface(mOwner) && ui->isGameObjectSelected(mOwner, mId)) {
+            ui->unselectGameObject(mOwner, mId);
+            ui->selectGameObject(mOwner, vehicleId);
+        }
+    }
     mCommandedUnit = vehicleId;
     mCommandedBuilding = nullptr;
     v->ownerChanged(mOwner);
@@ -1392,7 +1406,7 @@ void CUnit::leaveVehicle(bool force) {
     if (!isCommander()) return;
     CGame* game = mEngine->mGame;
     if (CUnit* v = game->getAsUnit(mCommandedUnit)) {
-        // (interface: the selection moves from the vehicle to the brain unless forced)
+        handOverSelectionOnLeave(force);
         v->commanderLeft(force);
         mPosition.x = v->mPosition.x + bitsf(0x3f8ccccd);
         mPosition.y = v->mPosition.y + bitsf(0x3f8ccccd);
@@ -1418,6 +1432,17 @@ void CUnit::leaveVehicle(bool force) {
     }
 }
 
+// Part of Ghidra 0x3acb38 / 0x3c3530 (CUnitRoboBrain): when the owner's HUD
+// has the driven vehicle selected, it unselects it and, unless the exit is
+// forced, selects the brain instead. Called before the vehicle's
+// commanderLeft.
+void CUnit::handOverSelectionOnLeave(bool force) {
+    IIngameUI* ui = IIngameUI::get();
+    if (!ui || !ui->hasInterface(mOwner) || !ui->isGameObjectSelected(mOwner, mCommandedUnit)) return;
+    ui->unselectGameObject(mOwner, mCommandedUnit);
+    if (!force) ui->selectGameObject(mOwner, mId);
+}
+
 // Ghidra 0x3acae4. [!] mCommandedBuilding is cleared after setUnitOrderOnWatch.
 void CUnit::leaveBuilding() {
     setUnitOrderOnWatch();
@@ -1441,9 +1466,14 @@ void CUnit::removeCommander() {
 }
 
 // Ghidra 0x3acd40. The driver follows the vehicle to the new owner; a unit
-// without a vehicle/building stops and drops its target. (The interface
-// unselects the driven vehicle.)
+// without a vehicle/building stops and drops its target. The old owner's HUD
+// first unselects the vehicle this unit drives (+0xef0) [!] not the unit
+// itself.
 void CUnit::ownerChanged(CPlayer* newOwner) {
+    if (IIngameUI* ui = IIngameUI::get()) {
+        if (ui->hasInterface(mOwner) && ui->isGameObjectSelected(mOwner, mCommandedUnit))
+            ui->unselectGameObject(mOwner, mCommandedUnit);
+    }
     for (unsigned id : mWeaponIds)
         if (CWeapon* w = mEngine->mGame->getWeapon(id)) w->ownerChanged(newOwner, mOwner);
     mOwner->removeUnit(mId);
@@ -1456,10 +1486,13 @@ void CUnit::ownerChanged(CPlayer* newOwner) {
     removeTarget();
 }
 
-// Ghidra 0x3a4dc0. (The interface unselects the unit.) The owner is told
-// that it may no longer control it (the AI drops it from its squads).
+// Ghidra 0x3a4dc0. The owner's HUD unselects the unit (on and off). The
+// owner is told that it may no longer control it (the AI drops it from its
+// squads).
 void CUnit::setScriptedControlled(bool on) {
     mScriptControlled = on;
+    if (IIngameUI* ui = IIngameUI::get())
+        if (ui->hasInterface(mOwner)) ui->unselectGameObject(mOwner, mId);
     if (on) mOwner->directUnitControlDisabled(mId);
 }
 

@@ -86,7 +86,13 @@ public:
     // initSingleplayerGame without the menu (setupSkirmish(map, players):
     // player 1 human, the others AI; option UseFOW = fow), the new ingame
     // interface made current. Returns it, or null if the map did not load.
+    // `players` below the map's "set numplayers" is raised to it (see
+    // skirmishPlayerCount).
     static CInterfaceIngame* startSkirmish(unsigned mapId, unsigned players, bool fow, int width, int height);
+    // [PC] the map script's "set numplayers" (0 if none), and the player count
+    // a skirmish of `requested` players starts with (at least that).
+    static unsigned mapNumPlayers(unsigned mapId);
+    static unsigned skirmishPlayerCount(unsigned mapId, unsigned requested);
 
     // ---- quad queues (Ghidra addresses in the .cpp)
     void addSelectionQuad(const Vec3& pos, float size);
@@ -125,6 +131,9 @@ public:
     void addUnitToGroup(CPlayer* player, unsigned groupId, unsigned unitId) override;
     bool isGameObjectSelected(CPlayer* player, unsigned id) override;
     void selectGameObject(CPlayer* player, unsigned id) override;
+    void unselectGameObject(CPlayer* player, unsigned id) override;
+    void addUnitToGroupOfUnit(CPlayer* player, unsigned groupUnit, unsigned unit) override;
+    bool isCurrentInterface() override;
     void showGameEndText(CPlayer* player, const std::string& text, int callerScript,
                          const CVector2* scrollTo) override;
     // ---- IScriptUI (the scripts' queries and the speaker)
