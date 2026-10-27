@@ -126,3 +126,14 @@ from 1. Brains are units; a brain drives a vehicle (`brain.mCommandedUnit` /
   read the fields back (`emu.read_u32(obj + off)`). `tools/emu/nav_oracle.py` shows the pattern.
 - Tests (`tests/test_*.cpp`, picked up automatically): use expected values that come from the
   original or from hand computation, never values copied from the port's own output.
+
+## Status (end of phase 4)
+
+Every map with a skirmish setup (1-10, 201) matches the original under emulation for 400
+steps: the checksum, every traced value and the RNG states (CRngSafe and CRng) are identical
+at each step (`tools/verify/compare_sim.py --map N --players <numplayers> --steps 400`).
+Maps 4, 5, 8, 9 and 10 have 4 players and map 7 has 3; the others have 2.
+
+Still not ported: the networked command manager (lockstep queue and checksum exchange),
+production rally to a unit group (needs the UI's group bar), savegames, and everything
+drawn.
