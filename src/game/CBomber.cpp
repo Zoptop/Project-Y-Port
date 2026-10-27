@@ -7,6 +7,7 @@
 #include "core/CUtils.h"
 #include "core/FloatBits.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
@@ -71,8 +72,15 @@ void CBomber::init(const CVector2& target, CPlayer* owner, int dropType, unsigne
     mVelocity = 180.0f;
     mDroppedUnitID = droppedUnitId;
     mRoll = 0.0f;
-    // (two thruster particle systems, the drop marker for UNITS and the
-    // "staticself" engine sound: not simulation)
+    // two engine flames (each draws 150 CRng numbers) and, for units, a smoke
+    // marker on the drop point; the "staticself" engine sound is not ported.
+    // CBomber::draw (renderer) moves the flames to the engines every frame.
+    CParticleManager* pm = mEngine->getParticleManager();
+    mThrusterPS0 = pm->createParticleSystemId(PS_THRUSTER, mPosition, 1);
+    mThrusterPS1 = pm->createParticleSystemId(PS_THRUSTER, mPosition, 1);
+    if (dropType == BOMBER_DROP_UNITS)
+        mDropMarkerParticleSystem =
+            pm->createParticleSystemId(PS_SMOKE, CVector3(target.x, target.y, 0.0f), 7);
 }
 
 // Ghidra 0x126a2c
@@ -92,7 +100,9 @@ void CBomber::timeUpdate() {
     mPosition.z = dz + mPosition.z;
     // (3D sound position update)
     if (bitsf(fbits(mPosition.z) & 0x7fffffffu) > 700.0f) {
-        mReadyToDelete = true;   // (thrusters off, sound stopped)
+        mReadyToDelete = true;   // (sound stopped)
+        mEngine->getParticleManager()->disableParticleSystem(mThrusterPS0);
+        mEngine->getParticleManager()->disableParticleSystem(mThrusterPS1);
     }
 
     auto distance = [&]() -> Real { return CVector2(mPosition.x, mPosition.y).distance(mTargetPos); };
@@ -201,7 +211,8 @@ void CBomber::timeUpdate() {
                         mThrustPitch = mThrustPitch - b * bitsf(0x3e99999au);   // 0.3
                     }
                 }
-                // (below 270 m the drop marker particles are switched off)
+                if (d < 270.0f && mDropMarkerParticleSystem != 0)
+                    mEngine->getParticleManager()->disableParticleSystem(mDropMarkerParticleSystem);
                 return;
             }
             if (mBombsDropped == 1) {

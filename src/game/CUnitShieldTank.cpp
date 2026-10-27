@@ -23,6 +23,7 @@ void CUnitShieldTank::init(unsigned playerId, const CVector2& position, Real rot
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitShieldTankMaxHealth");
     loadConfigSettings("ShieldTank");
+    getSubMeshData("emptank1");   // +0x1c8/+0x1cc
     mFlags = 0xe55;
     mType = UNIT_SHIELDTANK;
     cfg.updateConfigValue(mHackResistance, "UnitShieldTankHackResistance");

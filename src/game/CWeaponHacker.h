@@ -24,7 +24,7 @@ public:
     std::string mSoundSourceName;        // +0x90
     Real mSoundVolume = 0.0f;            // +0x94
     CVector3 mBlastOffset;               // +0x98 (particles)
-    unsigned mParticleSystem = 0;        // +0xa4 (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0xa4 the hacking beam (shot constant 5)
     Real mHPS = 0.0f;                    // +0xa8 "WeaponHackerHPS" hacking per second
     unsigned mCurrentHackTarget = 0;     // +0xc4 "CurrentHackTarget"
     Real mHackTargetResistance = 1.0f;   // +0xe0 "HackTargetResistance"

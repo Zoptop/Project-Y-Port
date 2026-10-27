@@ -42,7 +42,9 @@ public:
     Real mUAVAcceleration = 0.0f;        // +0x1660 "UnitSpotterUAVAcceleration"
     Real mUAVTurnrate = 0.0f;            // +0x1664 "UnitSpotterUAVTurnrate"
     Real mUAVIconRadius = 0.0f;          // +0x1680 "UnitSpotterUAVIconRadius" (interface)
-    unsigned mUAVThrusterPS = 0;         // +0x1684 particle system id (not ported: stays 0)
+    uint32_t mUAVSubMeshFirst = 0;       // +0x1668 submesh "uav1" (its exploded pieces)
+    uint32_t mUAVSubMeshCount = 0;       // +0x166c
+    unsigned mUAVThrusterPS = 0;         // +0x1684 the UAV's engine flame (thruster 2)
 
 private:
     void climb(Real dt, bool simple);

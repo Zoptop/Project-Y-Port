@@ -10,6 +10,7 @@ void CUnitHarvester::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitHarvesterMaxHealth");
     loadConfigSettings("Harvester");
+    getSubMeshData("Harvester");   // +0x1c8/+0x1cc
     mFlags = 0x108e55;
     mType = UNIT_HARVESTER;
     cfg.updateConfigValue(mHackResistance, "UnitHarvesterHackResistance");

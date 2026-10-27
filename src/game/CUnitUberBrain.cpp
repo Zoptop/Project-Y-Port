@@ -10,6 +10,7 @@ void CUnitUberBrain::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitUberBrainMaxHealth");
     loadConfigSettings("UberBrain");
+    getSubMeshData("obrain1");   // +0x1c8/+0x1cc
     mFlags = 0xe05;
     mType = UNIT_UBERBRAIN;
     cfg.updateConfigValue(mHackResistance, "UnitUberBrainHackResistance");

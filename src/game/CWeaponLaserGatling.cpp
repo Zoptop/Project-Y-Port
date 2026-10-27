@@ -6,6 +6,7 @@
 #include "core/CTxtLoc.h"
 #include "core/fdlibm.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CUnit.h"
 
 namespace py {
@@ -38,16 +39,17 @@ void CWeaponLaserGatling::timeUpdate(CUnit* target, Real distanceSq, Real angle,
         if (Real(CMath::fDeg2Rad) > err) {
             const Real damage = mDPS * Real(mUnit->mEngine->mFrameDt) * mUnit->mDamageFactor;
             target->hit(damage, mUnit->mId, DAMAGE_LASER, mUnit->mOwner, nullptr);
-            // (sound and the shot particle system from the mount point: not ported)
+            // (sound: not ported) the beam from the mount point to the target
+            updateBeamParticleSystem(mParticleSystem, 1, mountPointToWorld(), target->mPosition, mUnit->mYaw);
             return;
         }
     }
     deactivate();
 }
 
-// Ghidra 0x3dac48: stops the shot particles and the sound (neither is ported).
+// Ghidra 0x3dac48: stops the beam and the sound (not ported).
 void CWeaponLaserGatling::deactivate() {
-    mParticleSystem = 0;
+    if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
     mSoundId = 0;
 }
 

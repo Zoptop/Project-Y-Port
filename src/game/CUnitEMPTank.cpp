@@ -18,6 +18,7 @@ void CUnitEMPTank::init(unsigned playerId, const CVector2& position, Real rotati
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitEMPTankMaxHealth");
     loadConfigSettings("EMPTank");
+    getSubMeshData("EMPT2B1");   // +0x1c8/+0x1cc
     mFlags = 0xee57;
     mType = UNIT_EMPTANK;
     cfg.updateConfigValue(mHackResistance, "UnitEMPTankHackResistance");

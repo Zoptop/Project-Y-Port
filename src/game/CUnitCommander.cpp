@@ -15,6 +15,7 @@ void CUnitCommander::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitCommanderMaxHealth");
     loadConfigSettings("Commander");
+    getSubMeshData("commander");   // +0x1c8/+0x1cc
     mFlags = 0xe55;
     mType = UNIT_COMMANDER;
     cfg.updateConfigValue(mHackResistance, "UnitCommanderHackResistance");

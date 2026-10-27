@@ -3,9 +3,12 @@
 
 #include "core/CConfig.h"
 #include "core/CMath.h"
+#include "core/CMatrix3.h"
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
 #include "game/CCraterManager.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemThruster.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -18,6 +21,8 @@ void CUnitSpotter::init(unsigned playerId, const CVector2& position, Real rotati
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitSpotterMaxHealth");
     loadConfigSettings("Spotter");
+    getSubMeshData("spotter1");   // +0x1c8/+0x1cc
+    getSubMeshData("uav1", mUAVSubMeshFirst, mUAVSubMeshCount);
     mFlags = 0xe55;
     mType = UNIT_SPOTTER;
     cfg.updateConfigValue(mHackResistance, "UnitSpotterHackResistance");
@@ -49,7 +54,7 @@ void CUnitSpotter::init(unsigned playerId, const CVector2& position, Real rotati
 void CUnitSpotter::die() {
     CUnit::die();
     mUAVstate = UAV_FALLING;
-    // (the thruster particle system is disabled)
+    mEngine->getParticleManager()->disableParticleSystem(mUAVThrusterPS);
 }
 
 // State 1: nose up to 45 degrees and accelerate (timeUpdate also switches to
@@ -126,7 +131,17 @@ void CUnitSpotter::move(Real dt) {
     mUAVposition.y = Real(mUAVposition.y) + step * sinYaw * CMath::SinTable(mUAVpitch + h);
     step = dt * mUAVvelocity;
     mUAVposition.z = Real(mUAVposition.z) + step * CMath::SinTable(mUAVpitch);
-    // (the thruster particle system follows the UAV: drawing only)
+    // the engine flame follows the UAV: 3 m behind it, along its attitude
+    if (mUAVThrusterPS != 0) {
+        if (auto* ps = static_cast<CParticleSystemThruster*>(
+                mEngine->getParticleManager()->getParticleSystem(mUAVThrusterPS))) {
+            CMatrix3 rot;
+            rot.FromEulerAnglesZYX(mUAVyaw, -mUAVpitch, mUAVroll);
+            const CVector3 off = rot * CVector3(-3.0f, 0.0f, 0.0f);
+            ps->mPosition = CVector3(mUAVposition.x + off.x, mUAVposition.y + off.y, mUAVposition.z + off.z);
+            ps->mOrientation.FromRotationMatrix(rot);
+        }
+    }
 }
 
 // Ghidra 0x3c9354
@@ -147,7 +162,7 @@ void CUnitSpotter::timeUpdate() {
             mUAVpitch = 0.0f;
             mUAVroll = 0.0f;
             mUAVvelocity = 0.0f;
-            // (thruster particle system created: mUAVThrusterPS, not ported)
+            mUAVThrusterPS = mEngine->getParticleManager()->createParticleSystemId(PS_THRUSTER, mUAVposition, 2);
         }
         break;
     case UAV_CLIMBING:
@@ -188,9 +203,13 @@ void CUnitSpotter::timeUpdate() {
         fall(dt);
         if (Real(mUAVposition.z) < 0.0f) {
             mUAVstate = UAV_DESTROYED;
-            // (explosion sound, particles and exploded pieces: visual)
-            if (CCraterManager* cm = mEngine->mGame->getCraterManager())
-                cm->addCrater(CVector3(mUAVposition.x, mUAVposition.y, 0.0f), 6.0f, false);
+            // the crash (the sound is not ported): explosion, the UAV's pieces, a crater
+            const CVector3 at(mUAVposition.x, mUAVposition.y, 0.0f);
+            mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, CVector2(at.x, at.y), 0.0f, 3, false,
+                                                                nullptr, false);
+            const Vec3& c = mOwner->mColor;
+            mEngine->mGame->createEUPs(at, mUAVSubMeshFirst, mUAVSubMeshCount, CVector3(c.x, c.y, c.z), 4);
+            if (CCraterManager* cm = mEngine->mGame->getCraterManager()) cm->addCrater(at, 6.0f, false);
             return;
         }
         break;

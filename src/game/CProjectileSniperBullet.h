@@ -13,13 +13,14 @@ namespace py {
 class CProjectileSniperBullet : public CProjectile {
 public:
     CProjectileSniperBullet();                                            // Ghidra 0x37f4e0
+    ~CProjectileSniperBullet() override;                                  // Ghidra 0x37f554 (tracer off)
     void update() override;                                               // Ghidra 0x37ecd4
     void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
               unsigned starterUnit, Real damageBonus) override;           // Ghidra 0x37f5dc
     void calcChecksum() override;                                         // Ghidra 0x37f9b8
 
     Real mShieldXPValue = 0.0f;          // +0x184
-    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (the tracer)
     Real mDamage = 0.0f;                 // +0x190 "ProjectileSniperBulletDamage"
     Real mFlightTime = 0.0f;             // +0x194 time to arrival
     CVector3 mStart;                     // +0x1b8

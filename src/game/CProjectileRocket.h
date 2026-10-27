@@ -20,6 +20,7 @@ namespace py {
 class CProjectileRocket : public CProjectile {
 public:
     CProjectileRocket();                                                  // Ghidra 0x37e088
+    ~CProjectileRocket() override;                                        // Ghidra 0x37e0e4 (trail off)
     void update() override;                                               // Ghidra 0x37d1fc
     void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
               unsigned starterUnit, Real damageBonus) override;           // Ghidra 0x37e160
@@ -27,7 +28,7 @@ public:
     void calcChecksum() override;                                         // Ghidra 0x37e5c4
 
     Real mShieldXPValue = 0.0f;          // +0x184 XP for a shield tank that stops it
-    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (not ported: 0)
+    unsigned mParticleSystem = 0;        // +0x18c "CurrentParticleSystem" (smoke trail)
     Real mDmgMinDistance = 0.0f;         // +0x190
     Real mDmgDistanceScaleFactor = 0.0f; // +0x194
     Real mDmgMaxDamage = 0.0f;           // +0x198

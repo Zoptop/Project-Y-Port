@@ -21,6 +21,7 @@ void CUnitCloakSuit::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitCloakSuitMaxHealth");
     loadConfigSettings("CloakSuit");
+    getSubMeshData("cloaker");   // +0x1c8/+0x1cc
     mFlags = 0x88e57;   // (Ghidra shows a string address: the literal from the disassembly)
     mType = UNIT_CLOAKSUIT;
     cfg.updateConfigValue(mHackResistance, "UnitCloakSuitHackResistance");

@@ -94,6 +94,12 @@ public:
     Real angleTo(const CGameObject* other) const;     // Ghidra 0x182e94
     CUnit* getClosestAvailableCommander(CPlayer* player, bool includeMoving);   // Ghidra 0x182c34
     CVector2 position2() const { return CVector2(mPosition.x, mPosition.y); }
+    // The classes' init: CMesh::getSubMeshData(name, +0x1c8, +0x1cc) on the
+    // game's gameobjects mesh (CGame +0xc4). The range is what CGame::createEUPs
+    // breaks into pieces when the object is destroyed. Missing mesh or
+    // submesh: left as it is (the original logs).
+    void getSubMeshData(const char* name, uint32_t& first, uint32_t& count);
+    void getSubMeshData(const char* name) { getSubMeshData(name, mSubMeshFirst, mSubMeshCount); }
 
     uint32_t mFlags = 0;                 // +0x5c capability flags (EObjectFlags)
     Real mCullRadius = 1.0f;             // +0x60 bounding radius, culling
@@ -110,6 +116,8 @@ public:
     unsigned mCreationStep = 0;          // +0xf4 engine step at init
     Real mIconRadius = 0.0f;             // +0x108
     bool mVisible = false;               // +0x1c5 frustum culling result
+    uint32_t mSubMeshFirst = 0;          // +0x1c8 main submesh: first triangle
+    uint32_t mSubMeshCount = 0;          // +0x1cc main submesh: triangle count
     CGridCell* mGridCell = nullptr;      // +0x1d0 near grid (10 m)
     CGridCell* mGridCellFar = nullptr;   // +0x1d4 far grid (100 m)
     CGridCell* mGridCellHeld = nullptr;  // +0x1d8 holdState copies (units)

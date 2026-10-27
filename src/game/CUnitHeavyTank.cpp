@@ -69,6 +69,7 @@ void CUnitHeavyTank::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitHeavyTankMaxHealth");
     loadConfigSettings("HeavyTank");
+    getSubMeshData("HeavyT1");   // +0x1c8/+0x1cc
     mFlags = 0xed7;
     mType = UNIT_HEAVYTANK;
     cfg.updateConfigValue(mHackResistance, "UnitHeavyTankHackResistance");

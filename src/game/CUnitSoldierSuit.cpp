@@ -18,6 +18,7 @@ void CUnitSoldierSuit::init(unsigned playerId, const CVector2& position, Real ro
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitSoldierBrainMaxHealth");
     loadConfigSettings("SoldierBrain");
+    getSubMeshData("SoldierBra");   // +0x1c8/+0x1cc
     mFlags = 0xe57;
     mType = UNIT_SOLDIERSUIT;
     cfg.updateConfigValue(mHackResistance, "UnitSoldierBrainHackResistance");

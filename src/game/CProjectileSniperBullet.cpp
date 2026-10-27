@@ -2,10 +2,13 @@
 #include "game/CProjectileSniperBullet.h"
 
 #include "core/CConfig.h"
+#include "core/CMath.h"
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemShotDirected.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CUnit.h"
@@ -36,8 +39,18 @@ void CProjectileSniperBullet::init(CUnit* target, const CVector3& position, Real
         mDirection.z = inv * mDirection.z;
     }
     mFlightTime = (len - 8.0f) / mVelocity;
-    // (tracer particle system and sound: not ported)
-    mParticleSystem = 0;
+    // the tracer (a directed shot along the flight direction); the sound is not ported
+    CParticleSystem* ps =
+        mEngine->getParticleManager()->createParticleSystem(PS_SHOTDIRECTED, mPosition, 4, false, nullptr, false);
+    mParticleSystem = ps->mID;
+    const Real zero = Real(CMath::fDeg2Rad) * 0.0f;
+    const Real heading = fdlibm::atan2f(mDirection.y, mDirection.x);
+    static_cast<CParticleSystemShotDirected*>(ps)->mRotation.FromEulerAnglesXYZ(zero, zero, heading);
+}
+
+// Ghidra 0x37f554
+CProjectileSniperBullet::~CProjectileSniperBullet() {
+    if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
 }
 
 // Ghidra 0x37ecd4
@@ -69,14 +82,16 @@ void CProjectileSniperBullet::update() {
         mPosition = next;
     }
     if (stopped) {
-        mReady2Delete = true;   // (and stops the tracer)
+        mReady2Delete = true;
+        mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
         return;
     }
-    // (moves the tracer: rendering)
+    mEngine->getParticleManager()->attachParticleSystem(mParticleSystem, mPosition);
     if (mTimeOfFlight > mFlightTime && !mReady2Delete) {
         const Real a = mFlightTime * mVelocity + 2.0f;
         mPosition = CVector3(a * mDirection.x + mStart.x, a * mDirection.y + mStart.y, a * mDirection.z + mStart.z);
-        // (impact particles: not ported)
+        mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, CVector2(mPosition.x, mPosition.y), 0.0f,
+                                                            5, false, nullptr, false);
         if (CUnit* target = game->getAsUnit(mTargetUnit)) {
             if (!target->isCommander()) {
                 target->hit(mDamage * mDamageBonus, mStarterUnit, DAMAGE_PROJECTILE, mOwner, nullptr);

@@ -7,6 +7,7 @@
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CPlayer.h"
 #include "game/CUnit.h"
 
@@ -67,7 +68,8 @@ void CWeaponHacker::timeUpdate(CUnit* target, Real distanceSq, Real angle, bool)
                 deactivate();
                 return;
             }
-            // (hacking-beam particle system from the mount point: not ported)
+            // the hacking beam from the mount point to the target
+            updateBeamParticleSystem(mParticleSystem, 5, mountPointToWorld(), target->mPosition, mUnit->mYaw);
             return;
         }
     }
@@ -77,7 +79,7 @@ void CWeaponHacker::timeUpdate(CUnit* target, Real distanceSq, Real angle, bool)
 // Ghidra 0x3d8f24
 void CWeaponHacker::deactivate() {
     mCurrentHackTarget = 0;
-    mParticleSystem = 0;
+    if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
 }
 
 // Ghidra 0x3d8d6c: a stunned hacker starts over.

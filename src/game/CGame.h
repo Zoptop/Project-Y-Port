@@ -28,6 +28,8 @@ namespace py {
 
 class CBuilding;
 class CCameraLevel;
+class CExplodedUnitPiece;
+class CMesh;
 class CCommandManager;
 class CEngine;
 class CGameObject;
@@ -99,6 +101,21 @@ public:
     // Created by init (Ghidra 0x17cf28, after the factories); visual only.
     CCraterManager* getCraterManager() const { return mCraterManager.get(); }
 
+    // ---- exploded unit pieces (visual; their constructor draws CRng)
+    // Ghidra 0x17e570. Breaks the mesh range [firstTri, firstTri + triCount)
+    // of a destroyed object into pieces flying from `position`: at most 100
+    // pieces in the game, and n = clamp(minPieces + triCount / 100 +
+    // f2u(U * 5), minPieces, 100) pieces, U one CRng uniform.
+    void createEUPs(const CVector3& position, unsigned firstTri, unsigned triCount, const CVector3& color,
+                    unsigned minPieces);
+    // Ghidra 0x1783fc: drop the finished pieces, move the others. Called
+    // per frame by the command manager, after the step.
+    void timeUpdateExplodedPieces(Real dt);
+    const std::vector<std::unique_ptr<CExplodedUnitPiece>>& explodedPieces() const { return mExplodedPieces; }
+    // gameobjects.3DS.mesh (Ghidra 0x17cf28; headless: parsed, not uploaded).
+    // The objects take their submesh ranges from it (CGameObject::mSubMesh*).
+    CMesh* getGameObjectsMesh() const { return mGameObjectsMesh; }
+
     // ---- queries used by the game code (Ghidra addresses in CGame.cpp)
     // player null: any non-neutral owner; type 0: any type.
     CUnit* getClosestUnit(const CVector2& pos, CPlayer* player, unsigned type, bool skipCommanders,
@@ -123,6 +140,7 @@ public:
     void drawPreview(const CCameraLevel& cam) const;
 
     // ---- fields (original offsets)
+    std::vector<std::unique_ptr<CExplodedUnitPiece>> mExplodedPieces;   // +0x00
     std::map<unsigned, std::unique_ptr<CPlayer>> mPlayers;   // +0x0c
     std::list<CSceneObject*> mSceneObjects;                  // +0x3c bombers, bombs, drop crates
     unsigned mNumPlayers = 0;                                // +0x44
@@ -133,6 +151,7 @@ public:
     std::unique_ptr<CLevel> mLevel;                          // +0xa4
     CEngine* mEngine = nullptr;                              // +0xac
     std::unique_ptr<CCraterManager> mCraterManager;          // +0xb8
+    CMesh* mGameObjectsMesh = nullptr;                       // +0xc4 (owned by CMeshManager)
     CPlayer* mNeutralPlayer = nullptr;                       // +0xbc
     unsigned mNextGameObjectID = 1101;                       // +0x108 "mNextGameObjectID"
     unsigned mNextGameObjectBuildingID = 1001;               // +0x124

@@ -41,6 +41,7 @@ namespace {
 
 constexpr uint32_t kStepBits = 0x3DCCCC00;   // CCommandManager::mSimStepTime
 constexpr uint32_t kSeedW = 0x1234, kSeedZ = 0x5678;   // game_oracle.py SEED_W/SEED_Z
+constexpr uint32_t kOracleClockW = 1445000000u >> 16, kOracleClockZ = 1445000000u;   // CRng, see main()
 
 using Trace = std::vector<std::pair<char, uint32_t>>;
 
@@ -180,8 +181,12 @@ int main(int argc, char** argv) {
     e->mCratesEnabled = false;
     e->mSectorSetupMode = 0;
     e->mUnitAvailabilityMode = 0;
-    // CInterfaceMenu::initSingleplayerGame seeds both RNGs from time(); the oracle fixes them.
-    CRng::SetSeed(kSeedW, kSeedZ);
+    // CInterfaceMenu::initSingleplayerGame seeds both RNGs from time(). The
+    // oracle fixes CRngSafe (SEED_W/SEED_Z); its hook on
+    // CRng::SetSeedFromSystemTime does not take, so CRng gets the real
+    // function's seed from the emulated clock: time() = 1445000000
+    // (projecty_emu.py), seed (t >> 16, |t|) = (0x5620, 0x5620f340).
+    CRng::SetSeed(kOracleClockW, kOracleClockZ);
     CRngSafe::SetSeed(kSeedW, kSeedZ);
     e->mNetworkMode = 0;
     auto game = std::make_unique<CGame>();

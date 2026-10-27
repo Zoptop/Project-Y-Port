@@ -15,6 +15,7 @@ void CUnitAmplifier::init(unsigned playerId, const CVector2& position, Real rota
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitAmplifierMaxHealth");
     loadConfigSettings("Amplifier");
+    getSubMeshData("amplifier");   // +0x1c8/+0x1cc
     mFlags = 0xe55;
     mType = UNIT_AMPLIFIER;
     cfg.updateConfigValue(mHackResistance, "UnitAmplifierHackResistance");

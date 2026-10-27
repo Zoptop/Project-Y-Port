@@ -1,8 +1,7 @@
 // CBuildingHQ.cpp - see CBuildingHQ.h.
 //
-// PORT STATUS: complete for the simulation. Not ported: craters
-// (CCraterManager, TODO(4.x)), particles, exploded unit pieces (visual, CRng),
-// the sub-mesh lookup (drawing).
+// PORT STATUS: complete, with the visual craters, explosions and exploded
+// pieces (they draw CRng, see docs/re/sim_phase4.md).
 #include "game/CBuildingHQ.h"
 
 #include "core/CConfig.h"
@@ -10,6 +9,8 @@
 #include "core/CRng.h"
 #include "core/FloatBits.h"
 #include "core/fdlibm.h"
+#include "game/CCraterManager.h"
+#include "game/CParticleManager.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -60,6 +61,7 @@ CBuildingHQ::CBuildingHQ() { mProductionStopped = false; }
 // Ghidra 0x13b78c
 void CBuildingHQ::init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) {
     loadConfigSettings("HQ");
+    getSubMeshData("HQ1");   // +0x1c8/+0x1cc
     mUnitType = subtype;
     mType = BUILDING_HQ;
     const int hqMode = mEngine->mGame->getLevel()->mHQMode;
@@ -137,8 +139,9 @@ void CBuildingHQ::timeUpdate() {
         p.y = y + mPosition.y;
         p.z = mPosition.z + 0.0f;
         const Real size = (Real(CRngSafe::GetUniform(7)) * bitsf(0x3e99999au) + bitsf(0x3e4ccccdu)) * mBoundingRadius;
-        (void)size;   // TODO(4.x craters): CCraterManager::addCrater(p, size, false)
-        // (particle system 3: not simulation)
+        if (CCraterManager* cm = mEngine->mGame->getCraterManager()) cm->addCrater(p, size, false);
+        mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, CVector2(p.x, p.y), 0.0f, 1, false,
+                                                            nullptr, false);
         doSplashDamage(p);
     }
     if (Real(CRngSafe::GetUniform(9)) < bitsf(0x3dcccccdu)) {
@@ -148,6 +151,8 @@ void CBuildingHQ::timeUpdate() {
         p.x = x + mPosition.x;
         p.y = y + mPosition.y;
         p.z = mPosition.z + 0.0f;
+        mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, CVector2(p.x, p.y), 0.0f, 3, false,
+                                                            nullptr, false);
         doSplashDamage(p);
     }
 }
@@ -188,7 +193,14 @@ void CBuildingHQ::destroy() {
     disableNavObstacle();
     mFlags = 0;
     CUnitFactory::getSingletonPtr()->createUnit(UNIT_BEACON, mOwner->mId, mPosition.x, mPosition.y, 0.0f, true, 0);
-    // (CGame::createEUPs: exploded pieces, visual and CRng only; craters TODO(4.x))
+    CCraterManager* craters = game->getCraterManager();
+    CParticleManager* pm = mEngine->getParticleManager();
+    const Vec3& c = mOwner->mColor;
+    game->createEUPs(mPosition, mSubMeshFirst, mSubMeshCount, CVector3(c.x, c.y, c.z), 30);
+    if (craters) {
+        craters->addCrater(mPosition, mBoundingRadius * 1.5f, true);
+        craters->addCrater(mPosition, mBoundingRadius * bitsf(0x3f99999au), true);   // 1.2
+    }
     for (int i = 0; i < 10; ++i) {
         const Real x = CRngSafe::GetNormal(0.0f, mBoundingRadius * 1.5f, 10);
         const Real y = CRngSafe::GetNormal(0.0f, mBoundingRadius * 1.5f, 11);
@@ -197,7 +209,8 @@ void CBuildingHQ::destroy() {
         p.y = y + mPosition.y;
         p.z = mPosition.z + 0.0f;
         const Real size = (Real(CRngSafe::GetUniform(12)) * bitsf(0x3e99999au) + bitsf(0x3e4ccccdu)) * mBoundingRadius;
-        (void)size;   // TODO(4.x craters): addCrater(p, size, false)
+        if (craters) craters->addCrater(p, size, false);
+        pm->createParticleSystem(PS_EXPLOSION, CVector2(p.x, p.y), 0.0f, 3, false, nullptr, false);
         doSplashDamage(p);
     }
     for (int i = 0; i < 15; ++i) {
@@ -208,7 +221,8 @@ void CBuildingHQ::destroy() {
         p.y = y + mPosition.y;
         p.z = mPosition.z + 0.0f;
         const Real size = (Real(CRngSafe::GetUniform(15)) * bitsf(0x3e99999au) + bitsf(0x3e4ccccdu)) * mBoundingRadius;
-        (void)size;   // TODO(4.x craters): addCrater(p, size, false)
+        if (craters) craters->addCrater(p, size, false);
+        pm->createParticleSystem(PS_EXPLOSION, CVector2(p.x, p.y), 0.0f, 3, false, nullptr, false);
         doSplashDamage(p);
     }
 }

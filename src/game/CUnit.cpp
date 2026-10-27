@@ -7,10 +7,9 @@
 // (updateChecksum/printChecksum).
 //
 // What the original does besides the simulation, and the port leaves out:
-//   - particles: the ids (+0x1178..+0x118c) stay 0. [!] Creating a particle
-//     system consumes the unsynced CRng in the system's init (smoke,
-//     explosion), as do CGame::createEUPs and CCraterManager::addCrater in
-//     die(). Those calls are marked "[particles]"; the port consumes nothing.
+//   - (particles are ported: the systems' ids are +0x1178..+0x118c. [!] They
+//     draw from the unsynced CRng, as do CGame::createEUPs and
+//     CCraterManager::addCrater in die(); CRng also drives the AI.)
 //   - sound, sound mood, achievements;
 //   - the per-player interface (selection, group bar, under-attack warning).
 //     hit() sets mVal14dc (the warning cooldown) only when the player has an
@@ -28,6 +27,9 @@
 #include "core/CUtils.h"
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
+#include "game/CCraterManager.h"
+#include "game/CParticleManager.h"
+#include "game/CParticleSystemSmoke.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -70,9 +72,29 @@ CUnit::~CUnit() {
     mCommandedBuilding = nullptr;
     mBuildingToEnter = nullptr;
     mLastAttackingPlayer = nullptr;
+    disableParticleSystem(mParticleResGather);
+    disableParticleSystem(mParticleSmoke);
+    disableParticleSystem(mParticleHeal);
+    disableParticleSystem(mParticleUpgrade);
+    disableParticleSystem(mParticleStun);
+    disableParticleSystem(mParticleInvul);
 }
 
 CWeapon* CUnit::weapon(size_t i) const { return mEngine->mGame->getWeapon(mWeaponIds[i]); }
+
+// The particle system `id` follows the unit; a system that is gone clears the id.
+void CUnit::attachParticleSystem(unsigned& id) { mEngine->getParticleManager()->attachParticleSystem(id, mPosition); }
+
+void CUnit::disableParticleSystem(unsigned& id) { mEngine->getParticleManager()->disableParticleSystem(id); }
+
+// A smoke system (subtype 8/9: invulnerable/stunned) sized to the unit.
+unsigned CUnit::createStatusParticleSystem(int subtype) {
+    CParticleManager* pm = mEngine->getParticleManager();
+    const unsigned id = pm->createParticleSystemId(PS_SMOKE, mPosition, subtype);
+    if (id != 0)
+        if (auto* ps = static_cast<CParticleSystemSmoke*>(pm->getParticleSystem(id))) ps->mScale = mBoundingRadius;
+    return id;
+}
 
 void CUnit::calcPath(const CVector2& from, const CVector2& to) {
     CNav* nav = mEngine->mGame->getLevel()->getNav();
@@ -1218,9 +1240,12 @@ Real CUnit::heal(Real amount, CUnit* /*healer: achievements only*/) {
             if (h >= maxH) {
                 h = maxH;
                 mHealth = maxH;
+            } else if (mParticleHeal == 0) {
+                mParticleHeal = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, 4);
             }
-            // [particles] heal particle while below the maximum; the smoke
-            // particle is switched off at >= 30 % health
+            // the damage smoke stops at 30 % health
+            if (mMaxHealth * bitsf(0x3e99999a) * mHealthFactor <= h && mParticleSmoke != 0)
+                disableParticleSystem(mParticleSmoke);
         }
     }
     return h - before;
@@ -1237,13 +1262,17 @@ void CUnit::checkHealth() {
         mHealth = mHealth - cfgReal("NeutralUnitAutoDamageFactor") * frameDt(mEngine);
     if (cfg.mAllNonCmdUnitAutoDamage && !isCommander() && isDestroyable())
         mHealth = mHealth - Real(cfg.mAllNonCmdUnitAutoDamageValue) * frameDt(mEngine);
-    // [particles] smoke when health < maxHealth * 0.3 * healthFactor and canSmoke()
+    // smoke below 30 % health (not for brains driving something)
+    if (canSmoke() && mHealth < mMaxHealth * bitsf(0x3e99999a) * mHealthFactor && !isCommander() &&
+        mParticleSmoke == 0)
+        mParticleSmoke = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, mInitVal12ec);
     if (mHealth <= 0.0f) die();
 }
 
 // Ghidra 0x3aa0d4. [!] A brain that dies leaves its vehicle (force) and is
-// done; other units explode ([particles]: explosion, CGame::createEUPs,
-// CCraterManager::addCrater: all visual, all consume CRng).
+// done; other units explode: an explosion (subtype mInitVal12f0, on the
+// ground), the mesh's pieces (CGame::createEUPs) and a crater. All visual,
+// all draw CRng.
 void CUnit::die() {
     removeTarget();
     mOwner->removeUnit(mId);
@@ -1257,6 +1286,12 @@ void CUnit::die() {
         leaveVehicle(true);
         return;
     }
+    CGame* game = mEngine->mGame;
+    mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, position2(), 0.0f, mInitVal12f0, false,
+                                                        nullptr, false);
+    const Vec3& c = mOwner->mColor;
+    game->createEUPs(mPosition, mSubMeshFirst, mSubMeshCount, CVector3(c.x, c.y, c.z), 4);
+    if (CCraterManager* cm = game->getCraterManager()) cm->addCrater(mPosition, mBoundingRadius, false);
 }
 
 // Ghidra 0x3acfe8. A longer stun extends a running one.
@@ -1268,17 +1303,18 @@ void CUnit::stun(Real duration, unsigned /*attackerId: achievements only*/) {
         setUnitOrderOnWatch();
         mStunCountdown = duration;
         mStunned = true;
-        // [particles] stun
+        if (mParticleStun == 0) mParticleStun = createStatusParticleSystem(9);
     } else if (duration > mStunCountdown) {
         mStunCountdown = duration;
         setUnitOrderOnWatch();
     }
 }
 
-// Ghidra 0x3a9fd8 ([particles] invulnerability shield)
+// Ghidra 0x3a9fd8 (with the shield particles)
 void CUnit::makeInvulnerable(Real duration) {
     mInvulnerable = true;
     mInvulnerableCountdown = duration;
+    if (mParticleInvul == 0) mParticleInvul = createStatusParticleSystem(8);
 }
 
 // Ghidra 0x3a4e14 (feature 9): the driver gets the XP.
@@ -1313,7 +1349,11 @@ void CUnit::enterVehicle(unsigned vehicleId) {
     CLevel* level = game->getLevel();
     level->removeUnitFromCells(mGridCell, mId);
     level->removeUnitFromCellsFar(mGridCellFar, mId);
-    // [particles] smoke, heal, invulnerability, stun, gathering switched off
+    disableParticleSystem(mParticleSmoke);
+    disableParticleSystem(mParticleHeal);
+    disableParticleSystem(mParticleInvul);
+    disableParticleSystem(mParticleStun);
+    disableParticleSystem(mParticleResGather);
     v->syncBonusFromDriver();
 }
 
@@ -1328,7 +1368,12 @@ void CUnit::enterBuilding(CBuilding* building) {
     CLevel* level = mEngine->mGame->getLevel();
     level->removeUnitFromCells(mGridCell, mId);
     level->removeUnitFromCellsFar(mGridCellFar, mId);
-    // [particles] switched off
+    disableParticleSystem(mParticleSmoke);
+    disableParticleSystem(mParticleHeal);
+    disableParticleSystem(mParticleStun);
+    disableParticleSystem(mParticleUpgrade);
+    disableParticleSystem(mParticleInvul);
+    disableParticleSystem(mParticleResGather);
 }
 
 // Ghidra 0x3acb38. The brain gets out 1.1 m off the vehicle's position, with
@@ -1470,12 +1515,22 @@ void CUnit::timeUpdate() {
     }
     if (mVal1498 > 0.0f) mVal1498 = mVal1498 - frameDt(mEngine);
     checkHealth();
-    // [particles] positions of smoke, gathering, upgrade
-    if (mUnitIsHealing) {
+    attachParticleSystem(mParticleSmoke);
+    attachParticleSystem(mParticleResGather);
+    attachParticleSystem(mParticleUpgrade);
+    bool healing = mUnitIsHealing;
+    if (healing) {
         const Real t = mUnitIsHealingCountdown - frameDt(mEngine);
         mUnitIsHealingCountdown = t;
-        if (t <= 0.0f) mUnitIsHealing = false;
+        if (t <= 0.0f) {
+            mUnitIsHealing = false;
+            healing = false;
+        }
     }
+    if (healing)
+        attachParticleSystem(mParticleHeal);
+    else
+        disableParticleSystem(mParticleHeal);
     if (!mGridCell || !mGridCellFar) {
         CUtils::log("current cell = NULL %i\n", mId);
         die();
@@ -1509,13 +1564,21 @@ void CUnit::timeUpdate() {
     if (mStunned) {
         const Real t = mStunCountdown - frameDt(mEngine);
         mStunCountdown = t;
-        if (t <= 0.0f) mStunned = false;   // [particles] stun off
+        if (t <= 0.0f) {
+            mStunned = false;
+            disableParticleSystem(mParticleStun);
+        }
     }
+    attachParticleSystem(mParticleStun);
     if (mInvulnerable) {
         const Real t = mInvulnerableCountdown - frameDt(mEngine);
         mInvulnerableCountdown = t;
-        if (t <= 0.0f) mInvulnerable = false;   // [particles] shield off
+        if (t <= 0.0f) {
+            mInvulnerable = false;
+            disableParticleSystem(mParticleInvul);
+        }
     }
+    attachParticleSystem(mParticleInvul);
     if (mEngine->mUseFOW) mOwner->drawFOWCircleTeam(position2(), getVisibilityRange());
     {
         Real falloff, range;
@@ -1538,7 +1601,12 @@ void CUnit::timeUpdate() {
     switch (mUnitstate) {
     case UNITSTATE_KILLED:
         mDeleteUnitTimeout = mDeleteUnitTimeout - frameDt(mEngine);
-        // [particles] all switched off
+        // [!] all but the invulnerability shield
+        disableParticleSystem(mParticleUpgrade);
+        disableParticleSystem(mParticleHeal);
+        disableParticleSystem(mParticleSmoke);
+        disableParticleSystem(mParticleResGather);
+        disableParticleSystem(mParticleStun);
         if (mDeleteUnitTimeout < 0.0f) mUnitstate = UNITSTATE_READYTODELETE;
         break;
 
@@ -1761,7 +1829,12 @@ void CUnit::timeUpdate() {
             const Real got = level->consumeRes(position2(), amount);
             if (got > 0.0f) {
                 mCurrentResGathered = got + mCurrentResGathered;
-                return;   // [particles] gathering (type 0xc for the harvester, else 0xb)
+                if (mParticleResGather == 0) {
+                    const CVector3 at(mPosition.x, mPosition.y, 0.0f);
+                    mParticleResGather = mEngine->getParticleManager()->createParticleSystemId(
+                        PS_SMOKE, at, mType == UNIT_HARVESTER ? 12 : 11);
+                }
+                return;
             }
             CVector2 found;
             if (level->findRes(position2(), mGatherResourceDestination, 150.0f, &found)) {
@@ -1787,7 +1860,7 @@ void CUnit::timeUpdate() {
 
     if (tail == TAIL_TARGET_WEAPONS) updateCurrentTarget();
     if (tail != TAIL_NONE) weaponUpdate();
-    // [particles] gathering particle off
+    disableParticleSystem(mParticleResGather);   // not gathering (any more)
 }
 
 // Ghidra 0x3aa960: the in-between-steps prediction for drawing (CGame runs
@@ -1796,7 +1869,12 @@ void CUnit::timeUpdate() {
 // timeUpdateSimple.
 void CUnit::timeUpdateSimple() {
     CGame* game = mEngine->mGame;
-    // [particles] positions
+    // the particle systems follow (ids are kept even when a system is gone)
+    CParticleManager* pm = mEngine->getParticleManager();
+    for (unsigned id : {mParticleSmoke, mParticleResGather, mParticleUpgrade, mParticleHeal, mParticleInvul,
+                        mParticleStun})
+        if (id != 0)
+            if (CParticleSystem* ps = pm->getParticleSystem(id)) ps->mPosition = mPosition;
     switch (mUnitstate) {
     case UNITSTATE_STOPPED: {
         auto avoid = [&] {

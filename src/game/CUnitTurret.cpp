@@ -151,6 +151,7 @@ void CUnitTurret::init(unsigned playerId, const CVector2& position, Real rotatio
     const CConfig& cfg = CConfig::get();
     mMaxHealth = bitsf(0x7f7fffff);
     loadConfigSettings("Turret");
+    getSubMeshData("Turret");   // +0x1c8/+0x1cc
     mType = UNIT_TURRET;
     mFlags = 0x222d6;
     cfg.updateConfigValue(mPosition.z, "UnitTurretZOffset");

@@ -78,6 +78,7 @@ void CUnitBombSuit::init(unsigned playerId, const CVector2& position, Real rotat
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitBombbrainMaxHealth");
     loadConfigSettings("Bombbrain");
+    getSubMeshData("Bombbrain1");   // +0x1c8/+0x1cc
     mFlags = 0xe57;
     mType = UNIT_BOMBSUIT;
     cfg.updateConfigValue(mHackResistance, "UnitBombbrainHackResistance");

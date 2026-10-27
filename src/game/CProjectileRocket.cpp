@@ -8,6 +8,7 @@
 #include "core/fdlibm.h"
 #include "game/CBuilding.h"
 #include "game/CEngine.h"
+#include "game/CParticleManager.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CUnit.h"
@@ -16,6 +17,11 @@ namespace py {
 
 // Ghidra 0x37e088
 CProjectileRocket::CProjectileRocket() { mType = 2; }
+
+// Ghidra 0x37e0e4
+CProjectileRocket::~CProjectileRocket() {
+    if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
+}
 
 // Ghidra 0x37e160
 void CProjectileRocket::init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
@@ -32,7 +38,7 @@ void CProjectileRocket::init(CUnit* target, const CVector3& position, Real yaw, 
     cfg.updateConfigValue(mDmgMaxDistance, "ProjectileRocketDmgMaxDistance");
     // (mesh "TankRocket" sub-mesh range: rendering)
     CProjectile::init(target, position, yaw, pitch, owner, starterUnit, damageBonus);
-    mParticleSystem = 0;   // (smoke trail particle system: not ported)
+    mParticleSystem = mEngine->getParticleManager()->createParticleSystemId(PS_SMOKE, mPosition, 2);   // smoke trail
     if (starterUnit != 0) {
         if (CUnit* starter = mEngine->mGame->getAsUnit(starterUnit)) mStartPosition = starter->mPosition;
     }
@@ -128,14 +134,19 @@ void CProjectileRocket::update() {
         const Real bx = mStartPosition.x - target->mPosition.x, by = mStartPosition.y - target->mPosition.y,
                    bz = mStartPosition.z - target->mPosition.z;
         const Real needed = bx * bx + by * by + bz * bz;
-        if (flown < needed) return;   // (moves the smoke trail: rendering)
+        if (flown < needed) {
+            mEngine->getParticleManager()->attachParticleSystem(mParticleSystem, mPosition);   // the smoke trail
+            return;
+        }
         center = CVector2(target->mPosition.x, target->mPosition.y);
     } else {
         center = CVector2(next.x, next.y);
     }
 
     // ---- explosion: area damage in the far-grid cell
-    // (explosion particles and sound: not ported)
+    // the explosion: at the shield (in the air) or on the ground at the target; the sound is not ported
+    mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, center, shielded ? next.z : Real(0.0f), 4,
+                                                        false, nullptr, false);
     if (CGridCell* cell = game->getLevel()->getGridCellFar(center)) {
         for (size_t i = 0; i < cell->units.size(); ++i) {
             CUnit* u = game->getAsUnit(cell->units[i]);

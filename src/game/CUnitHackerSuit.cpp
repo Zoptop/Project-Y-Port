@@ -18,6 +18,7 @@ void CUnitHackerSuit::init(unsigned playerId, const CVector2& position, Real rot
     const CConfig& cfg = CConfig::get();
     cfg.updateConfigValue(mMaxHealth, "UnitHackerSuitMaxHealth");
     loadConfigSettings("HackerSuit");
+    getSubMeshData("hacker1");   // +0x1c8/+0x1cc
     mFlags = 0x20ed7;
     mType = UNIT_HACKERSUIT;
     cfg.updateConfigValue(mMaxVelocity, "UnitHackerSuitMaxVelocity");
