@@ -22,6 +22,8 @@
 //   --screenshot f.png   write the last frame as PNG
 //   --input <file>       timed input script (docs/re/ui_phase5.md)
 //   --gui-scale F        override the GUI scale (CEngine::mGUIScale)
+//   --save-dir <dir>     where options.txt and the savegames live
+//                        (default: SDL_GetPrefPath, the user's app data)
 //   --check-shaders      compile every .gfx and exit
 //   --viewer             the phase-2 map viewer instead of the game
 //                        (--map N, --zoom Z, --cam X Y, --yaw DEG;
@@ -74,6 +76,7 @@ struct Options {
     int map = 1;
     std::string screenshot;     // write a PNG of the last frame
     std::string inputScript;    // --input
+    std::string saveDir;        // --save-dir (empty: SDL_GetPrefPath)
     float guiScale = 0.0f;      // --gui-scale (0 = from the window size)
     float zoom = -1.0f;         // initial zoom (default 2.0 = closest)
     float camX = 1e9f, camY = 1e9f;
@@ -101,6 +104,7 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--map") o.map = std::atoi(nextS().c_str());
         else if (a == "--screenshot") o.screenshot = nextS();
         else if (a == "--input") o.inputScript = nextS();
+        else if (a == "--save-dir") o.saveDir = nextS();
         else if (a == "--gui-scale") o.guiScale = static_cast<float>(std::atof(nextS().c_str()));
         else if (a == "--zoom") o.zoom = static_cast<float>(std::atof(nextS().c_str()));
         else if (a == "--cam") {
@@ -291,6 +295,24 @@ int runGame(const Options& opt, SDL_Window* window) {
     int w = 0, h = 0;
     SDL_GL_GetDrawableSize(window, &w, &h);
     applyWindowDPI(engine, opt, w, h);
+    // CEngine::init: the options file (the original's app files dir; [PC] the
+    // user's app data folder or --save-dir)
+    if (!opt.saveDir.empty()) {
+        engine->mSaveDir = opt.saveDir;
+    } else if (char* pref = SDL_GetPrefPath("LuminenceLabs", "ProjectY")) {
+        engine->mSaveDir = pref;
+        SDL_free(pref);
+        while (!engine->mSaveDir.empty() && (engine->mSaveDir.back() == '/' || engine->mSaveDir.back() == '\\'))
+            engine->mSaveDir.pop_back();
+    }
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(engine->mSaveDir, ec);
+    }
+    CUtils::log("save dir: %s", engine->mSaveDir.c_str());
+    engine->loadOptions();
+    applyWindowDPI(engine, opt, w, h);   // loadOptions re-derives the GUI scale; keep --gui-scale
+    engine->mOpenURLHook = [](const std::string& url) { SDL_OpenURL(url.c_str()); };   // [PC] Java openURL
     engine->initInterfaces();
     engine->setResolution(w, h);
 

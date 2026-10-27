@@ -1,0 +1,24 @@
+# Skirmish start (docs/re/ui_phase5.md "Phase 5d"), 1280x720, 60 fps clock,
+# with an EMPTY save dir (no options.txt -> the update news screen comes first):
+#   mkdir -p /tmp/py_save && rm -f /tmp/py_save/options.txt
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --save-dir /tmp/py_save \
+#       --frames 1300 --input tools/ui/skirmish_start.input
+# Path: update news -> Back -> main -> Singleplayer -> Custom Game -> Start
+# Game (map 1, Icy Isle) -> ingame -> Esc (statistics) -> Main menu (pause
+# screen) -> Surrender -> "Yes, I capitulate!" -> aftermath ("Draw") -> Main menu.
+470 screenshot skirmish_news.png
+480 click left 646 626                 # update news: Back
+570 click left 637 205                 # main: Singleplayer
+660 click left 560 367                 # singleplayer: Custom Game
+750 screenshot skirmish_custom.png
+760 click left 563 207                 # custom game: Start Game
+790 screenshot skirmish_ingame.png
+800 key escape                         # ingame Back -> statistics (screen 11)
+870 screenshot skirmish_stats.png
+880 click left 658 585                 # statistics: Main menu -> pause screen 4
+960 screenshot skirmish_pause.png
+970 click left 638 428                 # Surrender -> screen 30
+1060 click left 545 322                # Yes, I capitulate! (single player: action 0x21)
+1150 screenshot skirmish_aftermath.png
+1160 click left 658 585                # aftermath: Main menu (resetGame)
+1260 screenshot skirmish_main.png

@@ -50,4 +50,21 @@ public:
 // CMesh::draw(std::string): draws the named submesh (nothing if missing).
 void drawSubMesh(const CMesh* mesh, const std::string& name);
 
+// The press highlight of the menu's mesh buttons, shared by
+// CInterfaceElementButton2::drawMesh (Ghidra 0x18b4f8) and
+// CInterfaceElementTextSlider2::drawMesh (0x19b550), checked against the
+// disassembly of both:
+//   clicked:     t += 2dt; past 1 the click ends (clicked = false, t = 0)
+//   not pressed: t >= 0.5 -> t += 2dt; then t <= 0.5 -> t -= 2dt (settles at 0 or 1)
+//   pressed:     t < 0.5 -> t += 2dt; then t >= 0.5 -> t -= 2dt (hovers at 0.5)
+//   t = clamp(t, 0, 1); returns k = (1 - sin(2 pi t + pi/2)) / 2 (0 at rest, 1 at 0.5)
+float animatePressHighlight(float& anim, bool& clicked, bool pressed, float dt);
+
+// Many elements pass a user-visible string as the printf format of
+// CTextRender::drawString* (the TextSlider2 values "10 %%", player names,
+// ...). [PC] This returns what printf makes of a format without arguments:
+// "%%" -> "%"; any other '%' is kept as is (the original would read
+// garbage varargs there, which no shipped string does).
+std::string formatNoArgs(const std::string& fmt);
+
 }  // namespace py

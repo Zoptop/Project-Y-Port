@@ -109,43 +109,7 @@ int CInterfaceElementButton2::processEventActionUp(CInterfaceEvent* e) {
 //   not pressed: t >= 0.5 -> t += 2dt; then t <= 0.5 -> t -= 2dt (settles at 0 or 1)
 //   pressed:     t < 0.5 -> t += 2dt; then t >= 0.5 -> t -= 2dt (hovers at 0.5)
 //   t = clamp(t, 0, 1); k = (1 - sin(2 pi t + pi/2)) / 2  (0 at rest, 1 at 0.5)
-float CInterfaceElementButton2::animate(float dt) {
-    const float d = dt + dt;
-    float t;
-    if (mClicked) {
-        t = mAnim + d;
-        if (t > 1.0f) {
-            mClicked = false;
-            t = 0.0f;
-        }
-        mAnim = t;
-    } else if (!mPressed) {
-        t = mAnim;
-        if (t >= 0.5f) {
-            t = t + d;
-            mAnim = t;
-        }
-        if (t <= 0.5f) {
-            t = t - d;
-            mAnim = t;
-        }
-    } else {
-        t = mAnim;
-        if (t < 0.5f) {
-            t = t + d;
-            mAnim = t;
-        }
-        if (t >= 0.5f) {
-            t = t - d;
-            mAnim = t;
-        }
-    }
-    mAnim = CUtils::clamp(t, 0.0f, 1.0f);
-    CMath::initConstants();
-    const float a = mAnim * CMath::TWO_PI + CMath::HALF_PI;
-    const float s = CMath::getTrigTableSize() ? CMath::SinTable(a) : std::sin(a);
-    return (1.0f - s) * 0.5f;
-}
+float CInterfaceElementButton2::animate(float dt) { return animatePressHighlight(mAnim, mClicked, mPressed, dt); }
 
 // Ghidra 0x18b4f8: called with playercolormenu.gfx bound and the menu mesh's buffer active
 void CInterfaceElementButton2::drawMesh() {

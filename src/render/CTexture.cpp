@@ -144,4 +144,6 @@ CTexture* CTextureManager::getTexture(const std::string& name, unsigned type, un
 
 void CTextureManager::clear() { mTextures.clear(); }
 
+void CTextureManager::removeTexture(const std::string& name) { mTextures.erase(name); }
+
 }  // namespace py
