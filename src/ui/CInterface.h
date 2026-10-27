@@ -138,6 +138,9 @@ public:
     // [PC] see the header comment
     virtual bool mouseEmulatesTouch() const { return true; }
     virtual bool keysEmulateAndroidKeys() const { return true; }
+    // [PC] the mouse cursor the shell should show (ECursorHint in
+    // ui/CInterfaceIngamePerPlayer.h; 0 = the default arrow)
+    virtual int getCursorHint() const { return 0; }
 
     // ---- event queue (thread-safe)
     void processEvents();                                     // Ghidra 0x188b7c

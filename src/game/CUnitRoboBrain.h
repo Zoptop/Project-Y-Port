@@ -36,7 +36,7 @@ public:
     void calcUnitFiringRangesFromWeapons() override;     // Ghidra 0x3c08e4
     void weaponUpdate() override;                        // Ghidra 0x3c0980
     void automateLevelUp(int mode) override { mUpgradeAutomated = mode; }   // Ghidra 0x3c0968
-    bool isLevelUpAutomated() override { return mUpgradeAutomated != 0; }   // Ghidra 0x3c0974 [?] returns the mode
+    int isLevelUpAutomated() override { return mUpgradeAutomated; }   // Ghidra 0x3c0974: the mode
 
     void calcBonusFromRanks();               // Ghidra 0x3c14f4
     Real getLevelXP(unsigned level);         // Ghidra 0x3c1524

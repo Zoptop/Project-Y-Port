@@ -119,6 +119,7 @@ public:
     float mGameSpeedFactor = 1.0f;     // +0x1d0
     int mSectorSetupMode = 0;          // +0x1d4  EGameSectorSetupModes (skirmish presets)
     int mUnitAvailabilityMode = 0;     // +0x1d8  EGameUnitAvailabilityModes
+    int mEventVerboseness = 0;         // +0x1dc  option EventVerboseness (CEventBar::addEvent filter, 5 = none)
     Vec3 mMenuColorR{bitsf(0x3e851eb8), bitsf(0x3eb851ec), bitsf(0x3f051eb8)};   // +0x224 (0.26 0.36 0.52)
     Vec3 mMenuColorG{bitsf(0x3ef5c28f), bitsf(0x3f23d70a), 1.0f};                // +0x230 (0.48 0.64 1)
     Vec3 mMenuColorB{bitsf(0x3f6b851f), bitsf(0x3dcccccd), bitsf(0x3ecccccd)};   // +0x23c (0.92 0.1 0.4)
@@ -132,6 +133,20 @@ public:
     bool mUseAutoUpgrade = true;       // +0x2dc  option "UseAutoUpgrade" (ctor: true; loadOptions: false if missing)
     unsigned mCurrentStep = 0;         // +0x310  lockstep step being simulated (0 outside)
     bool mQuitRequested = false;       // [PC] the shell exits its frame loop (menu "Exit")
+
+    // ---- ingame interface options and state (HUD package; ctor defaults of Ghidra 0x16a6c4,
+    // option keys of CEngine::loadOptions)
+    bool mFollowMode = false;          // +0x1a4  the camera follows IPP +0x8c
+    bool mGlobalChatEnabled = true;    // +0x1bf  "GlobalChatEnabled"
+    bool mShowCompass = true;          // +0x1c0  "ShowCompass" (icon over the minimap)
+    bool mBeginnerMode = false;        // +0x274  "BeginnerMode" (HUD hint texts)
+    bool mUseDoubleTouch = false;      // +0x2d4  "UseDoubleTouch"
+    int mMinimapSize = 2;              // +0x2d8  "MinimapSize" 0 off, 1..3 = 0.2/0.3/0.4 of the short side
+    int mChatInputMode = 0;            // +0x31c  0 ingame chat, 1 lobby chat (createInputDialog)
+    // Ghidra 0x166a40: config TouchMinMovedDistanceID (cfg +0xac) -> fraction of the display
+    float getMinMovedDistance() const;
+    // config LongTouchTime (cfg +0xa8), milliseconds
+    float getLongTouchTime() const;
 
 private:
     static std::unique_ptr<CEngine> sInstance;
