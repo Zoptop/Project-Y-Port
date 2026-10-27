@@ -18,6 +18,8 @@ namespace py {
 
 class CUnitRoboBrain : public CUnit {
 public:
+    // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
+    static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3c13b8
     CUnitRoboBrain();   // Ghidra 0x3c12b4
 
     void timeUpdate() override;                          // Ghidra 0x3c1fcc

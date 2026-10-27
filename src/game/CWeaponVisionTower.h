@@ -11,6 +11,9 @@ namespace py {
 
 class CWeaponVisionTower : public CWeapon {
 public:
+    // the model flat on the screen (CWeaponFactory::drawWeapon; CUnitFactoryDraw.cpp)
+    static void drawWeapon(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q, Real size,
+                           const CVector3& offset);   // Ghidra 0x3e6d44
     CWeaponVisionTower();                                                 // Ghidra 0x3e6cfc
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3e6b7c
     void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3e6ddc (CWeaponDraw.cpp)

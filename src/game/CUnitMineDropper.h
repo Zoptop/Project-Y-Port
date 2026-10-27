@@ -11,6 +11,8 @@ namespace py {
 
 class CUnitMineDropper : public CUnit {
 public:
+    // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
+    static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3beca4
     CUnitMineDropper() = default;   // Ghidra 0x3bec28
 
     void timeUpdate() override;                          // Ghidra 0x3bee90

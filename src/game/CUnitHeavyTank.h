@@ -11,6 +11,8 @@ namespace py {
 
 class CUnitHeavyTank : public CUnit {
 public:
+    // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
+    static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3bdc1c
     CUnitHeavyTank() = default;   // Ghidra 0x3bdbe4
 
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3be0f0

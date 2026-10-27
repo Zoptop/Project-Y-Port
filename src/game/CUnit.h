@@ -91,6 +91,20 @@ public:
     void drawRadarMarker(bool minimap) override;       // +0x34 Ghidra 0x3af85c
     bool checkVisibility() override;                   // +0x3c Ghidra 0x3a3fb8
     void drawSelection() override;                     // +0x48 Ghidra 0x3a52a8
+    void drawOffscreenArrow();                         // (port) part of drawSelection
+    // +0x94 Ghidra 0x3af8b4: the object-info screen's texts (CUnitDraw.cpp)
+    void drawInfoscreen(CVector2& pos) override;
+
+    // ---- a unit model flat on the screen, as the dial menu's centre shows it
+    // (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp): an orthographic
+    // projection around `screenPos` (pixels) where `size` world units are
+    // 90 x GUI scale pixels, the model turned by `q` and moved by q * offset.
+    // `view` is unused by the original (an identity).
+    static void drawMeshFlat(const CMatrix4& view, const std::string& subMesh, const CVector2& screenPos, Real size,
+                             const CQuaternion& q, const CVector3& offset);   // Ghidra 0x3a7134
+    // its blob shadow ("Unit<name>Shadow*" config cell of shadow.png)
+    static void drawShadowFlat(const CMatrix4& view, const char* name, const CVector2& screenPos, Real size,
+                               const CQuaternion& q);   // Ghidra 0x3a6474
     // The health bar (and, in GameType 3, the cargo bar) above the unit;
     // part of CUnit::draw, shared by the subclasses that draw themselves.
     void drawStatusBars(float alpha);
@@ -337,6 +351,11 @@ private:
 class CUnitFactory {
 public:
     static CUnitFactory* getSingletonPtr();
+    // Ghidra 0x3bb854: the localised name of a unit type ("Beacon",
+    // "Unknown" for the others) (CUnitFactoryDraw.cpp)
+    static std::string getUnitTypeName(unsigned type);
+    // Ghidra 0x3bb01c: CUnit<type>::drawUnit (CUnitFactoryDraw.cpp)
+    static void drawUnit(unsigned type, const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);
     // Ghidra 0x3bbb30: the five auto-upgrade weights of a unit type (map::at:
     // throws std::out_of_range for a type the table lacks). Loaded on first use
     // from autoupgrade_default.txt (CUnitFactory ctor 0x3bc5c0, see .cpp).

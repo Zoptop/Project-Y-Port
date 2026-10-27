@@ -14,6 +14,7 @@ namespace py {
 
 class CBuildingSpecop : public CBuilding {
 public:
+    void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x14b360 (CInfoscreenDraw.cpp)
     CBuildingSpecop() = default;                    // Ghidra 0x149388
 
     void timeUpdate() override;                     // +0x08 Ghidra 0x149a38
@@ -29,6 +30,7 @@ public:
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x14988c
     // drawing (CBuildingSpecopDraw.cpp)
     void draw(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x149be8
+    void drawLabels();                              // (port) the label part of draw
     void doOp(const CVector2& target) override;     // +0xd0 Ghidra 0x148d24
     void enter(unsigned brainId) override;          // +0xd8 Ghidra 0x149814
     void addEventIcon();                            // Ghidra 0x149448 (IIngameUI: event bar)

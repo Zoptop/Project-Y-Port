@@ -18,6 +18,7 @@ namespace py {
 
 class CBuildingHQ : public CBuildingProduction {
 public:
+    void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x13b348 (CInfoscreenDraw.cpp)
     CBuildingHQ();                                  // Ghidra 0x13bc18
 
     void timeUpdate() override;                     // +0x08 Ghidra 0x13be14

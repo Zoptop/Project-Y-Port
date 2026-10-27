@@ -13,6 +13,7 @@
 // Matrices are render-side (plain float, Math3D column-major Mat4).
 #pragma once
 
+#include "core/CMatrix4.h"
 #include "core/CVector2.h"
 #include "render/Math3D.h"
 
@@ -38,6 +39,15 @@ public:
     // Ghidra 0x14e338: the point of the z = 0 plane under the screen pixel
     // `screen` (origin top-left, y down). (0, 0) when the ray misses.
     CVector2 viewportPlaneHit(const CVector2& screen) const;
+
+    // Ghidra 0x14ead4: an orthographic projection around the pixel `pos`
+    // (origin top-left) of a w x h viewport, in which `size` units are
+    // `pixelsAt1 / 2` x GUI scale pixels: x scale 1 / (size w / (GUI scale
+    // pixelsAt1)), x shift 2 pos.x / w - 1, y likewise (y up), z scale
+    // -2 / (size + size), z shift -(size - size) / (size + size).
+    // CUnit::drawMeshFlat / drawShadowFlat use it with pixelsAt1 = 180.
+    static CMatrix4 createOrthogonalProjectionMatrix(float pixelsAt1, float w, float h, const CVector2& pos,
+                                                     float size);
 
     // Ghidra 0x14ead4-style orthographic matrix used by CTextRender::draw:
     // x' = x / aspect, y' = y (screen text space, y up, |y| <= 1).

@@ -49,6 +49,8 @@ public:
     void draw(const CCameraLevel& cam);
 
     int count() const { return mCount; }
+    CGLSLProgram* shader() const { return mShader; }    // +0x04
+    CTexture* texture() const { return mTexture; }      // +0x08
     const CQuadPosUVTTL& quad(int i) const { return mQuads[static_cast<size_t>(i)]; }
 
     CVector2 mUVSize{0.05f, 0.05f};                       // +0x18 0x3d4ccccd

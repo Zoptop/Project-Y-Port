@@ -135,6 +135,7 @@ public:
     void unselectGameObject(CPlayer* player, unsigned id) override;
     void addUnitToGroupOfUnit(CPlayer* player, unsigned groupUnit, unsigned unit) override;
     bool isCurrentInterface() override;
+    void highlightRallyGroup(CPlayer* player, unsigned buildingId, unsigned groupId) override;
     void showGameEndText(CPlayer* player, const std::string& text, int callerScript,
                          const CVector2* scrollTo) override;
     // ---- IScriptUI (the scripts' queries and the speaker)

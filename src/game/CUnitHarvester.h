@@ -11,6 +11,8 @@ namespace py {
 
 class CUnitHarvester : public CUnit {
 public:
+    // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
+    static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3bcf1c
     CUnitHarvester() = default;   // Ghidra 0x3bcee4
 
     void init(unsigned playerId, const CVector2& position, Real rotation, unsigned sectorId) override;   // Ghidra 0x3bd100

@@ -11,6 +11,7 @@ namespace py {
 
 class CBuildingProductionLarge : public CBuildingProduction {
 public:
+    void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x1423b8 (CInfoscreenDraw.cpp)
     CBuildingProductionLarge() = default;           // Ghidra 0x142380
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x141ff8
     // drawing (CBuildingProductionLargeDraw.cpp)

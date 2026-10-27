@@ -51,6 +51,10 @@ public:
     // the current interface (engine +0x168) is this one (its type, +0x34, is 1):
     // CUnit::enterVehicle tests it before it moves the selection
     virtual bool isCurrentInterface() = 0;
+    // CBuilding::drawSelection (drawing): a building rallied to a control
+    // group, selected in its owner's HUD, frames that group in the group bar
+    // for the frame (CGroupBar +0x14 = groupId)
+    virtual void highlightRallyGroup(CPlayer* player, unsigned buildingId, unsigned groupId) = 0;
     // CGame::checkGameEndingCondition's text: IPP::setOverlayText(text, "",
     // 0, callerScript, false, true, "") and, with scrollTo, slowScrollTo(pos, 1)
     virtual void showGameEndText(CPlayer* player, const std::string& text, int callerScript,

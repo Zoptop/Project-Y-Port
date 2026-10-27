@@ -627,6 +627,13 @@ void CInterfaceIngame::addUnitToGroupOfUnit(CPlayer* player, unsigned groupUnit,
 
 bool CInterfaceIngame::isCurrentInterface() { return mEngine->mCurrentInterface == this; }
 
+// Part of CBuilding::drawSelection (Ghidra 0x135c70)
+void CInterfaceIngame::highlightRallyGroup(CPlayer* player, unsigned buildingId, unsigned groupId) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (p && p->isGameObjectSelected(buildingId) && p->getGroupBar())
+        p->getGroupBar()->mHighlightGroup = static_cast<int>(groupId);
+}
+
 void CInterfaceIngame::showGameEndText(CPlayer* player, const std::string& text, int callerScript,
                                        const CVector2* scrollTo) {
     CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
