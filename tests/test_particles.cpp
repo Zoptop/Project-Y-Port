@@ -22,6 +22,7 @@
 #include "../src/game/CParticleManager.h"
 #include "../src/game/CParticleSystemThruster.h"
 #include "particles_oracle_data.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 using namespace py;
@@ -83,7 +84,7 @@ std::string order(const CParticleManager& pm) {
 
 std::vector<std::string> portTrace() {
     ensureMath();
-    CEngine::release();
+    resetTestEngine();
     CEngine* e = CEngine::getSingletonPtr();
     CParticleManager::mNextParticleSystemID = 1;   // a fresh process in the oracle
     CParticleManager* pm = e->getParticleManager();
@@ -170,7 +171,7 @@ std::vector<std::string> portTrace() {
                       hex(c->mRotation) + " " + hex(c->mUVTopLeft.x) + " " + hex(c->mUVTopLeft.y) + " " +
                       hex(c->mUVSize.x) + " " + hex(c->mUVSize.y) + " " + hex(c->mAlpha) +
                       fmt(" %d", c->mPermanent ? 1 : 0));
-    CEngine::release();
+    resetTestEngine();
     return out;
 }
 
@@ -202,7 +203,7 @@ TEST(particle_table_rehash_policy) {
     CHECK(CParticleSystemTable::nextBucketCount(94, &resize) == 97);
     CHECK(CParticleSystemTable::nextBucketCount(194, &resize) == 199 && resize == 199);
     ensureMath();
-    CEngine::release();
+    resetTestEngine();
     CEngine::getSingletonPtr();
     CParticleSystemTable t;
     std::vector<size_t> grown;
@@ -219,7 +220,7 @@ TEST(particle_table_rehash_policy) {
     std::string s;
     for (auto* n = u.begin(); n; n = n->next) s += std::to_string(n->key) + " ";
     CHECK(s == "10 9 8 7 6 5 4 3 2 1 ");
-    CEngine::release();
+    resetTestEngine();
 }
 
 // Hand-computed: CRng::GetUniform = (u + 1) * 2^-32 with u the MWC output.
@@ -228,7 +229,7 @@ TEST(particle_table_rehash_policy) {
 // float(0x90694651) * 2^-32 * 0.3 + 0.7.
 TEST(crater_draws_three_crng_numbers) {
     ensureMath();
-    CEngine::release();
+    resetTestEngine();
     CEngine::getSingletonPtr();
     CCraterManager cm;
     CRng::SetSeed(1, 1);
@@ -244,5 +245,5 @@ TEST(crater_draws_three_crng_numbers) {
         w = 18000u * (w & 0xffffu) + (w >> 16);
     }
     CHECK(CRng::mW == w && CRng::mZ == z);
-    CEngine::release();
+    resetTestEngine();
 }

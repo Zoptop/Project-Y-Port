@@ -160,7 +160,7 @@ public:
     std::string mLanguage = "English"; // +0x1b4
     int mProductionSpeed = 3;          // +0x1b8  "ProductionsSpeedFactor" option
     bool mPaused = false;              // +0x1c2
-    unsigned mMapId = 1;               // +0x1c4
+    unsigned mMapId = 2;               // +0x1c4 (CEngine::CEngine sets 2)
     int mDifficulty = 1;               // +0x1c8 "Difficulty" option (AI handicap, 0..6)
     bool mLoadingSavegame = false;     // +0x1cc  set around CEngine::loadGame
     float mGameSpeedFactor = 1.0f;     // +0x1d0
@@ -170,7 +170,7 @@ public:
     Vec3 mMenuColorG{bitsf(0x3ef5c28f), bitsf(0x3f23d70a), 1.0f};                // +0x230 (0.48 0.64 1)
     Vec3 mMenuColorB{bitsf(0x3f6b851f), bitsf(0x3dcccccd), bitsf(0x3ecccccd)};   // +0x23c (0.92 0.1 0.4)
     float mGUIScale = 1.0f;            // +0x24c  GUI scale (pixel UI sizes are multiplied by it)
-    bool mUseFOW = false;              // +0x250  option UseFOW
+    bool mUseFOW = true;               // +0x250  option UseFOW (constructor: on)
     unsigned mLocalPlayer = 1;         // +0x254
     bool mCratesEnabled = false;       // +0x258
     unsigned mGUIScalingOption = 3;    // +0x25c  option "GUIScalingOptionsInt" (index, 3 = x1)
@@ -197,7 +197,7 @@ public:
     std::string mCurrentUserAccount;   // +0x2c0 "CurrentUserAccount" ([PC] always "none": no device accounts)
     std::map<unsigned, int> mMapDownloadState;   // +0x2c4 isMapDownloaded cache
     bool mUseDoubleTouch = false;      // +0x2d4 "UseDoubleTouch" (loadOptions always clears it)
-    int mMinimapSize = 0;              // +0x2d8 "MinimapSize"
+    int mMinimapSize = 2;              // +0x2d8 "MinimapSize" (constructor 2; a failed read in loadOptions gives 0)
     unsigned mCurrentCampaignId = 1;   // +0x2f8 the campaign slider's choice
     long mAccountId = -1;              // +0x2fc "AccountId"
     bool mProfilePrivate = false;      // +0x300 "ProfileIsPrivate"

@@ -14,6 +14,7 @@
 #include "render/CCameraMenu.h"
 #include "render/CQuad.h"
 #include "render/CTextRender.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 #include "ui/CInputScript.h"
 #include "ui/CInterface.h"
@@ -484,7 +485,7 @@ TEST(ui_txtloc_real_strings) {
 }
 
 TEST(ui_gui_scale_from_dpi) {
-    CEngine::release();
+    resetTestEngine();
     CEngine* e = CEngine::getSingletonPtr();
     // desktop DPI below 100 is "implausible": both axes become 160 -> 320 / 436.21
     e->setDPI(96.0f, 96.0f, 1280, 720);
@@ -495,7 +496,7 @@ TEST(ui_gui_scale_from_dpi) {
     e->mGUIScalingOption = 4;   // x1.5
     e->updateGUIScaling();
     CHECK(e->mGUIScale == e->mGUIScaleDPI * 1.5f);
-    CEngine::release();
+    resetTestEngine();
 }
 
 TEST(ui_input_script_parse) {

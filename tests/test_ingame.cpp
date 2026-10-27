@@ -22,6 +22,7 @@
 #include "game/IIngameUI.h"
 #include "render/CCamera.h"
 #include "render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 #include "ui/CActionBar.h"
 #include "ui/CDialMenu.h"
@@ -52,7 +53,7 @@ struct Skirmish {
     CInterfaceIngame* ingame = nullptr;
     CInterfaceIngamePerPlayer* ipp = nullptr;
     Skirmish() {
-        CEngine::release();
+        resetTestEngine();
         ensureMath();
         CMeshManager::setHeadless(true);
         if (!CConfig::get().has("Player1Color")) CConfig::get().load(CUtils::dataPath("config.txt"));
@@ -67,7 +68,7 @@ struct Skirmish {
     ~Skirmish() {
         CEngine* e = CEngine::getSingletonPtr();
         e->resetGame();
-        CEngine::release();
+        resetTestEngine();
     }
     CGame* game() const { return CEngine::getSingletonPtr()->mGame; }
     CPlayer* me() const { return ipp->getPlayer(); }
@@ -170,7 +171,7 @@ TEST(ingame_dial_add_and_select) {
 // boundary (Ghidra 0x1507dc); without a level the map width is 2000 (0.24).
 TEST(ingame_camera_zoom_clamp_and_snap) {
     ensureMath();
-    CEngine::release();
+    resetTestEngine();
     CCameraLevel cam;
     cam.mZoom = 4.9f;
     CHECK(cam.applyZoom(4.9f * 1.1f, true));
@@ -199,7 +200,7 @@ TEST(ingame_camera_zoom_clamp_and_snap) {
     CHECK(CCameraLevel::getStrategicZoomfactor(1000.0f) == bitsf(0x3ee147ae));
     CHECK(CCameraLevel::getStrategicZoomfactor(3199.0f) == bitsf(0x3e4ccccd));
     CHECK(CCameraLevel::getStrategicZoomfactor(5000.0f) == bitsf(0x3e19999a));
-    CEngine::release();
+    resetTestEngine();
 }
 
 // ---------------------------------------------------------------- map 1

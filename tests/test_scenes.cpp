@@ -35,6 +35,7 @@
 #include "../src/game/CSector.h"
 #include "../src/game/CUnit.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 using namespace py;
@@ -59,7 +60,7 @@ bool haveMap(int id) {
 
 // A skirmish set up like tools/emu/game_oracle.py (and tools/sim_probe.cpp).
 std::unique_ptr<CGame> startSkirmish(int map, unsigned players, bool crates = false) {
-    CEngine::release();
+    resetTestEngine();
     ensureMath();
     CMeshManager::setHeadless(true);
     if (!CConfig::get().has("Player1Color")) CConfig::get().load(CUtils::dataPath("config.txt"));
@@ -534,7 +535,7 @@ TEST(script_cratedrop_fixed_position) {
 // 0x3f7fd220, and alpha first drops below 0 in step 1429 (numpy float32).
 // Permanent craters stay.
 TEST(crater_fade) {
-    CEngine::release();
+    resetTestEngine();
     CEngine* e = CEngine::getSingletonPtr();
     e->mFrameDt = bitsf(kStepBits);
     CCraterManager cm;

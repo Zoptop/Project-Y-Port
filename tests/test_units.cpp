@@ -45,6 +45,7 @@
 #include "../src/game/CUnitTank.h"
 #include "../src/game/CUnitTurret.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 using namespace py;
@@ -368,7 +369,7 @@ struct Checker {
 
 // Starts the skirmish on map 1 exactly like tools/sim_probe.cpp / game_oracle.py.
 std::unique_ptr<CGame> startMap1() {
-    CEngine::release();
+    resetTestEngine();
     CMath::initConstants();
     static std::unique_ptr<CMath> sMath;
     if (!sMath) sMath = std::make_unique<CMath>(4096);
@@ -516,7 +517,7 @@ TEST(units_match_original) {
 
 // Hand-derived checks of single functions (no game needed).
 TEST(unit_robobrain_level_xp) {
-    CEngine::release();
+    resetTestEngine();
     CMath::initConstants();
     CUnitRoboBrain rb;
     rb.mXPLevelFactorSq = 50.0f;
@@ -541,7 +542,7 @@ TEST(unit_robobrain_level_xp) {
 }
 
 TEST(unit_cloak_and_landmine_accessors) {
-    CEngine::release();
+    resetTestEngine();
     CUnitCloakSuit suit;
     CHECK(suit.cloakValue() == 5.0f && !suit.isCloaked());
     suit.mCloakTimeout = 0.0f;

@@ -34,6 +34,7 @@
 #include "../src/game/CSector.h"
 #include "../src/game/CUnit.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 using namespace py;
@@ -51,7 +52,7 @@ bool haveData() {
 }
 
 std::unique_ptr<CGame> loadMap1() {
-    CEngine::release();
+    resetTestEngine();
     CMath::initConstants();
     static CMath* sMath = new CMath(4096);   // the trig tables, as CEngine::init builds them
     (void)sMath;

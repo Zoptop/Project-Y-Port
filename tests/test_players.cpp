@@ -32,6 +32,7 @@
 #include "../src/game/CTechManager.h"
 #include "../src/game/CUnit.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 #if __has_include("players_oracle_data.h")
@@ -44,7 +45,7 @@ using namespace py;
 namespace {
 
 CEngine* freshEngine() {
-    CEngine::release();
+    resetTestEngine();
     CMath::initConstants();
     static CMath* sMath = new CMath(4096);   // the trig tables, as CEngine::init builds them
     (void)sMath;

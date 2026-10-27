@@ -48,6 +48,7 @@
 #include "../src/game/CWeaponTurretRocketLauncher.h"
 #include "../src/game/CWeaponVisionTower.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 #include "weapons_oracle_data.h"
 
@@ -89,7 +90,7 @@ public:
 };
 
 CEngine* freshEngine() {
-    CEngine::release();
+    resetTestEngine();
     CMath::initConstants();
     return CEngine::getSingletonPtr();
 }

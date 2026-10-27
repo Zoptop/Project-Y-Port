@@ -27,6 +27,7 @@
 #include "../src/game/CSector.h"
 #include "../src/game/CUnit.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 using namespace py;
@@ -35,7 +36,7 @@ namespace {
 
 // A fresh engine singleton with default options.
 CEngine* freshEngine() {
-    CEngine::release();
+    resetTestEngine();
     CMath::initConstants();
     return CEngine::getSingletonPtr();
 }

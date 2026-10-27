@@ -23,6 +23,7 @@
 #include "../src/game/CPlayer.h"
 #include "../src/game/CUnit.h"
 #include "../src/render/CMesh.h"
+#include "test_engine_reset.h"
 #include "test_main.h"
 
 using namespace py;
@@ -106,7 +107,7 @@ struct MiniGame {
     std::unique_ptr<CGame> game;
     std::unique_ptr<CPlayer> neutral, p1, p2;
     MiniGame() {
-        CEngine::release();
+        resetTestEngine();
         ensureTables();
         engine = CEngine::getSingletonPtr();
         game = std::make_unique<CGame>();
@@ -130,7 +131,7 @@ bool haveMap1() {
 
 // Map 1 loaded headless like a skirmish (as tests/test_level.cpp does).
 std::unique_ptr<CGame> loadMap1() {
-    CEngine::release();
+    resetTestEngine();
     ensureTables();
     CEngine* e = CEngine::getSingletonPtr();
     if (!CConfig::get().has("Player1Color")) CConfig::get().load(CUtils::dataPath("config.txt"));
