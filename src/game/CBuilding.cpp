@@ -99,9 +99,9 @@ void CBuilding::timeUpdate() {
         mRallyPointSet = false;
         mRallyObjectID = 0;
     }
-    if (mEngine->mUseFOW) {
-        // TODO(4.x FOW): mOwner->drawFOWCircleTeam(position, 100)
-    }
+    // with UseFOW (engine +0x250) the owner's team sees 100 around it
+    // (the owner's vtable +0x30, drawFOWCircleTeam; a no-op for the AI)
+    if (mEngine->mUseFOW) mOwner->drawFOWCircleTeam(position2(), 100.0f);
 }
 
 // Ghidra 0x134a1c
