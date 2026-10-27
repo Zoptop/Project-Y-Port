@@ -99,7 +99,7 @@ void CInterfaceIngame::draw() {
             mIPP[1]->draw();
         }
     }
-    ingamedraw::drawReset(game);
+    ingamedraw::drawReset();
 }
 
 // Ghidra 0x19dcc0

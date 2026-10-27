@@ -30,6 +30,7 @@ namespace py {
 class CActionBar;
 class CCamera;
 class CCameraLevel;
+class CCameraMinimap;
 class CDialMenu;
 class CEngine;
 class CEventBar;
@@ -199,6 +200,11 @@ public:
     bool hudHitTest(const CVector2& pos, bool longTouch);   // title/event/group/action bar
     bool processDialClick(const CVector2& pos);            // [PC] click with the dial menu open
     void selectGroupByIndex(int index, bool assign);       // [PC] number keys
+    // [PC] the cursor hint for the actions at a screen position
+    int cursorHintAt(const CVector2& pos);
+    // [PC] a one-line dump of the selection and the selected units' orders
+    // (the --dump-state option and the tests)
+    std::string debugState() const;
 
     CCameraLevel* getCamera() const { return mCamera; }          // Ghidra 0x1a475c
     CCamera* getCameraMinimap() const { return mCameraMinimap; } // Ghidra 0x1a4764
@@ -228,6 +234,9 @@ public:
     unsigned mFollowUnit = 0;           // +0x8c
     CCameraLevel* mCamera = nullptr;    // +0x90
     CCamera* mCameraMinimap = nullptr;  // +0x94
+    // [PC] the same minimap camera in the form the world drawing reads
+    // (CDrawContext::minimapCamera), set up next to it in setResolution
+    CCameraMinimap* mMinimapDraw = nullptr;
     CEventBar* mEventBar = nullptr;     // +0x98
     CGroupBar* mGroupBar = nullptr;     // +0x9c
     CActionBar* mActionBar = nullptr;   // +0xa0
@@ -286,13 +295,14 @@ public:
         CVector2 leftStart;
         int leftClicks = 0;
         CVector2 rightStart;
-        float rightDownTime = 0.0f;     // ms (event timestamp)
-        float rightHeld = 0.0f;         // seconds held, from timeUpdatePC
+        float rightDownTime = 0.0f;     // ms (engine frame clock at the press)
+        float lastFrameTime = -1.0f;    // engine frame clock of the last timeUpdatePC (ms)
         bool rightLongFired = false;
         CVector2 middleAnchor;          // ground point under the cursor at the middle down
         bool keyLeft = false, keyRight = false, keyUp = false, keyDown = false;
         bool keyRotL = false, keyRotR = false;
         bool windowFocused = true;
+        int cursorHint = 0;             // ECursorHint under the cursor (processPCMouseMove)
     } mPC;
 
 };

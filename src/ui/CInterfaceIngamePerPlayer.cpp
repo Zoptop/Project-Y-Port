@@ -85,6 +85,7 @@ CInterfaceIngamePerPlayer::~CInterfaceIngamePerPlayer() {
     delete mActionBar;
     delete mCamera;
     delete mCameraMinimap;
+    delete mMinimapDraw;
 }
 
 // Ghidra 0x1a4a38
@@ -110,6 +111,7 @@ void CInterfaceIngamePerPlayer::init(CInterfaceIngame* parent, CPlayer* player) 
     mRotateMode = false;
     mMinimapMode = false;
     mCameraMinimap = new CCamera();
+    mMinimapDraw = new CCameraMinimap();
 }
 
 // Ghidra 0x1a8120
@@ -148,6 +150,11 @@ void CInterfaceIngamePerPlayer::setResolution(int width, int height, int x, int 
     q.FromRotationMatrix(rot);
     mCameraMinimap->mOrientationQuat = Quat(q.w, q.x, q.y, q.z);
     mCameraMinimap->updateViewMatrix();
+    if (game && game->getLevel()) {
+        const CLevel* level = game->getLevel();
+        mMinimapDraw->setup(s, f2i(vx), f2i(vy), level->mMinimapX, level->mMinimapY,
+                            level->mMinimapZ * bitsf(0x3fa147ae));
+    }
     // the first frame's camera matrices (the original refreshes in timeUpdate)
     mCamera->refresh();
 }
