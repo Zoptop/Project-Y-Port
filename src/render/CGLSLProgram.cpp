@@ -10,12 +10,28 @@
 namespace py {
 
 bool CGLSLProgram::sUseES = false;
+const void* CGLSLProgram::sLocalBase = nullptr;
+int CGLSLProgram::sLocalStride = 0;
+unsigned CGLSLProgram::sStreamVBO = 0;
 
 namespace {
 constexpr unsigned GL_VERTEX_SHADER_ = 0x8B31, GL_FRAGMENT_SHADER_ = 0x8B30;
 constexpr unsigned GL_COMPILE_STATUS_ = 0x8B81, GL_LINK_STATUS_ = 0x8B82;
 constexpr unsigned GL_FLOAT_ = 0x1406;
 constexpr int kStride = 32;
+constexpr unsigned GL_BLEND_ = 0x0BE2, GL_DEPTH_TEST_ = 0x0B71;
+constexpr unsigned GL_SRC_ALPHA_ = 0x0302, GL_ONE_MINUS_SRC_ALPHA_ = 0x0303;
+constexpr unsigned GL_ARRAY_BUFFER_ = 0x8892, GL_STREAM_DRAW_ = 0x88E0;
+
+void localAttrib(int loc, int size, int stride, int offset) {
+    if (loc < 0) return;
+    gl::VertexAttribPointer(static_cast<unsigned>(loc), size, GL_FLOAT_, 0, stride,
+                            reinterpret_cast<const void*>(static_cast<uintptr_t>(offset)));
+    gl::EnableVertexAttribArray(static_cast<unsigned>(loc));
+}
+void disableAttrib(int loc) {
+    if (loc >= 0) gl::DisableVertexAttribArray(static_cast<unsigned>(loc));
+}
 }  // namespace
 
 CGLSLProgram::~CGLSLProgram() {
@@ -122,6 +138,8 @@ bool CGLSLProgram::initFromSource(const std::string& name, const std::string& gf
     aTexcoord1 = gl::GetAttribLocation(mProgram, "TEXCOORD1");
     aNormal = gl::GetAttribLocation(mProgram, "NORMAL");
     aColor = gl::GetAttribLocation(mProgram, "COLR");
+    aTTL = gl::GetAttribLocation(mProgram, "TTL");
+    aWidth = gl::GetAttribLocation(mProgram, "WIDTH");
     return true;
 }
 
@@ -151,6 +169,155 @@ void CGLSLProgram::endDraw() const {
         if (loc >= 0) gl::DisableVertexAttribArray(static_cast<unsigned>(loc));
 }
 
+// ---------------------------------------------------------------------------
+// Client-side vertex drawing
+
+void CGLSLProgram::bindLocal(const void* base, int stride) const {
+    if (!sStreamVBO) gl::GenBuffers(1, &sStreamVBO);
+    gl::BindBuffer(GL_ARRAY_BUFFER_, sStreamVBO);
+    sLocalBase = base;
+    sLocalStride = stride;
+}
+
+void CGLSLProgram::drawLocal(unsigned mode, int first, int count) {
+    if (count <= 0 || sLocalBase == nullptr) return;
+    const auto* p = static_cast<const unsigned char*>(sLocalBase) + static_cast<size_t>(first) * sLocalStride;
+    gl::BindBuffer(GL_ARRAY_BUFFER_, sStreamVBO);
+    gl::BufferData(GL_ARRAY_BUFFER_, static_cast<gl::GLsizeiptr>(count) * sLocalStride, nullptr, GL_STREAM_DRAW_);
+    gl::BufferData(GL_ARRAY_BUFFER_, static_cast<gl::GLsizeiptr>(count) * sLocalStride, p, GL_STREAM_DRAW_);
+    gl::DrawArrays(mode, 0, count);
+}
+
+// Ghidra 0x183cf8
+void CGLSLProgram::startDrawLocalPosUVBlend(const CVertexPosUV* v) const {
+    gl::UseProgram(mProgram);
+    gl::Enable(GL_BLEND_);
+    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
+    bindLocal(v, 0x20);
+    localAttrib(aPosition, 3, 0x20, 0);
+    localAttrib(aTexcoord0, 2, 0x20, 0xc);
+}
+
+// Ghidra 0x183d94
+void CGLSLProgram::endDrawLocalPosUVBlend() const {
+    disableAttrib(aPosition);
+    disableAttrib(aTexcoord0);
+    gl::Disable(GL_BLEND_);
+}
+
+// Ghidra 0x183db8
+void CGLSLProgram::startDrawLocalPosUVColor4BlendNoDepth(const CVertexPosUVColor4* v) const {
+    gl::UseProgram(mProgram);
+    gl::DepthMask(0);
+    gl::Disable(GL_DEPTH_TEST_);
+    gl::Enable(GL_BLEND_);
+    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
+    bindLocal(v, 0x40);
+    localAttrib(aPosition, 3, 0x40, 0);
+    localAttrib(aTexcoord0, 2, 0x40, 0xc);
+    localAttrib(aColor, 4, 0x40, 0x14);
+}
+
+// Ghidra 0x183e8c
+void CGLSLProgram::endDrawLocalPosUVColor4BlendNoDepth() const {
+    disableAttrib(aPosition);
+    disableAttrib(aTexcoord0);
+    disableAttrib(aColor);
+    gl::Disable(GL_BLEND_);
+    gl::DepthMask(1);
+    gl::Enable(GL_DEPTH_TEST_);
+}
+
+// Ghidra 0x183ec8
+void CGLSLProgram::startDrawLocalPosUVTTLBlend(const CVertexPosUVTTL* v) const {
+    gl::UseProgram(mProgram);
+    gl::Enable(GL_BLEND_);
+    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
+    bindLocal(v, 0x20);
+    localAttrib(aPosition, 3, 0x20, 0);
+    localAttrib(aTexcoord0, 2, 0x20, 0xc);
+    localAttrib(aTTL, 1, 0x20, 0x14);
+}
+
+// Ghidra 0x183f8c
+void CGLSLProgram::endDrawLocalPosUVTTLBlend() const {
+    disableAttrib(aPosition);
+    disableAttrib(aTexcoord0);
+    disableAttrib(aTTL);
+    gl::Disable(GL_BLEND_);
+}
+
+// Ghidra 0x183fb8
+void CGLSLProgram::startDrawLocalPosUVTTLBlendNoDepth(const CVertexPosUVTTL* v) const {
+    gl::UseProgram(mProgram);
+    gl::DepthMask(0);
+    gl::Disable(GL_DEPTH_TEST_);
+    gl::Enable(GL_BLEND_);
+    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
+    bindLocal(v, 0x20);
+    localAttrib(aPosition, 3, 0x20, 0);
+    localAttrib(aTexcoord0, 2, 0x20, 0xc);
+    localAttrib(aTTL, 1, 0x20, 0x14);
+}
+
+// Ghidra 0x18408c
+void CGLSLProgram::endDrawLocalPosUVTTLBlendNoDepth() const {
+    disableAttrib(aPosition);
+    disableAttrib(aTexcoord0);
+    disableAttrib(aTTL);
+    gl::Disable(GL_BLEND_);
+    gl::DepthMask(1);
+    gl::Enable(GL_DEPTH_TEST_);
+}
+
+// Ghidra 0x1840c8
+void CGLSLProgram::startDrawLocalPosUVColorBlendNoDepth(const CVertexPosUVColor* v) const {
+    gl::UseProgram(mProgram);
+    gl::DepthMask(0);
+    gl::Disable(GL_DEPTH_TEST_);
+    gl::Enable(GL_BLEND_);
+    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
+    bindLocal(v, 0x20);
+    localAttrib(aPosition, 3, 0x20, 0);
+    localAttrib(aTexcoord0, 2, 0x20, 0xc);
+    localAttrib(aColor, 3, 0x20, 0x14);
+}
+
+// Ghidra 0x18419c
+void CGLSLProgram::endDrawLocalPosUVColorBlendNoDepth() const {
+    disableAttrib(aPosition);
+    disableAttrib(aTexcoord0);
+    disableAttrib(aColor);
+    gl::Disable(GL_BLEND_);
+    gl::DepthMask(1);
+    gl::Enable(GL_DEPTH_TEST_);
+}
+
+// Ghidra 0x1841d8
+void CGLSLProgram::startDrawLocalPosUVColorWidthBlendNoDepth(const CVertexPosUvColor4Width* v) const {
+    gl::UseProgram(mProgram);
+    gl::DepthMask(0);
+    gl::Disable(GL_DEPTH_TEST_);
+    gl::Enable(GL_BLEND_);
+    gl::BlendFunc(GL_SRC_ALPHA_, GL_ONE_MINUS_SRC_ALPHA_);
+    bindLocal(v, 0x40);
+    localAttrib(aPosition, 3, 0x40, 0);
+    localAttrib(aTexcoord0, 2, 0x40, 0xc);
+    localAttrib(aColor, 4, 0x40, 0x14);
+    localAttrib(aWidth, 1, 0x40, 0x24);
+}
+
+// Ghidra 0x1842d4
+void CGLSLProgram::endDrawLocalPosUVColorWidthBlendNoDepth() const {
+    disableAttrib(aPosition);
+    disableAttrib(aTexcoord0);
+    disableAttrib(aColor);
+    disableAttrib(aWidth);
+    gl::Disable(GL_BLEND_);
+    gl::DepthMask(1);
+    gl::Enable(GL_DEPTH_TEST_);
+}
+
 void CGLSLProgram::setUniformMVPMatrix(const Mat4& m) const {
     if (uMVP >= 0) gl::UniformMatrix4fv(uMVP, 1, 0, m.m);
 }
@@ -173,9 +340,11 @@ void CGLSLProgram::setUniformLightDir(const Vec3& d) const {
     const float f[3] = {d.x, d.y, d.z};
     if (uLightDir >= 0) gl::Uniform3fv(uLightDir, 1, f);
 }
-void CGLSLProgram::setUniformBlendColor(const Vec3& c) const {
-    const float f[3] = {c.x, c.y, c.z};
-    if (uBlendColor >= 0) gl::Uniform3fv(uBlendColor, 1, f);
+void CGLSLProgram::setUniformBlendColor(const Vec3& c) const { setUniformBlendColor(c.x, c.y, c.z, 1.0f); }
+// Ghidra 0x184474 (glUniform4fv)
+void CGLSLProgram::setUniformBlendColor(float r, float g, float b, float a) const {
+    const float f[4] = {r, g, b, a};
+    if (uBlendColor >= 0) gl::Uniform4fv(uBlendColor, 1, f);
 }
 void CGLSLProgram::setUniformTime(float t) const {
     if (uTime >= 0) gl::Uniform1f(uTime, t);

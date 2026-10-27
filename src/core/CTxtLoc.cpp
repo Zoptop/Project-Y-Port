@@ -47,6 +47,30 @@ bool CTxtLoc::load(const std::string& language) {
 }
 
 bool CTxtLoc::loadFromBuffer(std::string buffer) {
+    // The indexed table (mTxts vector of the original, Ghidra 0x39cd68),
+    // replayed with the original's exact strtok sequence: after the header
+    // line, each iteration reads a key with strtok(" "); a key that doesn't
+    // start with '#', ' ' or '\r' takes the rest of the line as its value
+    // (strtok("\n")) into slot i; a comment/blank key consumes nothing more
+    // (its remaining words become the next keys). i advances every iteration.
+    {
+        std::string copy = buffer;
+        char* save = nullptr;
+        char* line = tok(copy.data(), "\n", &save);
+        int i = 0;
+        if (line != nullptr) {
+            do {
+                char* key = tok(nullptr, " ", &save);
+                if (key == nullptr) break;
+                const char c = key[0];
+                if (c != '#' && c != ' ' && c != '\r') {
+                    line = tok(nullptr, "\n", &save);
+                    if (i >= 0 && i < kNumIds) mIndexed[static_cast<size_t>(i)] = line ? line : "";
+                }
+                ++i;
+            } while (line != nullptr);
+        }
+    }
     // Mirrors CTxtLoc::load @ 0x39cbxx: header line, then key ' ' value '\n'.
     char* save = nullptr;
     char* line = tok(buffer.data(), "\n", &save);
@@ -67,6 +91,11 @@ bool CTxtLoc::loadFromBuffer(std::string buffer) {
 const std::string& CTxtLoc::getS(const std::string& key) const {
     auto it = mTxts.find(key);
     return it == mTxts.end() ? mEmpty : it->second;
+}
+
+const std::string& CTxtLoc::getS(int id) const {
+    if (id < 0 || id >= kNumIds) return mEmpty;
+    return mIndexed[static_cast<size_t>(id)];
 }
 
 std::string CTxtLoc::text(const std::string& key) const {
