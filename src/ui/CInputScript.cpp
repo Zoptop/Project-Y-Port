@@ -157,6 +157,15 @@ bool CInputScript::parse(const std::string& text, const KeyResolver& keyFromName
             while (!rest.empty() && (rest.back() == '\r' || rest.back() == ' ')) rest.pop_back();
             e.text = rest;
             e.kind = ScriptEvent::TEXT;
+        } else if (cmd == "mapscript") {
+            // the rest of the line: a map script line without its "script" word
+            const size_t p = lower(body).find("mapscript");
+            std::string rest = body.substr(p + 9);
+            while (!rest.empty() && rest[0] == ' ') rest.erase(0, 1);
+            while (!rest.empty() && (rest.back() == '\r' || rest.back() == ' ')) rest.pop_back();
+            if (rest.empty()) return fail("mapscript <type> <params>");
+            e.text = rest;
+            e.kind = ScriptEvent::MAPSCRIPT;
         } else if (cmd == "touchdown" || cmd == "touchmove" || cmd == "touchup") {
             int id = 0;
             if (nargs != 3 || !toInt(arg(0), id) || !readXY(1)) return fail(cmd + " <pointer> <x> <y>");
@@ -226,6 +235,7 @@ void CInputScript::dispatch(const ScriptEvent& e, CInterface* t, unsigned& held)
         case ScriptEvent::MENU_ACTION: t->addEventMenuAction(static_cast<int>(e.pointer)); break;
         case ScriptEvent::SCREENSHOT:
         case ScriptEvent::QUIT:
+        case ScriptEvent::MAPSCRIPT:
         case ScriptEvent::DUMP: break;
     }
 }

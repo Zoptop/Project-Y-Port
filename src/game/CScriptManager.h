@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 
+#include "core/CVector2.h"
 #include "game/CScript.h"
 #include "game/CScriptedObstacle.h"
 
@@ -47,6 +48,21 @@ public:
     // it also pauses/resumes the game for texts without nopause), so scripts waiting
     // on a speaker stall without an interface.
     virtual bool showSpeakerText(CPlayer* player, const CScriptSpeaker& speaker) = 0;
+    // The scripts' other effects on the player's HUD; each does nothing when
+    // the player has no interface (getInterfaceForPlayer == null):
+    // CCameraLevel::slowScrollTo(pos, 1.0) (unitdrop, beacon, airstrike,
+    // marker, mod 2/3, unittrigger 4 with "scrollto")
+    virtual void scrollTo(CPlayer* /*player*/, const CVector2& /*pos*/) {}
+    // IPP::setMarker (marker)
+    virtual void setMarker(CPlayer* /*player*/, bool /*enable*/, unsigned /*type*/, unsigned /*objId*/) {}
+    // IPP::setTimerAndText (timetrigger "show")
+    virtual void setTimerAndText(CPlayer* /*player*/, float /*start*/, float /*time*/, const std::string& /*text*/) {}
+    // IPP::setCounterAndText (counttrigger "show"; all 0 clears it)
+    virtual void setCounterAndText(CPlayer* /*player*/, unsigned /*type*/, unsigned /*subtype*/, unsigned /*count*/,
+                                   unsigned /*required*/) {}
+    // mod 2 / 3: IPP::clearGameObjectSelection (2 only), selectGameObject(id),
+    // then slowScrollTo(the object's position, 1.0)
+    virtual void scriptSelect(CPlayer* /*player*/, unsigned /*id*/, bool /*clearFirst*/, const CVector2& /*pos*/) {}
 };
 
 class CScriptManager {

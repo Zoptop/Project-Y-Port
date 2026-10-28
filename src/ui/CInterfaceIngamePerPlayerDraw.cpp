@@ -28,6 +28,7 @@
 #include "ui/CIngameWorldDraw.h"
 #include "ui/CInterfaceIngame.h"
 #include "ui/CInterfaceIngamePerPlayer.h"
+#include "ui/CInterfaceElement.h"
 #include "ui/CUIUtils.h"
 
 namespace py {
@@ -274,13 +275,37 @@ void CInterfaceIngamePerPlayer::drawOverlayText() {
             cmd += buf;
         }
         if (mOverlayNoPause && !mOverlayMinimized) {
-            cmd += "  ";
+            cmd += ". ";
             cmd += CTxtLoc::get().getC(0x1b8);
         }
     }
     if (!mOverlayDisplayed) return;
     const float g = mEngine->mGUIScale;
-    const float iconOffset = 0.0f;   // (avatar icons need CCampaign: not ported)
+    // the speaker's avatar (a campaign "char"): the text moves right by the
+    // avatar's width; its subtitle is centred under it, shrunk to fit
+    float iconOffset = 0.0f;
+    if (mOverlayShowIcon) {
+        float boxW, subX, subY, maxW;
+        if (!mOverlayMinimized) {
+            subY = bitsf(0x43280000);    // 168
+            subX = bitsf(0x43150000);    // 149
+            boxW = bitsf(0x43050000);    // 133
+            maxW = 128.0f;
+        } else {
+            subY = 104.0f;
+            subX = 117.0f;
+            boxW = 69.0f;
+            maxW = 64.0f;
+        }
+        iconOffset = g * boxW;
+        if (CTextRender* tr0 = mEngine->getTextRender()) {
+            const float len = tr0->calcTextPixelLength(mAvatarSubtitle.c_str(), g * 28.0f);
+            const float room = maxW * g;
+            const float size = len > room ? room / len * 28.0f : 28.0f;
+            tr0->drawStringPixel(g * subX, g * subY, g * size, mAvatarColor.x, mAvatarColor.y, mAvatarColor.z, 1.0f, 1,
+                                 "%s", formatNoArgs(mAvatarSubtitle).c_str());
+        }
+    }
     const int total = static_cast<int>(mOverlayText.size() + cmd.size());
     int chars = f2i(mOverlayRuntime * 100.0f);
     if (chars > total) chars = total;
@@ -314,6 +339,14 @@ void CInterfaceIngamePerPlayer::drawOverlayText() {
         drawScreenSpaceQuadsColored4();
     }
     if (tr) tr->draw();
+    if (mOverlayShowIcon && mAvatarTexture) {
+        // the avatar, 128 (minimized 64) GUI pixels at (84, 50)
+        const float side = (mOverlayMinimized ? 64.0f : 128.0f) * g;
+        drawScreenSpaceQuads(false);
+        mAvatarTexture->bind(kTexture0);
+        mParent->addStandardQuadPixel(CVector2(g * 84.0f, g * 50.0f), mAvatarUV, mAvatarUVSize, CVector2(side, side));
+        drawScreenSpaceQuads(true);
+    }
 }
 
 // Ghidra 0x1a21c4: the object-info screen. The texts so far are flushed, the

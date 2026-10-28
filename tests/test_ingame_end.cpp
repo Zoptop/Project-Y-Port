@@ -147,7 +147,11 @@ TEST(ingame_end_victory_reaches_aftermath) {
     CHECK(g.ipp->mOverlayDisplayed);
     CHECK(g.ipp->mOverlayCallerScript == -2);
     CHECK(g.ipp->mOverlayText == CTxtLoc::get().getC(0xf9));
-    CHECK(g.engine()->mPaused);   // the text waits for a touch
+    // the text waits for a touch, but with "nopause" (setOverlayText(.., -2,
+    // nopause = 1, icon = 0, ..) in the disassembly at 0x17de1c): no pause
+    CHECK(g.ipp->mOverlayWaitsForTouch);
+    CHECK(g.ipp->mOverlayNoPause);
+    CHECK(!g.engine()->mPaused);
     g.dismissOverlay();
     for (int i = 0; i < 120 && g.engine()->mCurrentInterface == g.ingame; ++i) g.frame();
     CEngine* e = g.engine();

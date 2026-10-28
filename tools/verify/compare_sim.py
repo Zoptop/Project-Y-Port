@@ -59,6 +59,8 @@ def main():
     ap.add_argument('--map', type=int, default=1)
     ap.add_argument('--players', type=int, default=2)
     ap.add_argument('--steps', type=int, default=5)
+    ap.add_argument('--mission', type=int, default=0,
+                    help='a campaign mission started like the menus on both sides (--map/--players unused)')
     ap.add_argument('--trace', type=int, nargs='*', default=[0])
     ap.add_argument('--oracle-out', help='reuse/save the oracle output in this file')
     ap.add_argument('--max-diffs', type=int, default=8)
@@ -68,13 +70,15 @@ def main():
         ref = open(a.oracle_out).read().splitlines()
     else:
         cmd = [sys.executable, os.path.join(ROOT, 'tools', 'emu', 'game_oracle.py'), '--so', a.so, '--data', a.data,
-               '--map', str(a.map), '--players', str(a.players), '--steps', str(a.steps), '--trace'] + \
+               '--map', str(a.map), '--players', str(a.players), '--steps', str(a.steps)] + \
+              (['--mission', str(a.mission)] if a.mission else []) + ['--trace'] + \
               [str(t) for t in a.trace]
         ref = subprocess.run(cmd, capture_output=True, text=True).stdout.splitlines()
         if a.oracle_out:
             open(a.oracle_out, 'w').write('\n'.join(ref) + '\n')
     port = subprocess.run([a.probe, '--data', a.data, '--map', str(a.map), '--players', str(a.players), '--steps',
-                           str(a.steps), '--trace'] + [str(t) for t in a.trace],
+                           str(a.steps)] + (['--mission', str(a.mission)] if a.mission else []) +
+                          ['--trace'] + [str(t) for t in a.trace],
                           capture_output=True, text=True).stdout.splitlines()
     rs, rp = parse(ref)
     ps, pp = parse(port)

@@ -647,7 +647,8 @@ void CInterfaceIngame::showGameEndText(CPlayer* player, const std::string& text,
                                        const CVector2* scrollTo) {
     CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
     if (!p) return;
-    p->setOverlayText(text, "", 0.0f, callerScript, false, true, "");
+    // (text, "", 0, caller, nopause = true, no icon, ""): checked in the disassembly at 0x17de1c
+    p->setOverlayText(text, "", 0.0f, callerScript, true, false, "");
     if (scrollTo) p->getCamera()->slowScrollTo(*scrollTo, 1.0f);
     uisound::play("ringringring");
 }
@@ -667,6 +668,38 @@ bool CInterfaceIngame::showSpeakerText(CPlayer* player, const CScriptSpeaker& sp
     if (sp.mHasScrollTo) p->getCamera()->slowScrollTo(sp.mScrollTo, 1.0f);
     uisound::play("ringringring");
     return true;
+}
+
+// the scrolls of CScriptAirdrop / CScriptBeacon / CScriptAirstrike /
+// CScriptMarker / CScriptUnitTrigger::run (CCameraLevel::slowScrollTo(pos, 1))
+void CInterfaceIngame::scrollTo(CPlayer* player, const CVector2& pos) {
+    if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player)) p->getCamera()->slowScrollTo(pos, 1.0f);
+}
+
+// CScriptMarker::run (Ghidra 0x38f8d4)
+void CInterfaceIngame::setMarker(CPlayer* player, bool enable, unsigned type, unsigned objId) {
+    if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player)) p->setMarker(enable, type, objId);
+}
+
+// CScriptTimeTrigger::run (Ghidra 0x3911d0)
+void CInterfaceIngame::setTimerAndText(CPlayer* player, float start, float time, const std::string& text) {
+    if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player)) p->setTimerAndText(start, time, text);
+}
+
+// CScriptCountTrigger::run (Ghidra 0x38cb64)
+void CInterfaceIngame::setCounterAndText(CPlayer* player, unsigned type, unsigned subtype, unsigned count,
+                                         unsigned required) {
+    if (CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player))
+        p->setCounterAndText(type, subtype, count, required);
+}
+
+// CScriptMod::run types 2 and 3 (Ghidra 0x38fc84)
+void CInterfaceIngame::scriptSelect(CPlayer* player, unsigned id, bool clearFirst, const CVector2& pos) {
+    CInterfaceIngamePerPlayer* p = getInterfaceForPlayer(player);
+    if (!p) return;
+    if (clearFirst) p->clearGameObjectSelection();
+    p->selectGameObject(id);
+    p->getCamera()->slowScrollTo(pos, 1.0f);
 }
 
 }  // namespace py

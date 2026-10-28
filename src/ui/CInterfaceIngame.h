@@ -141,6 +141,12 @@ public:
     // ---- IScriptUI (the scripts' queries and the speaker)
     bool isUnitInGroup(CPlayer* player, unsigned id) override;
     bool showSpeakerText(CPlayer* player, const CScriptSpeaker& speaker) override;
+    void scrollTo(CPlayer* player, const CVector2& pos) override;
+    void setMarker(CPlayer* player, bool enable, unsigned type, unsigned objId) override;
+    void setTimerAndText(CPlayer* player, float start, float time, const std::string& text) override;
+    void setCounterAndText(CPlayer* player, unsigned type, unsigned subtype, unsigned count,
+                           unsigned required) override;
+    void scriptSelect(CPlayer* player, unsigned id, bool clearFirst, const CVector2& pos) override;
 
     // ---- players
     CInterfaceIngamePerPlayer* getCurrentInterfacePerPlayer() const;   // Ghidra 0x19fac8
