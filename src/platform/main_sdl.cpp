@@ -32,6 +32,11 @@
 //                        ingame screen (--players N, default the map's; --fow; the
 //                        minimap with --minimap 0..3, default 2; --gametype N, the
 //                        custom game's game type, 3 = resources)
+//   --mission <map>      [PC] start a campaign mission (301..318) or the
+//                        tutorial (201) the way the menus do (the campaign's
+//                        player setup, the loading screen, initSingleplayerGame),
+//                        whether or not it is unlocked; winning it unlocks the
+//                        next one in the save dir's cmp1prog.txt as usual
 //   --no-sound           no audio device (the sound logic still runs, so the
 //                        music choices and their CRng draws stay the same)
 //   --log-sounds         log every sound started (name, id, time)
@@ -55,6 +60,7 @@
 #include "core/CMemoryFile.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
+#include "game/CCampaign.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -72,6 +78,7 @@
 #include "ui/CInterface.h"
 #include "ui/CInterfaceIngame.h"
 #include "ui/CInterfaceIngamePerPlayer.h"
+#include "ui/CInterfaceMenu.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
@@ -106,6 +113,7 @@ struct Options {
     int players = 0;            // --players N (with --skirmish; 0 = the map's "set numplayers")
     int minimap = 2;            // --minimap 0..3 (with --skirmish)
     int gameType = 0;           // --gametype N (with --skirmish; engine +0x2d0)
+    int mission = 0;            // --mission <map> [PC]
     bool noSound = false;       // --no-sound: no audio device
     bool logSounds = false;     // --log-sounds
 };
@@ -141,6 +149,7 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--players") o.players = std::atoi(nextS().c_str());
         else if (a == "--minimap") o.minimap = std::atoi(nextS().c_str());
         else if (a == "--gametype") o.gameType = std::atoi(nextS().c_str());
+        else if (a == "--mission") o.mission = std::atoi(nextS().c_str());
         else if (a == "--no-sound") o.noSound = true;
         else if (a == "--log-sounds") o.logSounds = true;
     }
@@ -305,6 +314,36 @@ void applyWindowDPI(CEngine* engine, const Options& opt, int w, int h) {
 // ---------------------------------------------------------------------------
 // The game
 
+// [PC] --mission: what the menus do when a campaign episode is replayed from
+// the progress screen (26, action 0x52) or the tutorial is started (screen 9,
+// action 0xe). The campaign is read first (the "Campaign" button's
+// CCampaign::startInitAsync). The menu then shows the loading screen and
+// starts the game (draw modes 1 and 2).
+bool startMission(CEngine* engine, int mission) {
+    CInterfaceMenu* m = engine->mMenuInterface.get();
+    if (!m) return false;
+    engine->mCurrentInterface = m;
+    if (mission == 201) {
+        engine->mGameType = 0;   // the single player screen's action 1
+        m->mNextMenu = m->mCurrentMenu = MENU_TUTORIAL;
+        m->processAction(0xe, nullptr);
+        return true;
+    }
+    CCampaign* c = engine->getCurCampaign();
+    if (!c) return false;
+    c->startInitAsync(false);
+    CCampaignMapInfo* info = c->getMapInfo(static_cast<unsigned>(mission));
+    if (!info) return false;
+    c->mCurChapter = info->chapter;
+    c->mCurEpisode = info->episode;
+    engine->mGameType = 1;   // the campaign screen (setupElements 25)
+    m->mNextMenu = MENU_CAMPAIGNPROGRESS;
+    m->setupElements(MENU_CAMPAIGNPROGRESS, 0);
+    m->mCurrentMenu = MENU_CAMPAIGNPROGRESS;
+    m->processAction(0x52, nullptr);
+    return m->mDrawMode == 1;
+}
+
 int runGame(const Options& opt, SDL_Window* window) {
     CEngine* engine = CEngine::getSingletonPtr();
     CInputScript script;
@@ -351,6 +390,12 @@ int runGame(const Options& opt, SDL_Window* window) {
         if (!CInterfaceIngame::startSkirmish(static_cast<unsigned>(opt.skirmish), players, opt.fow, w, h,
                                              opt.gameType)) {
             std::fprintf(stderr, "--skirmish %d: the map did not load\n", opt.skirmish);
+            return 4;
+        }
+    } else if (opt.mission > 0) {
+        engine->mMinimapSize = opt.minimap;
+        if (!startMission(engine, opt.mission)) {
+            std::fprintf(stderr, "--mission %d: not a campaign mission or the tutorial\n", opt.mission);
             return 4;
         }
     }
@@ -449,6 +494,13 @@ int runGame(const Options& opt, SDL_Window* window) {
                 CUtils::log("state %s: %s", se->text.c_str(), st.c_str());
                 std::printf("state %s: %s\n", se->text.c_str(), st.c_str());
                 std::fflush(stdout);
+            }
+            else if (se->kind == ScriptEvent::MAPSCRIPT) {
+                // [PC] a script line for the running game, e.g. "gamestate result(1) player(1)"
+                CScriptManager* sm = engine->mGame && engine->mGame->getLevel()
+                                         ? engine->mGame->getLevel()->getScriptManager()
+                                         : nullptr;
+                if (!sm || !sm->addScript("script " + se->text)) CUtils::log("mapscript: no game or bad line");
             }
             else CInputScript::dispatch(*se, engine->mCurrentInterface, scriptButtons);
         }

@@ -241,7 +241,7 @@ Example (`cmp1defEnglish.txt`): 3 chapters × 6 episodes, maps 301–318; `char 
   * If it is the last episode of a chapter: the next item is (chp+1, 1).
   * Otherwise: (chp, eps+1).
   * The *current* episode `+0x180/+0x184` is set to the next item. The highest unlocked is raised if the next item is beyond it, and the file is saved.
-  * It is called only from `CInterfaceMenu::setupElements` at 0x1ba548, which Ghidra failed to decompile; this is presumably the victory or aftermath path **[?]**.
+  * It is called only from `CInterfaceMenu::setupElements` at 0x1ba548: the aftermath screen (12), when the local player won and the game type is 1. A 0 result gives "Continue" (0x53: next episode) and "Main menu"; 1 gives only "Continue" (0x54: the credits). See `campaign_phase7.md`.
 * Starting an episode (`CInterfaceMenu::processAction`, campaign case): takes `getCurrentMapInfo()`, sets `engine+0x128 = numPlayers`, `engine+0x1c4 = mapId`, FOW on (`+0x250 = 1`), crates off (`+600 = 0`) and fixed player slots, then loads `map<mapId><Lang>.txt`.
 * Downloads and validation: `checkDownloaded` runs `fileExists` and MD5 checks on the avatar sheet and every map (`isMapDownloaded`). `startInitAsync` does this in a worker thread. The campaign is a downloadable `Cmp1_4.zip` (config `MapDownloadUrl1001`).
 
@@ -541,7 +541,7 @@ All commands go through `game+0x178`. `CCommandManagerLocal` executes them direc
 | 6 | Options 2 | action 5 |
 | 7 | Save game | action 0xc, 0x5d |
 | 8 | Load game | action 0xb, 0x5c |
-| 9 | Campaign/Tutorial episode list (download-required hint) | action 9 |
+| 9 | Tutorial (start map 201, difficulty) | action 9 |
 | 10 | Custom game setup (map slider, players, FOW, crates, sectors, units, difficulty, game type) | action 10 |
 | 11 | Statistics | action 0x20 |
 | 12 | Aftermath / game end ("Defeat"/"Victory", Save, Main menu) | action 0x21, 0x6f; `CScriptGamestate::run` |
@@ -557,7 +557,7 @@ All commands go through `game+0x178`. `CCommandManagerLocal` executes them direc
 | 22–23 | Top-10 lists (ranked / weekly) **[?]** | actions 0x47/0x69, 0x48 |
 | 24 | Unit info / auto-upgrade settings **[?]** (`TxtSetUggradeProbability`) | action 0x4a |
 | 25 | Campaign main ("Campaign": chapter slider) | action 0x5a |
-| 26 | Split-screen player settings **[?]** | action 0x4e |
+| 26 | Campaign progress: the episode list (`CInterfaceElementCampaignButtons`, "Start Replay" 0x52) | action 0x4e |
 | 27 | Rate/Social (Google Play button) **[?]** | action 0x71 |
 | 28 | Statistics 2 / player profile **[?]** | action 0x5e |
 | 29–31 | misc: achievements, lobby, surrender confirm **[?]** | actions 0x6b, 0x70, 0x75 |

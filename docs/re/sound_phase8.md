@@ -119,6 +119,10 @@ listener cannot hear (beyond 600) are virtual and cost nothing.
 | `CInterfaceMenu::processEventActionUp` / `processAction` | 0x1d5a88 / 0x1cd3f8 | "click" / "clickfail"; music restart on "leave game"; music and SFX volume sliders |
 | `CCameraLevel::refresh` | 0x14f9a4 | the listener |
 
+Campaign (phase 7): the missions' speaker texts play "ringringring" (`showSpeakerText`); the
+original's CCampaign, the loading screen and the credits roll make no sound calls (the music
+keeps playing; a mission's CGame::init restarts it like a skirmish).
+
 Not ported (no caller in the port yet): `CGameClient::receivePlayerSetup` ("infoplayerconnected",
 "infoplayerdisconnected": multiplayer), `CBomber::timeUpdateSimple` / `load` (network
 extrapolation, savegames). `CSoundManager::drawDebug` is ported but, as in the original, nothing

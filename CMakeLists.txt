@@ -152,6 +152,12 @@ if(PROJECTY_BUILD_TESTS)
   target_link_libraries(sim_probe PRIVATE projecty_engine)
   projecty_strict_float(sim_probe)
 
+  # Starts every campaign mission and the tutorial headless and runs it
+  # (the speaker texts are clicked away automatically)
+  add_executable(campaign_smoke tools/campaign_smoke.cpp)
+  target_link_libraries(campaign_smoke PRIVATE projecty_engine)
+  projecty_strict_float(campaign_smoke)
+
   # Runs a navmesh scenario on the port (compared with tools/emu/nav_oracle.py)
   add_executable(nav_probe tools/nav_probe.cpp)
   target_link_libraries(nav_probe PRIVATE projecty_engine)

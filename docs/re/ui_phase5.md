@@ -260,7 +260,7 @@ and in `CEngine`: `saveOptions`/`loadOptions`, `validateNameAndClan`, `resetGame
 | 4 pause, 11 statistics, 12 aftermath, 30 surrender | ported |
 | 5/6 options, 3 profile, 14 credits, 21 update news | ported (profile: no online stats; online options disabled) |
 | 7/8 save/load | layout; every slot "Empty Slot" (savegames: later phase, actions log notPorted) |
-| 25 campaign | layout; the CCampaign slider and start are not ported (buttons disabled) |
+| 25 campaign, 26 campaign progress | ported in phase 7 (`campaign_phase7.md`) |
 | 2, 15–18, 20 multiplayer | layout; split screen starts a single-player game (log), networking actions log notPorted |
 | 13 download | layout ([PC] nothing is downloaded) |
 | others (19 lobby chat, 22–24, 26–29, 31) | `[PC] [STAND-IN]` page with the number and Back |
@@ -287,8 +287,9 @@ is older (or there is no file) the update news screen (21) follows the intro. [P
 `SDL_GetPrefPath("LuminenceLabs", "ProjectY")` or `--save-dir <dir>`.
 
 [PC] additions: mouse wheel over a TextSlider2 steps it; TextInput2 is edited with the keyboard
-(Enter confirms, Escape cancels); website buttons open through `SDL_OpenURL`. Not ported: achievements, lobby/online features, savegames, the campaign
-(CCampaign), the credits roll (draw mode 3), the server list element, the waiting-room chat.
+(Enter confirms, Escape cancels); website buttons open through `SDL_OpenURL`. Not ported:
+achievements, lobby/online features, savegames, the server list element, the waiting-room chat.
+(The campaign and the credits roll: phase 7, `campaign_phase7.md`; sounds: phase 8, `sound_phase8.md`.)
 
 Headless check of the whole flow (empty save dir):
 

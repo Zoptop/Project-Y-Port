@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "game/CCampaign.h"
 #include "render/CQuad.h"
 #include "render/Math3D.h"
 #include "ui/CInterface.h"
@@ -43,6 +44,7 @@ class CInterfaceElementTextSlider2;
 class CInterfaceElementValueBar;
 class CMesh;
 class CTexture;
+struct CTextListing;
 
 // EMENUTYPES (setupElements' jump table at Ghidra 0x1abda8)
 enum EMenuType : int {
@@ -69,6 +71,7 @@ enum EMenuType : int {
     MENU_WAITINGROOM = 20,
     MENU_UPDATENEWS = 21,
     MENU_CAMPAIGN = 25,
+    MENU_CAMPAIGNPROGRESS = 26,   // the episode list (CInterfaceElementCampaignButtons)
     MENU_SURRENDER = 30,
 };
 
@@ -90,6 +93,9 @@ public:
     static unsigned localPlayerFromSetup(const CPlayerSetup* setup, unsigned n);
     void initMultiplayerSplitGame();     // Ghidra 0x1af614 (split screen: notPorted, falls back to single player)
     void initMultiplayerNetworkGame();   // Ghidra 0x1af7fc (notPorted)
+    // processAction 0x50 / 0x52 / 0x53: start the current campaign
+    // episode (see the .cpp)
+    void startCurrentCampaignEpisode();
 
     // ---- CInterface
     void draw() override;                                             // Ghidra 0x1d3b10
@@ -189,6 +195,7 @@ public:
     CInterfaceElementText* mDownloadStatus = nullptr;         // +0x5e8
     CInterfaceElementText* mDownloadTitle = nullptr;          // +0x5ec
     CInterfaceElementMapImageSlider* mMapSlider = nullptr;    // +0x5f0
+    class CInterfaceElementCampaignImageSlider* mCampaignSlider = nullptr;   // +0x5f4
     std::string mSelectedMapName;                             // +0x5f8
     bool mMapOutdated = false;                                // +0x5fc
     CInterfaceElementPlayerControl* mPlayerControl = nullptr; // +0x608
@@ -200,6 +207,7 @@ public:
     CGLSLProgram* mProgramSelect = nullptr;                   // +0x648 select.gfx
     std::vector<CQuadPosUV> mStandardQuads;                   // +0x650 (count +0x64c, 999 max)
     float mCreditsScroll = 0.0f;                              // +0x654
+    std::vector<CTextListing> mCreditsText;                   // +0x658 (the original's vector* , leaked)
     int mModalState = 0;                                      // +0x65c
     int mActionAfterLongOp = 0;                               // +0x660
     int mRankedOption = 0;                                    // +0x664

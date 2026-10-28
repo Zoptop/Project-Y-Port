@@ -6,6 +6,7 @@
 #include "core/FloatBits.h"
 #include "core/Real.h"
 #include "core/CUtils.h"
+#include "game/CCampaign.h"
 #include "game/CCommandManager.h"
 #include "game/CGame.h"
 #include "game/CSoundManager.h"
@@ -85,8 +86,18 @@ void CEngine::initInterfaces() {
     mIntroInterface->init();
     mMenuInterface = std::make_unique<CInterfaceMenu>();
     mMenuInterface->init(0);
+    initCampaign(1);
     if (mSoundManager) mSoundManager->startBackgroundMusic();
 }
+
+CCampaign* CEngine::initCampaign(unsigned id) {
+    std::unique_ptr<CCampaign>& c = mCampaigns[id];
+    c = std::make_unique<CCampaign>(id);
+    return c.get();
+}
+
+// Ghidra 0x16bec4
+CCampaign* CEngine::getCurCampaign() { return mCampaigns[mCurrentCampaignId].get(); }
 
 void CEngine::releaseInterfaces() {
     mCurrentInterface = nullptr;

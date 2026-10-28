@@ -56,7 +56,7 @@ public:
     // for the frame (CGroupBar +0x14 = groupId)
     virtual void highlightRallyGroup(CPlayer* player, unsigned buildingId, unsigned groupId) = 0;
     // CGame::checkGameEndingCondition's text: IPP::setOverlayText(text, "",
-    // 0, callerScript, false, true, "") and, with scrollTo, slowScrollTo(pos, 1)
+    // 0, callerScript, nopause = true, no icon, "") and, with scrollTo, slowScrollTo(pos, 1)
     virtual void showGameEndText(CPlayer* player, const std::string& text, int callerScript,
                                  const CVector2* scrollTo) = 0;
 

@@ -18,6 +18,7 @@
 namespace py {
 
 class CCamera;
+class CCampaign;
 class CGame;
 class CInterface;
 class CInterfaceIntro;
@@ -79,6 +80,14 @@ public:
     // the intro (+0x174, made current) and the menu (+0x16c, init(0)).
     void initInterfaces();
     void releaseInterfaces();   // also safe without a context
+    // The campaign part of CEngine::init (Ghidra 0x16d074): new CCampaign(1)
+    // into the campaign map (+0x2e0), replacing an existing one (as the
+    // language option, menu action 0x1f, does). Not parsed yet: the menus
+    // call CCampaign::startInitAsync.
+    CCampaign* initCampaign(unsigned id = 1);
+    // Ghidra 0x16bec4: campaigns[+0x2f8] (std::map::operator[]: null for an
+    // unknown id)
+    CCampaign* getCurCampaign();
     // Ghidra 0x1674dc: frame timing (updateFrameTime, game speed only while
     // the current interface is the ingame one), then on the current
     // interface: processEvents, draw, timeUpdate(frame dt). In a network game
@@ -215,6 +224,9 @@ public:
     std::map<unsigned, int> mMapDownloadState;   // +0x2c4 isMapDownloaded cache
     bool mUseDoubleTouch = false;      // +0x2d4 "UseDoubleTouch" (loadOptions always clears it)
     int mMinimapSize = 2;              // +0x2d8 "MinimapSize" (constructor 2; a failed read in loadOptions gives 0)
+    // +0x2e0 the campaigns by id (CEngine::init creates campaign 1; the
+    // language option re-creates it)
+    std::map<unsigned, std::unique_ptr<CCampaign>> mCampaigns;
     unsigned mCurrentCampaignId = 1;   // +0x2f8 the campaign slider's choice
     long mAccountId = -1;              // +0x2fc "AccountId"
     bool mProfilePrivate = false;      // +0x300 "ProfileIsPrivate"

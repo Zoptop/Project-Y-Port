@@ -1,0 +1,16 @@
+# The last campaign mission and the credits roll (docs/re/campaign_phase7.md):
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --save-dir /tmp/py_cmp \
+#       --mission 318 --frames 3510 --input tools/ui/campaign_credits.input
+# A scripted win of 3.6 -> aftermath with only "Continue" (action 0x54; the
+# campaign is marked completed) -> draw mode 3: cmp1_cut_4.jpg and the
+# scrolling cmp1_final_English.txt; a click would return to the main menu.
+60 screenshot credits_318_start.png
+80 mapscript gamestate id(9000) result(1) player(1)
+150 key return                         # the modal speaker texts that pause the game
+190 key return
+230 key return
+330 screenshot credits_aftermath.png
+340 click left 655 637                 # Continue
+480 screenshot credits_1.png
+1500 screenshot credits_2.png
+3500 screenshot credits_3.png

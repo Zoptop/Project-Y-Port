@@ -4,14 +4,15 @@
 // 10; the caller (processEventActionUp & co.) then runs setupElements.
 //
 // Not ported here (later phases), each logged as "notPorted": the lobby and
-// game clients (multiplayer, friends, chat, rankings), downloads, purchases,
-// savegames and the campaign (CCampaign). The option actions are
+// game clients (multiplayer, friends, chat, rankings), downloads, purchases
+// and savegames. The option actions are
 // complete and call CEngine::saveOptions like the original.
 #include "CInterfaceMenu.h"
 
 #include "core/CConfig.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
+#include "game/CCampaign.h"
 #include "game/CCommandManager.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
@@ -21,6 +22,7 @@
 #include "render/Colors.h"
 #include "ui/CInterfaceElementBarSlider.h"
 #include "ui/CInterfaceElementButton2.h"
+#include "ui/CInterfaceElementCampaignButtons.h"
 #include "ui/CInterfaceElementImageSlider.h"
 #include "ui/CInterfaceElementPlayerControl.h"
 #include "ui/CInterfaceElementTextInput2.h"
@@ -71,6 +73,59 @@ void notPorted(const char* what, int action) {
     CUtils::log("CInterfaceMenu::processAction 0x%x (%s): notPorted", action, what);
 }
 }  // namespace
+
+// The common tail of processAction 0x50, 0x52 and 0x53 (Ghidra 0x1cd818):
+// campaign 1 must be purchased (always) and installed (else the download
+// screen), then the fixed player slots of a campaign mission (0 neutral, 1
+// the human, 2..4 computer players; names from the config, id = team =
+// colour = slot), the current episode's map and player count, production
+// speed 2, game speed 1, FOW on, crates off, no sector or unit presets; the
+// loading screen (draw mode 1) follows and draw mode 2 calls
+// initSingleplayerGame. The game type stays 1 (set by screen 25).
+void CInterfaceMenu::startCurrentCampaignEpisode() {
+    CEngine* e = mEngine;
+    CCampaign* c1 = e->mCampaigns[1].get();
+    if (!c1 || !c1->mPurchased) {
+        CUtils::log("purchase required for campaign");
+        mNextMenu = MENU_SINGLEPLAYER;
+        mCamera->slowScrollTo(screenCenter(MENU_SINGLEPLAYER), 10.0f);
+        return;
+    }
+    if (!c1->mDownloaded) {
+        CUtils::log("download required for campaign");
+        mNextMenu = MENU_DOWNLOAD;
+        mCamera->slowScrollTo(screenCenter(MENU_DOWNLOAD), 10.0f);
+        CUtils::log("CEngine::downloadMap %u: notPorted (no downloads on PC)", 0x3e9u);
+        mDownloadMapName = CConfig::get().getString("MapName1001", "");
+        mDownloadInProgress = true;
+        return;
+    }
+    CConfig& cfg = CConfig::get();
+    CPlayerSetup* s = e->mPlayerSetup;
+    static const int kType[5] = {1, 0, 2, 2, 2};
+    for (int i = 0; i < 5; ++i) {
+        s[i].name = cfg.getString("Player" + std::to_string(i) + "Name", "");
+        s[i].type = kType[i];
+    }
+    for (int i = 0; i < 5; ++i) {
+        s[i].id = i;
+        s[i].team = static_cast<unsigned>(i);
+        s[i].colorIndex = i;
+    }
+    CCampaign* cur = e->getCurCampaign();
+    if (!cur) return;   // [PC] the original dereferences the missing campaign
+    e->mNumPlayers = cur->getCurrentMapInfo()->numPlayers;
+    e->mMapId = cur->getCurrentMapInfo()->mapId;
+    e->mProductionSpeed = 2;
+    e->mGameSpeedFactor = 1.0f;
+    e->mLocalPlayer = 1;
+    e->mUseFOW = true;
+    e->mCratesEnabled = false;
+    e->mUnitAvailabilityMode = 0;
+    e->mSectorSetupMode = 0;
+    mStartGameMode = 1;
+    mDrawMode = 1;
+}
 
 // Ghidra 0x1cd3f8
 void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
@@ -252,8 +307,10 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             else if (v == 1) e->mLanguage = "Deutsch";
             CTxtLoc::get().load(e->mLanguage);
             e->saveOptions();
-            // CTechManager::init (the unit names) and a new CCampaign(1): not ported here
-            mModalState = 1;   // CCampaign::startInitAsync
+            // CTechManager::init (the unit names): not ported here
+            // the campaign in the new language
+            e->initCampaign(1)->startInitAsync(false);
+            mModalState = 1;
             mActionAfterLongOp = 0x5b;
             break;
         }
@@ -366,6 +423,7 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             break;
         }
         case 0x42:   // the version button: update news (after a campaign check)
+            if (CCampaign* c = e->mCampaigns[1].get()) c->startInitAsync(true);
             mModalState = 1;
             mActionAfterLongOp = 0x77;
             break;
@@ -398,16 +456,71 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
         case 0x4b:
         case 0x4c: notPorted("CUnitFactory auto upgrade probabilities (screen 24)", action); break;
         case 0x4d:   // campaign (after the campaign file check)
+            if (CCampaign* c = e->mCampaigns[1].get()) c->startInitAsync(false);
             mModalState = 1;
             mActionAfterLongOp = 0x5a;
             break;
         case 0x4e: go(0x1a); break;
-        case 0x4f:
-        case 0x50:
-        case 0x51:
-        case 0x52:
-        case 0x53:
-        case 0x54: notPorted("CCampaign (campaign play)", action); break;
+        case 0x4f: {   // the campaign slider changed: the start buttons follow the campaign
+            if (mCampaignReplayButton) mCampaignReplayButton->mDisabled = true;
+            auto* cs = dynamic_cast<CInterfaceElementImageSlider*>(element);
+            if (!cs) {
+                CUtils::log("MENUACTION_CAMPAIGNSLIDERCHANGED slider is NULL");
+                break;
+            }
+            e->mCurrentCampaignId = cs->mCurrentId;
+            CCampaign* cmp = e->mCampaigns[cs->mCurrentId].get();
+            if (!cmp) break;   // [PC] the original dereferences the missing campaign
+            cs->changeTexture(cmp->mIconFile);
+            if (!mCampaignStartButton) break;
+            mCampaignStartButton->mDisabled = false;
+            const CInterfaceElementImageSlider::CEntry& en = cs->current();
+            if (!en.purchased) {
+                mCampaignStartButton->mTextColor = Vec3(1.0f, bitsf(0x3e99999a), bitsf(0x3e99999a));
+            } else if (!en.downloaded) {
+                mCampaignStartButton->mText = CTxtLoc::get().getC(0x106);
+                mCampaignStartButton->mTextColor = Vec3(bitsf(0x3ecccccd), bitsf(0x3ecccccd), 1.0f);
+            } else {
+                if (!cmp->mProgressLoaded) {
+                    mCampaignStartButton->mText = CTxtLoc::get().getC(0x1af);   // "Start Campaign"
+                } else {
+                    mCampaignStartButton->mText = CTxtLoc::get().getC(0x1b7);   // "Continue"
+                    if (mCampaignReplayButton) mCampaignReplayButton->mDisabled = false;
+                }
+                const Vec3& w = colors::COL_WHITE;
+                const Vec3& g = colors::COL_GREEN;
+                const float a = bitsf(0x3f333333), b = bitsf(0x3e99999a);
+                mCampaignStartButton->mTextColor = Vec3(w.x * a + g.x * b, w.y * a + g.y * b, w.z * a + g.z * b);
+                if (cmp->mCompleted) mCampaignStartButton->mDisabled = true;
+            }
+            break;
+        }
+        case 0x51:   // an episode of the progress screen was picked
+            if (auto* cb = dynamic_cast<CInterfaceElementCampaignButtons*>(element)) {
+                if (CCampaign* cmp = e->getCurCampaign()) {
+                    cmp->mCurChapter = cb->mSelectedChapter;
+                    cmp->mCurEpisode = cb->mSelectedEpisode;
+                }
+            } else {
+                CUtils::log("MENUACTION_CAMPAIGNEPISODECHANGED cmpbtns is NULL");
+            }
+            break;
+        case 0x53:   // aftermath "Continue": the game is dropped, the current episode starts
+            e->resetGame();
+            startCurrentCampaignEpisode();
+            break;
+        case 0x50:   // start / continue the campaign
+        case 0x52:   // replay the episode picked on the progress screen
+            startCurrentCampaignEpisode();
+            break;
+        case 0x54: {   // the end of the campaign: the credits roll (draw mode 3)
+            mCreditsScroll = 0.0f;
+            mDrawMode = 3;
+            CCampaign* cmp = e->getCurCampaign();
+            mCreditsText = cmp ? cmp->getCampaignText("final") : std::vector<CTextListing>();
+            mBackAction = 0;
+            break;
+        }
         case 0x55: {   // profile: clan
             auto* in = dynamic_cast<CInterfaceElementTextInput2*>(element);
             if (!in) break;
@@ -500,7 +613,8 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             // the lobby is never connected on PC: the offline branch
             if (e->mLastVersion < static_cast<unsigned>(CConfig::get().getInt("Revision", 0))) {
                 CUtils::log("sync result was false, version updated");
-                mModalState = 1;   // CCampaign::startInitAsync(true)
+                if (CCampaign* c = e->mCampaigns[1].get()) c->startInitAsync(true);
+                mModalState = 1;
                 mActionAfterLongOp = 0x77;
             } else {
                 mCamera->slowScrollTo(CVector2(0.0f, 0.0f), 10.0f);

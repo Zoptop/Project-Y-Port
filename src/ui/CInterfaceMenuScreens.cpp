@@ -14,7 +14,7 @@
 // 10 custom game, 11 statistics, 12 aftermath, 13 download (layout), 14
 // credits, 15 split screen, 16 host, 17 enter IP, 18 server list (no list
 // element yet), 20 waiting room (layout), 21 update news (title and back),
-// 25 campaign (layout without the CCampaign slider). Others: a stand-in
+// 25 campaign, 26 campaign progress (episode list). Others: a stand-in
 // page with the screen number and Back ([PC], marked).
 #include <cstdio>
 #include <cstring>
@@ -24,6 +24,7 @@
 #include "core/CMemoryFile.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
+#include "game/CCampaign.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CPlayer.h"
@@ -31,6 +32,8 @@
 #include "render/Colors.h"
 #include "ui/CInterfaceElement.h"
 #include "ui/CInterfaceElementButton2.h"
+#include "ui/CInterfaceElementCampaignButtons.h"
+#include "ui/CInterfaceElementCampaignImageSlider.h"
 #include "ui/CInterfaceElementImage.h"
 #include "ui/CInterfaceElementImageButton.h"
 #include "ui/CInterfaceElementImageSlider.h"
@@ -72,6 +75,7 @@ void CInterfaceMenu::setupElements(int menuType, int action) {
     mReadyButton = nullptr;
     mCampaignStartButton = nullptr;
     mCampaignReplayButton = nullptr;
+    mCampaignSlider = nullptr;
     mDownloadStatus = nullptr;
     mDownloadTitle = nullptr;
     mDownloadBar = nullptr;
@@ -335,11 +339,20 @@ void CInterfaceMenu::setupElements(int menuType, int action) {
                     statButton(0x17, "stat_main", 0xc44f9333, 0xc3df0000, 0x2b);
                     mBackAction = 0x17;
                 } else {
-                    // CCampaign::markMapCompleted and the "Continue" buttons: the campaign is not ported yet
-                    CUtils::log("CInterfaceMenu: campaign aftermath (markMapCompleted) notPorted");
-                    statButton(0x53, "stat_back", 0xc44ef333, 0xc3e66666, 0x1b7);
-                    statButton(0x17, "stat_main", 0xc44f9333, 0xc3df0000, 0x2b);
-                    mBackAction = 0x17;
+                    // The original's "mission complete" hook (Ghidra 0x1ba548): a
+                    // won campaign mission unlocks the next episode and makes it
+                    // current; "Continue" (0x53) then starts it at once. After the
+                    // last episode "Continue" (0x54) rolls the credits instead.
+                    CCampaign* cmp = e->getCurCampaign();
+                    const bool last = cmp && cmp->markMapCompleted(e->mMapId);
+                    if (!last) {
+                        statButton(0x53, "stat_back", 0xc44ef333, 0xc3e66666, 0x1b7);
+                        statButton(0x17, "stat_main", 0xc44f9333, 0xc3df0000, 0x2b);
+                        mBackAction = 0x17;
+                    } else {
+                        statButton(0x54, "stat_back", 0xc44ef333, 0xc3e66666, 0x1b7);
+                        mBackAction = 0x54;
+                    }
                 }
             } else {   // defeat (also without a game)
                 addElement(new CInterfaceElementText(this, bitsf(0xc44eb333), bitsf(0xc3978000), T(0xf2), 1, 5.5f,
@@ -595,6 +608,8 @@ void CInterfaceMenu::setupElements(int menuType, int action) {
             break;
         }
         case MENU_CAMPAIGN: {
+            // the campaign choice (screen 25): the slider of campaigns, Start /
+            // Continue (0x50), Replay episode (0x4e -> screen 26), the difficulty
             e->mGameType = 1;
             title(0x43370000, 0x445b1333, T(0x1b0));
             addElement(new CInterfaceElementButton2(this, 1, "cmp_back", bitsf(0x436ccccd), 739.0f, T(6), 1, false,
@@ -605,11 +620,29 @@ void CInterfaceMenu::setupElements(int menuType, int action) {
             mCampaignReplayButton = addElement(new CInterfaceElementButton2(
                 this, 0x4e, "cmp_reply", bitsf(0x4319cccd), bitsf(0x4438b333), T(0x1ae), 1, false, 5.0f, white(),
                 60.0f, 12.0f, bitsf(0xbf4ccccd), 3.5f));
-            // the campaign slider (CInterfaceElementCampaignImageSlider + CCampaign): TODO, campaign phase
-            mCampaignStartButton->mDisabled = true;
-            mCampaignReplayButton->mDisabled = true;
+            createElementCampaignSlider("campaignic", bitsf(0x430c0000), bitsf(0x44548000), "campaignic",
+                                        e->mCurrentCampaignId);
             createElementDifficultySlider(bitsf(0x4388a666), bitsf(0x443ee000), "cmp_diff");
             mBackAction = 1;
+            break;
+        }
+        case MENU_CAMPAIGNPROGRESS: {
+            // the episode list (screen 26): every unlocked episode, pick one and
+            // replay it (0x52); Back (0x4d) re-reads the campaign
+            title(0xc3848000, 0x445ac000, T(0x1b1));
+            CCampaign* cmp = e->mCampaigns[e->mCurrentCampaignId].get();
+            if (cmp) {
+                addElement(new CInterfaceElementText(this, bitsf(0xc3848000), bitsf(0x4455c000), cmp->mName, 1, 5.0f,
+                                                     colors::COL_GRAY75));
+                addElement(new CInterfaceElementCampaignButtons(this, 0x51, bitsf(0xc3960000), bitsf(0x44520000), cmp,
+                                                                5.0f, colors::COL_GRAY75));
+            }
+            addElement(new CInterfaceElementButton2(this, 0x52, "cmpe_rerun", bitsf(0xc3848000), bitsf(0x443cb333),
+                                                    T(0x1b2), 2, false, 5.0f, white(), 60.0f, 12.0f,
+                                                    bitsf(0xbf4ccccd), 3.5f));
+            addElement(new CInterfaceElementButton2(this, 0x4d, "cmpe_bk", bitsf(0xc3520000), bitsf(0x443cb99a), T(6),
+                                                    0, false, 5.0f, white(), 60.0f, 12.0f, bitsf(0xbf4ccccd), 3.5f));
+            mBackAction = 0x4d;
             break;
         }
         default: {
@@ -1041,9 +1074,54 @@ void CInterfaceMenu::createElementsLoadSave(float x, float y, const std::string&
     }
 }
 
-// Ghidra 0x1d1468: needs CCampaign (not ported yet)
-void CInterfaceMenu::createElementCampaignSlider(const std::string&, float, float, const std::string&, unsigned) {
-    CUtils::log("CInterfaceMenu::createElementCampaignSlider notPorted (CCampaign)");
+// Ghidra 0x1d1468: the campaign slider of screen 25 (+0x5f4). Its entry
+// (the campaign's id): the name, "<n> Missions - <p>% done", the description,
+// and while the campaign is not finished "Chapter <c>: <chapter name>" and
+// "Episode <e>: <mission name>" of the current episode. Then it shows
+// cmp<id>icon.png and sends 0x4f (which sets up the start buttons).
+void CInterfaceMenu::createElementCampaignSlider(const std::string& name, float x, float y,
+                                                 const std::string& subMesh, unsigned campaignId) {
+    (void)name;
+    CEngine* e = mEngine;
+    auto* slider = new CInterfaceElementCampaignImageSlider(
+        this, 0x4f, x, y, x, y, x + 4.0f, y + 10.0f, x + 4.0f, y - 56.0f, x + 4.0f, y - 62.0f, x + 4.0f, y - 72.0f,
+        x + 4.0f, y - 77.0f, x + 42.0f, y - 40.0f, 53.0f, 41.0f, "", subMesh, 5.0f, colors::COL_WHITE, 80.0f, 80.0f,
+        -3.0f, 20.0f);
+    mCampaignSlider = slider;
+    slider->mDisabled = false;
+    CCampaign* cmp = e->mCampaigns[campaignId].get();
+    if (!cmp) {
+        // [PC] the original dereferences the missing campaign
+        CUtils::log("createElementCampaignSlider: no campaign %u", campaignId);
+        addElement(slider);
+        return;
+    }
+    if (cmp->mDefLoaded) {
+        cmp->readProgress();
+        char missions[100];
+        // [!] "%%%%": the line is a format string again when it is drawn
+        std::snprintf(missions, sizeof missions, "%.0f %s - %.0f%%%% %s", static_cast<double>(cmp->mMissionsTotal),
+                      T(0x1b4), static_cast<double>(cmp->mPercentDone), T(0x1b5));
+        std::string chapterLine, episodeLine;
+        if (!cmp->mCompleted) {
+            char buf[1024];
+            const unsigned c = cmp->mCurChapter;
+            std::snprintf(buf, sizeof buf, "%s %i: %s", T(0x1b3), static_cast<int>(c), cmp->mChapterNames[c].c_str());
+            chapterLine = buf;
+            std::snprintf(buf, sizeof buf, "%s %i: %s", T(0x1b6), static_cast<int>(cmp->mCurEpisode),
+                          cmp->getCurrentMapInfo()->name.c_str());
+            episodeLine = buf;
+        }
+        const unsigned current = CConfig::get().getUInt("CurrentMapRevision" + std::to_string(campaignId + 1000), 0);
+        slider->addEntry(cmp->mId, cmp->mName, missions, cmp->mDesc, nullptr, false, false, 1, cmp->mRevision, current,
+                         chapterLine, episodeLine);
+    }
+    slider->mCurrentId = 1;
+    slider->changeTexture(cmp->mIconFile);
+    slider->current().purchased = cmp->mPurchased;
+    slider->current().downloaded = cmp->isOutdated() ? false : cmp->mDownloaded;
+    addElement(slider);
+    processAction(0x4f, slider);
 }
 
 }  // namespace py

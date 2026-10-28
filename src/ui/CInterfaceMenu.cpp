@@ -6,7 +6,9 @@
 #include <cstdio>
 
 #include "core/CConfig.h"
+#include "core/FloatBits.h"
 #include "core/CRng.h"
+#include "game/CCampaign.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
 #include "game/CEngine.h"
@@ -442,11 +444,43 @@ void CInterfaceMenu::draw() {
                                             "%s", t.getC(kDesc[gt]));
                         break;
                     }
-                    case 1:
-                        // the campaign loading screen (episode names and the cmp1_cut_<n>.jpg
-                        // picture): needs CCampaign, not ported yet
-                        tr->drawStringPixel(w * 0.5f, h - big, big, 1.0f, 1.0f, 0.0f, 1.0f, 1, "%s", starting);
+                    case 1: {
+                        // the campaign loading screen: the episode's chapter and
+                        // name over its picture, cmp1_cut_<n>.jpg [!] (always
+                        // "cmp1", whatever the campaign), drawn as a square that
+                        // covers the screen
+                        const int iw = mCamera->getWidth(), ih = mCamera->getHeight();
+                        const float cx = static_cast<float>(iw / 2);
+                        if (CCampaign* cmp = mEngine->getCurCampaign()) {
+                            char chapter[1024], episode[1024];
+                            const unsigned c = cmp->mCurChapter;
+                            std::snprintf(chapter, sizeof chapter, "%s %i: %s", t.getC(0x1b3), static_cast<int>(c),
+                                          cmp->mChapterNames[c].c_str());
+                            std::snprintf(episode, sizeof episode, "%s %i: %s", t.getC(0x1b6),
+                                          static_cast<int>(cmp->mCurEpisode), cmp->getCurrentMapInfo()->name.c_str());
+                            tr->drawStringPixel(cx, h - g * 144.0f, g * 48.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1, "%s",
+                                                formatNoArgs(chapter).c_str());
+                            tr->drawStringPixel(cx, h - g * bitsf(0x42b33333), g * bitsf(0x42266666), 1.0f, 1.0f,
+                                                1.0f, 1.0f, 1, "%s", formatNoArgs(episode).c_str());
+                            char cut[64];
+                            std::snprintf(cut, sizeof cut, "cmp1_cut_%u.jpg", cmp->getCurrentMapInfo()->cutImage);
+                            if (CTexture* tex = CTextureManager::get().getTexture(cut, 1, 2, 2, true)) {
+                                tex->bind(GL_TEXTURE0_);
+                                CVector2 pos, size;
+                                if (ih < iw) {
+                                    pos = CVector2(0.0f, static_cast<float>((ih - iw) / 2));
+                                    size = CVector2(static_cast<float>(iw), static_cast<float>(iw));
+                                } else {
+                                    pos = CVector2(static_cast<float>((iw - ih) / 2), 0.0f);
+                                    size = CVector2(h, h);
+                                }
+                                addStandardQuadPixel(pos, CVector2(0.0f, 0.0f), CVector2(1.0f, 1.0f), size);
+                                drawScreenSpaceQuads();
+                            }
+                        }
+                        tr->drawStringPixel(cx, h - big, big, 1.0f, 1.0f, 0.0f, 1.0f, 1, "%s", starting);
                         break;
+                    }
                     default: break;
                 }
                 tr->draw();
@@ -473,13 +507,61 @@ void CInterfaceMenu::draw() {
             }
             break;
         }
-        case 3:
-            // the campaign end credits roll (CCampaign::getCampaignText("final")): not ported yet
+        case 3: {
+            // the campaign's credits roll (processAction 0x54): the final
+            // picture cmp1_cut_<finalcut>.jpg, the "final" text scrolling up
+            // at 25 px/s (32 px x GUI scale per line), then the end titles
+            // (CTxtLoc 0x1c6 large in the middle, 0x1c7 yellow at the
+            // bottom). A tap ends it (processEventActionUp: action 0x17).
             gl::ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             gl::Clear(GL_COLOR_DEPTH_);
             mCamera->activateGLviewport();
+            CCampaign* cmp = mEngine->mGameType == 1 ? mEngine->getCurCampaign() : nullptr;
+            if (cmp && tr) {
+                const int iw = mCamera->getWidth(), ih = mCamera->getHeight();
+                char cut[64];
+                std::snprintf(cut, sizeof cut, "cmp1_cut_%u.jpg", cmp->mFinalCut);
+                CTexture* tex = CTextureManager::get().getTexture(cut, 1, 2, 2, true);
+                if (tex) tex->bind(GL_TEXTURE0_);
+                CVector2 pos;
+                int side;
+                if (ih < iw) {
+                    pos = CVector2(0.0f, static_cast<float>((ih - iw) / 2));
+                    side = iw;
+                } else {
+                    pos = CVector2(static_cast<float>((iw - ih) / 2), 0.0f);
+                    side = ih;
+                }
+                const float fs = static_cast<float>(side);
+                addStandardQuadPixel(pos, CVector2(0.0f, 0.0f), CVector2(1.0f, 1.0f), CVector2(fs, fs));
+                drawScreenSpaceQuads();
+                mCreditsScroll = mCreditsScroll + mEngine->mFrameDt * 25.0f;
+                const float fh = static_cast<float>(ih);
+                const float base = fh - mCreditsScroll;
+                const float unit = g * 32.0f;
+                int shown = 0;
+                for (const CTextListing& l : mCreditsText) {
+                    const float y = l.y * unit + base;
+                    if (fh > y) {
+                        const float size = l.scale * unit;
+                        if (y + size > 0.0f) {
+                            tr->drawStringPixel(static_cast<float>(iw / 2), y, size, 1.0f, 1.0f, 1.0f, 1.0f, 1, "%s",
+                                                formatNoArgs(l.text).c_str());
+                            ++shown;
+                        }
+                    }
+                }
+                if (shown == 0 && mCreditsScroll > 5.0f) {
+                    const float big = unit * 3.0f;
+                    tr->drawStringPixel(static_cast<float>(iw / 2), fh * 0.5f - big * 0.5f, big, 1.0f, 1.0f, 1.0f,
+                                        1.0f, 1, "%s", t.getC(0x1c6));
+                    tr->drawStringPixel(static_cast<float>(iw / 2), fh - unit, unit / bitsf(0x3fb33333), 1.0f, 1.0f,
+                                        0.0f, 1.0f, 1, "%s", t.getC(0x1c7));
+                }
+            }
             if (tr) tr->draw();
             break;
+        }
         default: break;
     }
 }
@@ -512,7 +594,7 @@ void CInterfaceMenu::initSingleplayerGame() {
     CRngSafe::SetSeedFromSystemTime();
     e->mNetworkMode = 0;
     e->setGame(std::make_unique<CGame>());
-    e->mGame->init(false);
+    e->mGame->init(false, !gl::isLoaded());   // [PC] headless without a GL context (tools, tests)
     auto ingame = std::make_unique<CInterfaceIngame>();
     ingame->initSingleplayer(mWidth, mHeight, e->mLocalPlayer);
     e->mIngameInterface = std::move(ingame);

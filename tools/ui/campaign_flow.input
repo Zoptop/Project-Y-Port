@@ -1,0 +1,29 @@
+# The campaign through the menus (docs/re/campaign_phase7.md), 1280x720, 60 fps
+# clock, with an EMPTY save dir (no options.txt -> the update news first; no
+# cmp1prog.txt -> a fresh campaign):
+#   mkdir -p /tmp/py_cmp && rm -f /tmp/py_cmp/*
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --save-dir /tmp/py_cmp \
+#       --frames 1510 --input tools/ui/campaign_flow.input
+# Path: update news -> Back -> Singleplayer -> Campaign (screen 25: "Start
+# Campaign", 0 % done) -> Start -> the loading screen (chapter, episode,
+# cmp1_cut_1.jpg) -> mission 301 with Central Command's avatar -> a scripted
+# win (the mission's own "gamestate result(1) player(1)") -> aftermath
+# "Victory!" with Continue / Main menu (episode 1.2 unlocked, cmp1prog.txt
+# written) -> Main menu -> Singleplayer -> Campaign ("Continue", 6 % done,
+# Replay enabled) -> Replay Episode -> the progress screen (26) with episodes
+# 1 and 2 of chapter 1.
+480 click left 646 626                 # update news: Back
+570 click left 637 205                 # main: Singleplayer
+660 click left 637 217                 # singleplayer: Campaign
+760 screenshot campaign_screen.png
+770 click left 490 544                 # Start Campaign (action 0x50)
+screenshot campaign_loading.png        # the same frame: draw mode 1
+960 screenshot campaign_301_speaker.png
+1000 mapscript gamestate id(9000) result(1) player(1)
+1100 screenshot campaign_aftermath.png
+1110 click left 655 584                # aftermath: Main menu
+1200 click left 637 205                # Singleplayer
+1290 click left 637 217                # Campaign
+1390 screenshot campaign_unlocked.png
+1400 click left 500 610                # Replay Episode (action 0x4e -> screen 26)
+1500 screenshot campaign_progress.png
