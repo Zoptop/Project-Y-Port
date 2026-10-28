@@ -148,6 +148,64 @@ class Oracle:
         self.call('_ZN8ProjectY14CInterfaceMenu20initSingleplayerGameEv', menu, max_insns=20_000_000_000)
         self.game = e.read_u32(engine + 0x178)
 
+    def _seed_hooks(self):
+        e = self.emu
+        for cls in ('CRng', 'CRngSafe'):
+            mw = e.addr('_ZN8ProjectY%d%s2mWE' % (len(cls), cls))
+            mz = e.addr('_ZN8ProjectY%d%s2mZE' % (len(cls), cls))
+
+            def seed(emu, a, mw=mw, mz=mz):
+                self.w32(mw, self.SEED_W)
+                self.w32(mz, self.SEED_Z)
+                return 0
+            e.hook_function('_ZN8ProjectY%d%s21SetSeedFromSystemTimeEv' % (len(cls), cls), seed)
+
+    def start_mission(self, engine, map_id, data):
+        """A campaign mission (cmp1def: 301..318) the way the original's menus
+        start one: the campaign is read (CCampaign::parseDef + readProgress, the
+        synchronous part of startInitAsync; the file check of the worker thread
+        is replaced by setting purchased/installed), the episode of `map_id`
+        becomes current (CCampaign +0x180/+0x184, as the progress screen's
+        episode buttons do), the game type is 1 (setupElements of screen 25),
+        then CInterfaceMenu::processAction(0x52) - the "replay episode" start,
+        which shares its code with Start/Continue (0x50) and sets the player
+        slots, map, player count, speeds, FOW and crates - and
+        initSingleplayerGame, which draw mode 2 calls."""
+        e = self.emu
+        self.engine = engine
+        chp = eps = None
+        import os
+        for base in (os.path.join(data, 'add'), data):
+            p = os.path.join(base, 'cmp1defEnglish.txt')
+            if os.path.exists(p):
+                for line in open(p, 'rb').read().decode('latin-1').split('\n'):
+                    w = line.split()
+                    if len(w) >= 4 and w[0] == 'map' and int(w[3]) == map_id:
+                        chp, eps = int(w[1]), int(w[2])
+                break
+        if chp is None:
+            raise SystemExit('map %d is not a campaign mission' % map_id)
+        self.w32(engine + 0x2f8, 1)
+        cmp = self.call('_ZN8ProjectY7CEngine14getCurCampaignEv', engine)
+        if not self.call('_ZN8ProjectY9CCampaign8parseDefEv', cmp, max_insns=2_000_000_000) & 0xff:
+            raise SystemExit('CCampaign::parseDef failed')
+        self.call('_ZN8ProjectY9CCampaign12readProgressEv', cmp)
+        self.w8(cmp + 0x194, 1)     # purchased (checkPurchased)
+        self.w8(cmp + 0x195, 1)     # installed (checkDownloaded, worker thread)
+        self.w32(cmp + 0x180, chp)
+        self.w32(cmp + 0x184, eps)
+        self.w32(engine + 0x2d0, 1)
+        self._seed_hooks()
+        menu = e.read_u32(engine + 0x16c)
+        self.w32(menu + 0x70, 720)
+        self.w32(menu + 0x74, 1280)
+        self.call('_ZN8ProjectY14CInterfaceMenu13processActionENS_12EMENUACTIONSEPNS_17CInterfaceElementE',
+                  menu, 0x52, 0, max_insns=200_000_000)
+        if e.read_u32(menu + 0x80) != 1:
+            raise SystemExit('processAction(0x52) did not start the mission (draw mode %d)' % e.read_u32(menu + 0x80))
+        self.call('_ZN8ProjectY14CInterfaceMenu20initSingleplayerGameEv', menu, max_insns=20_000_000_000)
+        self.game = e.read_u32(engine + 0x178)
+
     def checksum(self) -> int:
         e = self.emu
         self.call('_ZN8ProjectY6CUtils13resetChecksumEv')
@@ -294,6 +352,7 @@ def main():
     ap.add_argument('--budget', type=int, default=2_000_000_000)
     ap.add_argument('--players', type=int, default=2)
     ap.add_argument('--fow', type=int, default=0)
+    ap.add_argument('--mission', type=int, default=0, help='start campaign mission <map> like the menus (ignores --map/--players)')
     ap.add_argument('--detail', type=int, nargs='*', help='steps to dump per-object checksums for')
     ap.add_argument('--trace', type=int, nargs='*', help='steps to dump every updateChecksum value for')
     a = ap.parse_args()
@@ -307,7 +366,10 @@ def main():
     pc = e.uc.reg_read(UC_ARM_REG_PC)
     print('stopped at %s after %.1fs (lr %s)' % (o.where(pc), time.time() - t0, o.where(e.uc.reg_read(UC_ARM_REG_LR))))
     print('log tail:', o.libc.log_lines[-3:])
-    o.start_game(engine, a.map, a.players, fow=a.fow)
+    if a.mission:
+        o.start_mission(engine, a.mission, a.data)
+    else:
+        o.start_game(engine, a.map, a.players, fow=a.fow)
     print('game started; log tail:', o.libc.log_lines[-4:])
     for step in range(a.steps):
         print('step %4d checksum %08x' % (step, o.checksum()))

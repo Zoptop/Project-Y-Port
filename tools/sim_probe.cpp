@@ -23,6 +23,7 @@
 #include "core/CUtils.h"
 #include "core/FloatBits.h"
 #include "game/CBuilding.h"
+#include "game/CCampaign.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
@@ -33,7 +34,9 @@
 #include "game/CSector.h"
 #include "game/CUnit.h"
 #include "game/CWeapon.h"
+#include "render/CCameraMenu.h"
 #include "render/CMesh.h"
+#include "ui/CInterfaceMenu.h"
 
 using namespace py;
 
@@ -150,7 +153,7 @@ int runQueries(CGame* g, const std::string& file) {
 
 int main(int argc, char** argv) {
     std::string data = "data";
-    int map = 1, players = 2, steps = 10, gameType = 0;
+    int map = 1, players = 2, steps = 10, gameType = 0, mission = 0;
     bool dumpRes = false, dumpWeapons = false;
     std::set<int> trace;
     std::string queries;
@@ -163,6 +166,7 @@ int main(int argc, char** argv) {
         else if (a == "--steps") steps = std::atoi(next().c_str());
         else if (a == "--queries") queries = next();
         else if (a == "--gametype") gameType = std::atoi(next().c_str());
+        else if (a == "--mission") mission = std::atoi(next().c_str());
         else if (a == "--dump-res") dumpRes = true;
         else if (a == "--dump-weapons") dumpWeapons = true;
         else if (a == "--trace")
@@ -175,12 +179,44 @@ int main(int argc, char** argv) {
     CConfig::get().load(CUtils::dataPath("config.txt"));
     CTxtLoc::get().load("English");
     CEngine* e = CEngine::getSingletonPtr();
-    e->setupSkirmish(static_cast<unsigned>(map), static_cast<unsigned>(players));
-    e->mGameType = gameType;
-    e->mUseFOW = false;
-    e->mCratesEnabled = false;
-    e->mSectorSetupMode = 0;
-    e->mUnitAvailabilityMode = 0;
+    if (mission > 0) {
+        // --mission: a campaign mission started like the menus (and like
+        // game_oracle.py --mission): the campaign read, the mission's episode
+        // current, game type 1, then CInterfaceMenu::processAction(0x52),
+        // which sets the campaign's player slots, map, player count, speeds,
+        // FOW and crates. No progress file (the oracle has none either).
+        e->mSaveDir = "/nonexistent-sim-probe-save-dir";
+        CCampaign* c = e->initCampaign(1);
+        if (!c->parseDef()) {
+            std::printf("CAMPAIGN FAILED\n");
+            return 1;
+        }
+        c->readProgress();
+        c->mPurchased = c->mDownloaded = true;
+        const CCampaignMapInfo* info = c->getMapInfo(static_cast<unsigned>(mission));
+        if (!info) {
+            std::printf("NOT A CAMPAIGN MISSION\n");
+            return 1;
+        }
+        c->mCurChapter = info->chapter;
+        c->mCurEpisode = info->episode;
+        e->mGameType = 1;
+        CInterfaceMenu menu;
+        menu.mCamera = std::make_unique<CCameraMenu>();
+        menu.processAction(0x52, nullptr);
+        if (menu.mDrawMode != 1) {
+            std::printf("MISSION START FAILED\n");
+            return 1;
+        }
+        map = static_cast<int>(e->mMapId);
+    } else {
+        e->setupSkirmish(static_cast<unsigned>(map), static_cast<unsigned>(players));
+        e->mGameType = gameType;
+        e->mUseFOW = false;
+        e->mCratesEnabled = false;
+        e->mSectorSetupMode = 0;
+        e->mUnitAvailabilityMode = 0;
+    }
     // CInterfaceMenu::initSingleplayerGame seeds both RNGs from time(). The
     // oracle fixes CRngSafe (SEED_W/SEED_Z); its hook on
     // CRng::SetSeedFromSystemTime does not take, so CRng gets the real

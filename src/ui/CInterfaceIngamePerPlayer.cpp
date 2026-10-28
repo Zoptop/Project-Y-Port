@@ -1150,29 +1150,29 @@ void CInterfaceIngamePerPlayer::setOverlayText(const std::string& text, const st
     mOverlayRuntime = 0.0f;
     mOverlayFullyDisplayed = false;
     mOverlayMinimized = false;
-    if (!showIcon) {
+    CCampaign* cmp = showIcon ? mEngine->getCurCampaign() : nullptr;
+    if (!showIcon || (cmp && !cmp->hasAvatar(iconName))) {
+        // [!] an icon name without a "char" line: the original's std::map::at
+        // throws here (map 314: iconname("a1")), which ends the game. [PC] the
+        // text is shown without an avatar.
+        if (showIcon) CUtils::log("IPP::setOverlayText: no campaign avatar \"%s\" (the original throws)", iconName.c_str());
         mOverlayIconName.clear();
         mOverlayShowIcon = false;
         mAvatarSubtitle.clear();
         mAvatarTexture = nullptr;
         mAvatarUV = mAvatarUVSize = CVector2::ZERO;
         mAvatarColor = Vec3(0.0f, 0.0f, 0.0f);
-    } else if (CCampaign* cmp = mEngine->getCurCampaign()) {
-        // the speaker's avatar: its column of cmp<id>avatare.png, subtitle and colour
-        if (!cmp->hasAvatar(iconName)) {
-            // [!] the original's std::map::at throws here (map 314: iconname("a1")),
-            // which ends the game. [PC] the text is shown without an avatar.
-            CUtils::log("IPP::setOverlayText: no campaign avatar \"%s\" (the original throws)", iconName.c_str());
-        } else {
-            mOverlayIconName = iconName;
-            mOverlayShowIcon = true;
-            mAvatarSubtitle = cmp->getAvatarSubtitle(iconName);
-            mAvatarTexture = cmp->getAvatarTexture();
-            const Vec3 uv = cmp->getAvatarUVs(iconName);
-            mAvatarUV = CVector2(uv.x, uv.y);
-            mAvatarUVSize = CVector2(uv.z, 1.0f);
-            mAvatarColor = cmp->getAvatarColor(iconName);
-        }
+    } else if (cmp) {
+        // the speaker's avatar: its column of cmp<id>avatare.png, subtitle and
+        // colour (without a campaign the fields keep their values, as in the original)
+        mOverlayIconName = iconName;
+        mOverlayShowIcon = true;
+        mAvatarSubtitle = cmp->getAvatarSubtitle(iconName);
+        mAvatarTexture = cmp->getAvatarTexture();
+        const Vec3 uv = cmp->getAvatarUVs(iconName);
+        mAvatarUV = CVector2(uv.x, uv.y);
+        mAvatarUVSize = CVector2(uv.z, 1.0f);
+        mAvatarColor = cmp->getAvatarColor(iconName);
     }
     if (mOverlayWaitsForTouch && !mOverlayNoPause && mEngine->mNetworkMode != 2) mEngine->pauseGame();
 }

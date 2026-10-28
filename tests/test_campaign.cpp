@@ -445,3 +445,38 @@ TEST(campaign_defeat_keeps_progress) {
     CHECK(b != nullptr && b->mText == CTxtLoc::get().getS(0x1ae));
     CHECK(!std::filesystem::exists(s.dir + "/cmp1prog.txt"));
 }
+
+// The scripts' HUD effects on map 301 (one player): the marker of script 6
+// (type 6 over building 3), the timer and counter of added scripts, and
+// [!] the timetrigger's "all players" loop that stops before the last one.
+TEST(campaign_script_hud_hooks) {
+    if (!haveCampaign()) return;
+    CampaignSession s("py_cmp_hud");
+    CEngine* e = s.engine();
+    s.openCampaignScreen();
+    s.menu->processAction(0x50, nullptr);
+    s.menu->mDrawMode = 0;
+    s.menu->initSingleplayerGame();
+    if (!e->mGame) return;
+    auto* ig = dynamic_cast<CInterfaceIngame*>(e->mIngameInterface.get());
+    CInterfaceIngamePerPlayer* ipp = ig ? ig->ipp(0) : nullptr;
+    if (!ipp) return;
+    for (int i = 0; i < 10; ++i) s.frame();
+    // script marker id(6) type(6) player(1) objid(3) scrollto
+    CHECK(ipp->mMarkerEnabled && ipp->mMarkerType == 6u && ipp->mMarkerObject == 3u);
+    CScriptManager* sm = e->mGame->getLevel()->getScriptManager();
+    sm->addScript("script timetrigger id(9001) player(0) time(50) show text(\"all\")");
+    for (int i = 0; i < 5; ++i) s.frame();
+    CHECK(ipp->mTimerText.empty());   // players 0..n-1 = only the neutral player 0 here
+    sm->addScript("script timetrigger id(9002) player(1) time(50) show text(\"mine\")");
+    for (int i = 0; i < 5; ++i) s.frame();
+    CHECK(ipp->mTimerText == "mine" && ipp->mTimerRuntime > 49.0f && ipp->mTimerRuntime <= 50.0f);   // (counts down)
+    sm->addScript("script counttrigger id(9003) type(1) subtype(9) player(1) count(20) show");
+    for (int i = 0; i < 5; ++i) s.frame();
+    CHECK(ipp->mCounterType == 1u && ipp->mCounterSubtype == 9u && ipp->mCounterRequired == 20u);
+    // [!] an icon name without a "char" line: the original throws; the port shows no avatar
+    ipp->setOverlayText("x", "", 0.0f, -1, true, true, "a1");
+    CHECK(!ipp->mOverlayShowIcon && ipp->mAvatarTexture == nullptr);
+    ipp->setOverlayText("y", "", 0.0f, -1, true, true, "ubrain");
+    CHECK(ipp->mOverlayShowIcon && ipp->mAvatarSubtitle == "UberBrain\r");
+}
