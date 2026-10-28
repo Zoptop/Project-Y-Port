@@ -12,6 +12,7 @@
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CUnit.h"
+#include "game/CSoundManager.h"
 
 namespace py {
 
@@ -39,13 +40,15 @@ void CProjectileSniperBullet::init(CUnit* target, const CVector3& position, Real
         mDirection.z = inv * mDirection.z;
     }
     mFlightTime = (len - 8.0f) / mVelocity;
-    // the tracer (a directed shot along the flight direction); the sound is not ported
+    // the tracer (a directed shot along the flight direction), then the shot sound
     CParticleSystem* ps =
         mEngine->getParticleManager()->createParticleSystem(PS_SHOTDIRECTED, mPosition, 4, false, nullptr, false);
     mParticleSystem = ps->mID;
     const Real zero = Real(CMath::fDeg2Rad) * 0.0f;
     const Real heading = fdlibm::atan2f(mDirection.y, mDirection.x);
     static_cast<CParticleSystemShotDirected*>(ps)->mRotation.FromEulerAnglesXYZ(zero, zero, heading);
+    if (CSoundManager* sm = mEngine->getSoundManager())
+        sm->playSound("shotlasera", SOUNDTYPE_BANK, position, CVector3::ZERO, false, 0.5f, true);
 }
 
 // Ghidra 0x37f554

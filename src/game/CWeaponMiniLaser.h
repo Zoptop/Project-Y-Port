@@ -16,6 +16,9 @@ public:
     static void drawWeapon(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q, Real size,
                            const CVector3& offset);   // Ghidra 0x3e0410
     CWeaponMiniLaser();                                                   // Ghidra 0x3e0398
+    // Ghidra 0x3e04dc calls deactivate; [PC] only its sound part (stopBeamSound):
+    // the beam particle is left to the particle manager as before
+    ~CWeaponMiniLaser() override { stopBeamSound(); }
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3dfbc4
     void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3df1c4 (CWeaponDraw.cpp)
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3e0598

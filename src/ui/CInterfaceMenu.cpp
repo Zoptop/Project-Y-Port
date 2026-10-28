@@ -27,6 +27,7 @@
 #include "ui/CInterfaceElementTextSlider2.h"
 
 #include "ui/CInterfaceIngame.h"
+#include "ui/CUISound.h"
 
 namespace py {
 
@@ -159,7 +160,7 @@ void CInterfaceMenu::processEventActionUp(CInterfaceEvent* e) {
     }
     if (CParticleManager* pm = mEngine->getParticleManager())
         pm->createParticleSystem(2, world, 0.0f, subtype, true, nullptr, true);
-    // TODO(sound): CSoundManager::playSound(subtype == 4 ? "click" : "clickfail")
+    uisound::play(subtype == 4 ? "click" : "clickfail");
     if (mNextMenu != mCurrentMenu || mForceSetup) {
         mForceSetup = false;
         setupElements(mNextMenu, 0);

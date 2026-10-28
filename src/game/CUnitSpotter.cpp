@@ -13,6 +13,7 @@
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
+#include "game/CSoundManager.h"
 
 namespace py {
 
@@ -203,7 +204,9 @@ void CUnitSpotter::timeUpdate() {
         fall(dt);
         if (Real(mUAVposition.z) < 0.0f) {
             mUAVstate = UAV_DESTROYED;
-            // the crash (the sound is not ported): explosion, the UAV's pieces, a crater
+            // the crash: the sound, an explosion, the UAV's pieces, a crater
+            if (CSoundManager* sm = mEngine->getSoundManager())
+                sm->playSound("explosion", SOUNDTYPE_BANK, mUAVposition, CVector3::ZERO, false, 1.0f, true);
             const CVector3 at(mUAVposition.x, mUAVposition.y, 0.0f);
             mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, CVector2(at.x, at.y), 0.0f, 3, false,
                                                                 nullptr, false);

@@ -89,7 +89,7 @@ public:
     Real mMaxRangeSq = 0.0f;             // +0x44 "<Weapon>MaxRange" squared
     Real mMinRangeSq = 0.0f;             // +0x48 "<Weapon>MinRange" squared
     Real mDPS = 0.0f;                    // +0x4c "<Weapon>DPS" (projectile weapons: damage / shot delay)
-    unsigned mSoundId = 0;               // +0x50 playing sound (sound is not ported: always 0)
+    unsigned mSoundId = 0;               // +0x50 the looping beam sound (CSoundManager id; not simulation)
     CVector3 mMountPoint;                // +0x54 "MountPoint", unit space
     int mType = 0;                       // +0x60 "Type" EWeaponType
     Real mHealth = 1.0f;                 // +0x7c "mHealth"
@@ -116,6 +116,13 @@ protected:
     CVector3 turretPointToWorld(Real yaw, Real ox, Real oy, Real oz);
     // The mount point in world space (weapons without their own yaw).
     CVector3 mountPointToWorld();
+    // The looping beam sound of the gatling lasers and the mini laser, as
+    // their timeUpdate does it right before the beam: started at `at` on the
+    // first shot (3D, loop, `volume`), then moved there every step. Not
+    // simulation: nothing reads mSoundId but the sound code.
+    void updateBeamSound(const std::string& name, Real volume, const CVector3& at);
+    // their deactivate: stops the sound (if any) and clears mSoundId
+    void stopBeamSound();
     // appends a projectile the weapon created to CGame's projectile list
     void spawn(CProjectile* projectile);
     // The beam (a CParticleSystemShotConstant, `subtype`) of the gatling

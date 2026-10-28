@@ -10,7 +10,10 @@
 //   - SDL events become CInterface events on the current interface (mouse
 //     buttons/motion/wheel, keys, text; see ui/CInterface.h for how the left
 //     button and Escape also produce the original touch/Back events);
-//   - every frame calls CEngine::draw.
+//   - every frame calls CEngine::draw;
+//   - sound: CEngine::initSound (CkInit + CSoundManager) and an SDL audio
+//     device that mixes it (platform/SDLAudio.cpp); minimising the window
+//     suspends the mixer (the original's AppOnPause -> CkSuspend).
 //
 // Options:
 //   --data <dir>         game data (default: data)
@@ -34,6 +37,9 @@
 //                        player setup, the loading screen, initSingleplayerGame),
 //                        whether or not it is unlocked; winning it unlocks the
 //                        next one in the save dir's cmp1prog.txt as usual
+//   --no-sound           no audio device (the sound logic still runs, so the
+//                        music choices and their CRng draws stay the same)
+//   --log-sounds         log every sound started (name, id, time)
 //   --viewer             the phase-2 map viewer instead of the game
 //                        (--map N, --zoom Z, --cam X Y, --yaw DEG;
 //                        PageUp/PageDown cycle maps, Esc quits)
@@ -59,8 +65,10 @@
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CScriptManager.h"
+#include "game/CSoundManager.h"
 #include "game/CWorldView.h"
 #include "platform/GLFunctions.h"
+#include "platform/SDLAudio.h"
 #include "render/CCamera.h"
 #include "render/CGLSLProgram.h"
 #include "render/CMesh.h"
@@ -106,6 +114,8 @@ struct Options {
     int minimap = 2;            // --minimap 0..3 (with --skirmish)
     int gameType = 0;           // --gametype N (with --skirmish; engine +0x2d0)
     int mission = 0;            // --mission <map> [PC]
+    bool noSound = false;       // --no-sound: no audio device
+    bool logSounds = false;     // --log-sounds
 };
 
 Options parseArgs(int argc, char** argv) {
@@ -140,6 +150,8 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--minimap") o.minimap = std::atoi(nextS().c_str());
         else if (a == "--gametype") o.gameType = std::atoi(nextS().c_str());
         else if (a == "--mission") o.mission = std::atoi(nextS().c_str());
+        else if (a == "--no-sound") o.noSound = true;
+        else if (a == "--log-sounds") o.logSounds = true;
     }
     if (o.fps <= 0.0f && o.frames > 0) o.fps = 60.0f;
     return o;
@@ -359,6 +371,12 @@ int runGame(const Options& opt, SDL_Window* window) {
         std::filesystem::create_directories(engine->mSaveDir, ec);
     }
     CUtils::log("save dir: %s", engine->mSaveDir.c_str());
+    // CEngine::init: the sound manager exists before the options are read
+    // (loadOptions sets its volumes). The device only plays the mix.
+    CSoundManager::sLogPlays = opt.logSounds;
+    engine->initSound();
+    if (opt.noSound) CUtils::log("audio: --no-sound");
+    else sdlaudio::open();
     engine->loadOptions();
     applyWindowDPI(engine, opt, w, h);   // loadOptions re-derives the GUI scale; keep --gui-scale
     engine->mOpenURLHook = [](const std::string& url) { SDL_OpenURL(url.c_str()); };   // [PC] Java openURL
@@ -407,6 +425,10 @@ int runGame(const Options& opt, SDL_Window* window) {
                         SDL_GL_GetDrawableSize(window, &w, &h);
                         applyWindowDPI(engine, opt, w, h);
                         engine->setResolution(w, h);
+                    } else if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
+                        if (CSoundManager* sm = engine->getSoundManager()) sm->suspend();   // AppOnPause
+                    } else if (e.window.event == SDL_WINDOWEVENT_RESTORED) {
+                        if (CSoundManager* sm = engine->getSoundManager()) sm->resume();   // [PC]
                     }
                     break;
                 case SDL_MOUSEBUTTONDOWN:
@@ -504,6 +526,8 @@ int runGame(const Options& opt, SDL_Window* window) {
     }
     CUtils::log("frames: %d%s", frame, engine->mQuitRequested ? " (quit from the menu)" : "");
     engine->releaseInterfaces();
+    sdlaudio::close();
+    engine->releaseSound();
     for (SDL_Cursor* c : cursors)
         if (c) SDL_FreeCursor(c);
     return 0;
@@ -742,6 +766,8 @@ int main(int argc, char** argv) {
     CUtils::log("shutting down");
     CEngine::getSingletonPtr()->mGame = nullptr;
     CEngine::getSingletonPtr()->releaseInterfaces();
+    sdlaudio::close();
+    CEngine::getSingletonPtr()->releaseSound();
     CMeshManager::get().clear();
     CTextureManager::get().clear();
     CGLSLProgramManager::get().clear();

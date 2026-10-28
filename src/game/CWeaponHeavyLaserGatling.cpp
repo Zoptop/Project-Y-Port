@@ -38,18 +38,20 @@ void CWeaponHeavyLaserGatling::timeUpdate(CUnit* target, Real distanceSq, Real a
         if (Real(CMath::fDeg2Rad) > err) {
             const Real damage = mDPS * Real(mUnit->mEngine->mFrameDt) * mUnit->mDamageFactor;
             target->hit(damage, mUnit->mId, DAMAGE_LASER, mUnit->mOwner, nullptr);
-            // (sound: not ported) the beam from the mount point to the target
-            updateBeamParticleSystem(mParticleSystem, 3, mountPointToWorld(), target->mPosition, mUnit->mYaw);
+            // the sound and the beam from the mount point to the target
+            const CVector3 start = mountPointToWorld();
+            updateBeamSound(mSoundSourceName, mSoundVolume, start);
+            updateBeamParticleSystem(mParticleSystem, 3, start, target->mPosition, mUnit->mYaw);
             return;
         }
     }
     deactivate();
 }
 
-// Ghidra 0x3da338: stops the beam and the sound (not ported).
+// Ghidra 0x3da338: stops the beam and the sound.
 void CWeaponHeavyLaserGatling::deactivate() {
     if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
-    mSoundId = 0;
+    stopBeamSound();
 }
 
 }  // namespace py

@@ -23,6 +23,7 @@ class CGame;
 class CInterface;
 class CInterfaceIntro;
 class CInterfaceMenu;
+class CSoundManager;
 class CTextRender;
 
 // One player slot of the menu's game setup (engine+0x4c + i*0x2c; the
@@ -91,7 +92,8 @@ public:
     // the current interface is the ingame one), then on the current
     // interface: processEvents, draw, timeUpdate(frame dt). In a network game
     // the ingame interface is also updated while the menu is current.
-    // Network clients, achievements and sound are not ported yet.
+    // Ends with CSoundManager::update (if sound is set up). Network clients
+    // and achievements are not ported yet.
     void draw(float nowMs);
     // Ghidra 0x16888c: setResolution on ingame, menu and current interface
     void setResolution(int width, int height);
@@ -141,6 +143,20 @@ public:
     // Nothing without a menu interface (tests).
     void showAftermathInterface();
 
+    // ---- sound (phase 8)
+    // The sound part of CEngine::init (Ghidra 0x16d074): CkInit (the Java
+    // shell's AppOnCreate) and CSoundManager::getSingletonPtr (+0x17c); the
+    // option volumes are applied. Without it (tests, tools) there is no
+    // sound manager and every sound call is skipped.
+    void initSound();
+    void releaseSound();
+    CSoundManager* getSoundManager() const { return mSoundManager; }
+    // The option volumes 0..100: kept here for options.txt and forwarded to
+    // CSoundManager::setMixer*Volume (+0x78/+0x7c/+0x80 hold the same values).
+    void setMusicVolume(unsigned v);
+    void setSFXVolume(unsigned v);
+    void setMasterVolume(unsigned v);
+
     CTextRender* getTextRender() const { return mTextRender.get(); }
     // The camera of the current interface (vtable +0x28), or null (no GL needed)
     CCamera* getCurrentCamera() const;
@@ -157,6 +173,7 @@ public:
     std::unique_ptr<CInterface> mIngameInterface;        // +0x170 a CInterfaceIngame (HUD package)
     std::unique_ptr<CInterfaceIntro> mIntroInterface;    // +0x174
     CGame* mGame = nullptr;            // +0x178
+    CSoundManager* mSoundManager = nullptr;   // +0x17c (the CSoundManager singleton; null without initSound)
     float mLastFrameTime = 0.0f;       // +0x180  timer (ms) of the previous frame
     float mFpsFrames = 0.0f;           // +0x184
     float mFpsTime = 0.0f;             // +0x188
@@ -217,8 +234,8 @@ public:
     std::string mServerName = "IP";    // +0x304 "ServerName"
     bool mOfflineMode = false;         // +0x318 "OfflineModeEnabled"
     unsigned mTouchMinMovedDistanceID = 3;   // config+0xac "CfgTouchMinMovedDistanceID"
-    // [PC] stand-ins for the CSoundManager mixer volumes (+0x78/+0x7c/+0x80
-    // of the sound manager) until the sound package lands
+    // [PC] the option volumes (the original keeps them only in the sound
+    // manager, +0x78/+0x7c/+0x80); change them with set*Volume
     unsigned mSFXVolume = 100;         // "SFXVolume"
     unsigned mMusicVolume = 40;        // "BackgroundMusicVolume"
     unsigned mMasterVolume = 100;      // "MasterVolume"

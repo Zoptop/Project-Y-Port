@@ -64,6 +64,8 @@ def main():
     ap.add_argument('--trace', type=int, nargs='*', default=[0])
     ap.add_argument('--oracle-out', help='reuse/save the oracle output in this file')
     ap.add_argument('--max-diffs', type=int, default=8)
+    ap.add_argument('--probe-sound', action='store_true',
+                    help='run the port with a sound manager (sim_probe --sound): sound must not change anything')
     a = ap.parse_args()
 
     if a.oracle_out and os.path.exists(a.oracle_out):
@@ -78,7 +80,7 @@ def main():
             open(a.oracle_out, 'w').write('\n'.join(ref) + '\n')
     port = subprocess.run([a.probe, '--data', a.data, '--map', str(a.map), '--players', str(a.players), '--steps',
                            str(a.steps)] + (['--mission', str(a.mission)] if a.mission else []) +
-                          ['--trace'] + [str(t) for t in a.trace],
+                          ['--trace'] + [str(t) for t in a.trace] + (['--sound'] if a.probe_sound else []),
                           capture_output=True, text=True).stdout.splitlines()
     rs, rp = parse(ref)
     ps, pp = parse(port)

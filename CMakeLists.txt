@@ -110,6 +110,7 @@ endif()
 # runtime, so this links without an OpenGL SDK)
 # ---------------------------------------------------------------------------
 file(GLOB PROJECTY_GAME_SOURCES CONFIGURE_DEPENDS
+  ${PROJECT_SOURCE_DIR}/src/audio/*.cpp
   ${PROJECT_SOURCE_DIR}/src/render/*.cpp
   ${PROJECT_SOURCE_DIR}/src/game/*.cpp
   ${PROJECT_SOURCE_DIR}/src/ui/*.cpp)
@@ -135,6 +136,8 @@ if(PROJECTY_BUILD_TESTS)
   file(GLOB PROJECTY_TEST_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/test_*.cpp)
   add_executable(projecty_tests ${PROJECTY_TEST_SOURCES})
   target_link_libraries(projecty_tests PRIVATE projecty_engine)
+  # test_sound.cpp scans the sources for the sound names they use
+  target_compile_definitions(projecty_tests PRIVATE PROJECTY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   projecty_strict_float(projecty_tests)
   add_test(NAME projecty_tests COMMAND projecty_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
@@ -183,6 +186,7 @@ if(PROJECTY_BUILD_GAME)
   if(SDL2_FOUND)
     add_executable(ProjectY WIN32
       src/platform/main_sdl.cpp
+      src/platform/SDLAudio.cpp
     )
     target_link_libraries(ProjectY PRIVATE projecty_engine)
     if(TARGET SDL2::SDL2main)

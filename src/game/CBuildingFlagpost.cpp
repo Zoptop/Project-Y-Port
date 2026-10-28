@@ -14,6 +14,7 @@
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
 #include "game/CSector.h"
+#include "game/CSoundManager.h"
 #include "game/CUnit.h"
 
 namespace py {
@@ -109,7 +110,12 @@ void CBuildingFlagpost::timeUpdate() {
         if (IIngameUI* ui = IIngameUI::get()) ui->addEvent(mSector->mOwner, 5, mId, CVector2(0.0f, 0.0f), true, "");
         mUnderAttackEventCountdown = 15.0f;
     }
-    // (sound mood "flag losing" when the local player's flag is losing: not simulation)
+    // the music mood (not simulation): any flag that is losing life while
+    // the local player exists. [!] The original computes owner->isFriend(local)
+    // here and ignores the result.
+    if (CSoundManager* sm = e->getSoundManager())
+        if (game->getPlayer(e->mLocalPlayer) && mLife < 100.0f && mLifedot < 0.0f)
+            sm->getMoodAnalyzer().sectorFlagLoosing(-mLifedot);
     mLife = mLife + mLifedot;
     if (mLife > 100.0f) {
         mLife = 100.0f;
