@@ -3,10 +3,11 @@
 // parseParams() reads the parameters in the same order as the original
 // (only relevant for logging). run() ports the simulation effects. What the
 // scripts do to the in-game interface (camera scrolls, markers, counters,
-// timers, overlay texts, the aftermath screen) is UI and not ported: those
-// places are commented. Where an interface query decides whether a trigger
-// fires (selecttrigger, unittrigger type 5) or a speaker completes, the
-// scripts go through CScriptManager::ui() (IScriptUI, CScriptManager.h).
+// timers, overlay texts, selections) and the queries that decide whether a
+// trigger fires (selecttrigger, unittrigger type 5) or a speaker completes go
+// through CScriptManager::ui() (IScriptUI, CScriptManager.h), which the
+// ingame interface implements; without it (headless runs) they are skipped,
+// as the original skips a player without an interface.
 //
 // The common tail "CScript::run(); mDidRun = true;" is the original's: run()
 // handles the repeat (Finished / next run time), DidRun releases the scripts
@@ -54,7 +55,8 @@ void CScriptAirdrop::run() {
     if (!player) return;
     game->addBomber(mPosition, player, BOMBER_DROP_UNITS, static_cast<unsigned>(mUnitType),
                     static_cast<unsigned>(mCount), mId, mUnitId);
-    // (scrollto: the player's camera scrolls to the position - UI)
+    if (mScrollTo)
+        if (IScriptUI* ui = CScriptManager::ui()) ui->scrollTo(player, mPosition);
 }
 
 // ----------------------------------------------------------------- cratedrop
@@ -292,7 +294,8 @@ void CScriptUnitTrigger::run() {
                 for (unsigned id : game->objectList()) {
                     CUnit* u = game->getAsUnit(id);
                     if (u && static_cast<int>(u->mOwner->mId) == mPlayer && u->hasUpgrade() && u->isAlive()) {
-                        // (the player's camera scrolls to the unit - UI)
+                        if (CPlayer* pl = game->getPlayer(static_cast<unsigned>(mPlayer)))
+                            if (IScriptUI* ui = CScriptManager::ui()) ui->scrollTo(pl, u->position2());
                         found = true;
                     }
                 }
@@ -376,7 +379,8 @@ void CScriptBeacon::run() {
         else
             f->createUnit(static_cast<unsigned>(mUnitId), UNIT_BEACON, static_cast<unsigned>(mPlayer), mPosition,
                           0.0f, false, 0);
-        // (scrollto: camera - UI)
+        if (mScrollTo)
+            if (IScriptUI* ui = CScriptManager::ui()) ui->scrollTo(player, mPosition);
     }
     CScript::run();
     mDidRun = true;
@@ -397,7 +401,8 @@ void CScriptAirstrike::run() {
     CPlayer* player = game->getPlayer(static_cast<unsigned>(mPlayer));
     if (!player) return;
     game->addBomber(mPosition, player, BOMBER_DROP_BOMBS, static_cast<unsigned>(mLevel), 0, mId, -1);
-    // (scrollto: camera - UI)
+    if (mScrollTo)
+        if (IScriptUI* ui = CScriptManager::ui()) ui->scrollTo(player, mPosition);
 }
 
 // ------------------------------------------------------------------- feature
@@ -501,9 +506,18 @@ void CScriptMarker::parseParams() {            // Ghidra 0x38f75c
     mObjId = getParamInt("objid", 0);
     mScrollTo = getParamBool("scrollto");
 }
-// Ghidra 0x38f8d4: sets or clears a HUD marker (setMarker(!disable, type,
-// objid); type 6 with scrollto also scrolls to the object). UI only.
+// Ghidra 0x38f8d4: sets or clears the player's HUD marker (setMarker(!disable,
+// type, objid); type 6 with scrollto first scrolls to the object). UI only.
 void CScriptMarker::run() {
+    CGame* game = gameOf(this);
+    if (CPlayer* player = game->getPlayer(static_cast<unsigned>(mPlayer))) {
+        if (IScriptUI* ui = CScriptManager::ui()) {
+            if (mMarkerType == 6 && !mDisable && mScrollTo)
+                if (CGameObject* o = game->getGameObject(static_cast<unsigned>(mObjId)))
+                    ui->scrollTo(player, o->position2());
+            ui->setMarker(player, !mDisable, static_cast<unsigned>(mMarkerType), static_cast<unsigned>(mObjId));
+        }
+    }
     CScript::run();
     mDidRun = true;
 }
@@ -534,7 +548,11 @@ void CScriptMod::run() {
                 break;
             case 2:
             case 3:
-                break;   // (selection and camera - UI)
+                // the owner's HUD: (2: clear the selection,) select the object, scroll to it
+                if (obj->mOwner)
+                    if (IScriptUI* ui = CScriptManager::ui())
+                        ui->scriptSelect(obj->mOwner, objId, mModType == 2, obj->position2());
+                break;
             case 4:
                 if (CUnit* u = game->getAsUnit(objId)) u->setScriptedControlled(!(mParam1 == 0.0f));
                 break;
@@ -583,8 +601,18 @@ void CScriptTimeTrigger::run() {               // Ghidra 0x3911d0
     if (mStartTime == -1.0f) {
         mStartTime = mEngine->mGameTime;
         // With "show", IPP::setTimerAndText(start, time, text) for player
-        // mPlayer, or for every player 0..numPlayers-1 when mPlayer == 0.
-        // TODO(phase 5): HUD timer.
+        // mPlayer, or [!] for players 0..numPlayers-1 when mPlayer == 0 (the
+        // last player is left out: on a one-player mission nobody sees it)
+        IScriptUI* ui = CScriptManager::ui();
+        if (mShow && ui) {
+            CGame* game = gameOf(this);
+            if (mPlayer == 0) {
+                for (unsigned i = 0; i < mEngine->mNumPlayers; ++i)
+                    if (CPlayer* p = game->getPlayer(i)) ui->setTimerAndText(p, mStartTime, mTime, mText);
+            } else if (CPlayer* p = game->getPlayer(static_cast<unsigned>(mPlayer))) {
+                ui->setTimerAndText(p, mStartTime, mTime, mText);
+            }
+        }
     }
     if (mEngine->mGameTime > Real(mTime) + mStartTime) {
         CScript::run();
@@ -660,7 +688,14 @@ void CScriptCountTrigger::run() {
     if (!p) return;
     const unsigned n = static_cast<unsigned>(p->getGameobjectCount(static_cast<unsigned>(mObjType),
                                                                   static_cast<unsigned>(mSubType)));
-    if (n < static_cast<unsigned>(mCount)) return;
+    IScriptUI* ui = mShow ? CScriptManager::ui() : nullptr;
+    if (n < static_cast<unsigned>(mCount)) {
+        if (ui)
+            ui->setCounterAndText(p, static_cast<unsigned>(mObjType), static_cast<unsigned>(mSubType), n,
+                                  static_cast<unsigned>(mCount));
+        return;
+    }
+    if (ui) ui->setCounterAndText(p, 0, 0, 0, 0);
     CScript::run();
     mDidRun = true;
 }
