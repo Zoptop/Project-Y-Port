@@ -17,12 +17,14 @@
 #include "core/CRng.h"
 #include "core/CTxtLoc.h"
 #include "core/CUtils.h"
+#include "game/CBuilding.h"
 #include "game/CCampaign.h"
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
 #include "game/CScriptManager.h"
+#include "game/CUnit.h"
 #include "render/CCameraMenu.h"
 #include "render/CMesh.h"
 #include "test_engine_reset.h"
@@ -444,6 +446,31 @@ TEST(campaign_defeat_keeps_progress) {
     const CInterfaceElementButton2* b = buttonWithAction(s.menu, 0x53);
     CHECK(b != nullptr && b->mText == CTxtLoc::get().getS(0x1ae));
     CHECK(!std::filesystem::exists(s.dir + "/cmp1prog.txt"));
+}
+
+// hqmode 2 (every campaign map): an HQ is run by a ThinkerBrain of its owner
+// (CBuildingHQ::isCommandable, Ghidra 0x13b188: type 0x16). On 305 the AI's
+// ThinkerBrain 1175 and its HQ 1012 (the original sends it in at step 10).
+TEST(campaign_hq_mode2_thinkerbrain) {
+    if (!haveCampaign() || CMemoryFile::resolve("map305English.txt").empty()) return;
+    CampaignSession s("py_cmp_hq");
+    CEngine* e = s.engine();
+    s.openCampaignScreen();
+    CCampaign* c = e->getCurCampaign();
+    if (!c) return;
+    c->mCurChapter = 1;
+    c->mCurEpisode = 5;
+    s.menu->processAction(0x52, nullptr);
+    s.menu->mDrawMode = 0;
+    s.menu->initSingleplayerGame();
+    if (!e->mGame) return;
+    CBuilding* hq = e->mGame->getAsBuilding(1012);
+    CUnit* brain = e->mGame->getAsUnit(1175);
+    CHECK(hq && brain);
+    if (!hq || !brain) return;
+    CHECK(hq->mType == BUILDING_HQ && (hq->mFlags & OF_HQ_SPECIAL) != 0);
+    CHECK(brain->mType == UNIT_THINKERBRAIN && brain->mOwner == hq->mOwner);
+    CHECK(hq->isCommandable(static_cast<CGameObject*>(brain)));
 }
 
 // The scripts' HUD effects on map 301 (one player): the marker of script 6

@@ -82,10 +82,13 @@ void CBuildingHQ::init(const CVector2& position, Real rotation, unsigned sectorI
     mEngine->mGame->getLevel()->getSector(sectorId)->mOwner->mStartPosition = position;
 }
 
-// Ghidra 0x13b188: in hqmode 2 only an UberBrain of the owner can run it.
+// Ghidra 0x13b188: in hqmode 2 (the campaign's "reactivate the HQ") only a
+// ThinkerBrain (type 0x16 = 22) of the owner can run it. (Phase 7: this was
+// UNIT_UBERBRAIN (23) before; found by compare_sim --mission 305, where the
+// AI's ThinkerBrain enters its HQ at step 10.)
 bool CBuildingHQ::isCommandable(CGameObject* by) {
     if (!(mFlags & OF_HQ_SPECIAL)) return CBuilding::isCommandable(by);
-    if (by->mType != UNIT_UBERBRAIN) return false;
+    if (by->mType != UNIT_THINKERBRAIN) return false;
     if (!(mFlags & OF_COMMANDABLE)) return false;
     return by->mOwner == mOwner;
 }

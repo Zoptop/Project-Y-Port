@@ -94,5 +94,11 @@ python3 tools/verify/compare_sim.py --mission 301 --steps 320 --oracle-out <cach
 - `game_oracle.py --mission <map>` / `sim_probe --mission <map>` start a campaign mission like the menus on both
   sides (campaign read, episode current, game type 1, `processAction(0x52)`, `initSingleplayerGame`).
 
+Bit-exactness: `compare_sim.py --mission 301 / 305 / 310 / 318 --steps 320` match the original at every step
+(checksum, RNG states, all traced parts at steps 0, 100, 200, 319); skirmish map 2 still matches for 300 steps.
+This found one simulation bug: `CBuildingHQ::isCommandable` in hqmode 2 required an UberBrain; the original
+checks type 0x16, the ThinkerBrain (the campaign's "reactivate the HQ" was impossible, and the AI's
+ThinkerBrains never entered their HQ). Speaker texts never complete on either side (no interface updates).
+
 Not ported: `CInterfaceElementMultiTextScrollable` (used by the lobby chat screens 19/20 only), campaign
 savegames (`isSavegameFromCampaign`), downloads, achievements (`addach` logs).
