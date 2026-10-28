@@ -15,8 +15,8 @@ An unofficial, fan-made PC port (Windows, Linux, macOS) of **ProjectY**, the rea
 | 4 | Simulation: units, buildings, weapons, projectiles, navmesh, players, AI, bombers, scripts | done: all 11 skirmish maps identical to the original for 400 steps (checksum and RNG state, under emulation) |
 | 5 | Drawing the game, mouse/keyboard input, HUD, menus | done: skirmish playable from the menus |
 | 6 | AI | done as part of phase 4 (bit-exact) |
-| 7 | Campaign | |
-| 8 | Audio, particles, saves, polish | |
+| 7 | Campaign | done: all 18 missions and the tutorial, from the menus to the credits; missions match the original under emulation |
+| 8 | Audio, particles, saves, polish | audio and particles done; savegames next |
 | 9 | LAN multiplayer (lockstep) | |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the engine overview and plan, and [docs/DETERMINISM.md](docs/DETERMINISM.md) for how bit-exactness is enforced and tested.
@@ -45,7 +45,7 @@ This fills `data/` (see [data/README.md](data/README.md)). Then run `build\Relea
 
 ## Playing
 
-Run `ProjectY.exe`. The game starts like the original: intro, main menu, **Singleplayer → Custom Game**, pick a map and settings, **Start Game**. Your options are saved in your user folder (`%APPDATA%\LuminenceLabs\ProjectY` on Windows; `--save-dir` overrides it).
+Run `ProjectY.exe`. The game starts like the original: intro, main menu, then **Singleplayer → Campaign** (18 missions), **Tutorial**, or **Custom Game** (pick a map and settings, **Start Game**). Your options are saved in your user folder (`%APPDATA%\LuminenceLabs\ProjectY` on Windows; `--save-dir` overrides it).
 
 The original was a touch game. On PC the controls are:
 
@@ -66,9 +66,9 @@ The original was a touch game. On PC the controls are:
 | Enter / click | Continue a speaker text |
 | Esc | Pause menu |
 
-Command-line options: `--data <dir>`, `--save-dir <dir>`, `--width N`, `--height N`, `--fullscreen`, `--skirmish MAP` (start a game directly; with `--players N`, `--fow`, `--minimap 0..3`), `--viewer` (the map viewer below, `--map ID`, `--zoom Z`, `--cam X Y`, `--yaw DEG`), `--check-shaders`, `--no-sound` (no audio device). For automated tests: `--frames N`, `--screenshot file.png`, `--input script` (timed input events; see `docs/re/ui_phase5.md`).
+Command-line options: `--data <dir>`, `--save-dir <dir>`, `--width N`, `--height N`, `--fullscreen`, `--mission MAP` (start a campaign mission or the tutorial, 201), `--skirmish MAP` (start a game directly; with `--players N`, `--fow`, `--minimap 0..3`), `--viewer` (the map viewer below, `--map ID`, `--zoom Z`, `--cam X Y`, `--yaw DEG`), `--check-shaders`, `--no-sound` (no audio device). For automated tests: `--frames N`, `--screenshot file.png`, `--input script` (timed input events; see `docs/re/ui_phase5.md`).
 
-Not ported yet: the campaign, savegames, multiplayer.
+Not ported yet: savegames (the Save/Load screens show their layout only), multiplayer.
 
 ### Map viewer controls (`--viewer`)
 
