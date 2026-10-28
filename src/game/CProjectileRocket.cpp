@@ -12,6 +12,7 @@
 #include "game/CGame.h"
 #include "game/CLevel.h"
 #include "game/CUnit.h"
+#include "game/CSoundManager.h"
 
 namespace py {
 
@@ -42,7 +43,8 @@ void CProjectileRocket::init(CUnit* target, const CVector3& position, Real yaw, 
     if (starterUnit != 0) {
         if (CUnit* starter = mEngine->mGame->getAsUnit(starterUnit)) mStartPosition = starter->mPosition;
     }
-    // (launch sound: not ported)
+    if (CSoundManager* sm = mEngine->getSoundManager())
+        sm->playSound("rocketlaunch", SOUNDTYPE_BANK, position, CVector3::ZERO, false, 1.0f, true);
 }
 
 // Ghidra 0x37d1fc
@@ -144,7 +146,7 @@ void CProjectileRocket::update() {
     }
 
     // ---- explosion: area damage in the far-grid cell
-    // the explosion: at the shield (in the air) or on the ground at the target; the sound is not ported
+    // the explosion: at the shield (in the air) or on the ground at the target
     mEngine->getParticleManager()->createParticleSystem(PS_EXPLOSION, center, shielded ? next.z : Real(0.0f), 4,
                                                         false, nullptr, false);
     if (CGridCell* cell = game->getLevel()->getGridCellFar(center)) {
@@ -167,6 +169,8 @@ void CProjectileRocket::update() {
             }
         }
     }
+    if (CSoundManager* sm = mEngine->getSoundManager())
+        sm->playSound("explosionrocket", SOUNDTYPE_BANK, mPosition, CVector3::ZERO, false, 1.0f, true);
     mReady2Delete = true;
 }
 

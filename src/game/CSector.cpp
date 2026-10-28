@@ -9,6 +9,7 @@
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CLevel.h"
+#include "game/CSoundManager.h"
 #include "render/CMesh.h"
 
 namespace py {
@@ -53,6 +54,12 @@ void CSector::ownerChanged() {
         if (t->turretSector() != this || !t->isCommanded()) continue;
         if (CUnit* driver = game->getAsUnit(t->mCommander)) driver->leaveVehicle(true);
     }
+    // the music mood of the local player (not simulation)
+    CSoundManager* sm = CEngine::getSingletonPtr()->getSoundManager();
+    CPlayer* local = game->getPlayer(CEngine::getSingletonPtr()->mLocalPlayer);
+    if (!sm || !local || !mOwner) return;
+    if (mOwner->isFriend(local)) sm->getMoodAnalyzer().sectorCaptured();
+    else sm->getMoodAnalyzer().sectorLost();
 }
 
 // Ghidra 0x391c48

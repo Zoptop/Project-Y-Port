@@ -30,7 +30,7 @@ Third-party code linked in:
 |---|---|---|
 | RakNet | UDP networking, LAN discovery, lobby connection | Open source (BSD); usable as-is or replaceable |
 | Recast/Detour + DetourTileCache | Navmesh pathfinding and obstacle avoidance | Open source; `dtSqrt` was patched to use `CMath` |
-| Cricket Audio (`Cki::`) | Sound playback and the `.ckb` sound bank | Replace with any audio library. The bank is already decoded to WAV |
+| Cricket Audio (`Cki::`) | Sound playback and the `.ckb` sound bank | Replace with any audio library. The bank is already decoded to WAV. [Port: a software mixer on SDL2 audio that decodes `game.ckb` itself; see `docs/re/sound_phase8.md`] |
 | fdlibm (copied into `CMath`) | sqrt, atan2, pow, log, acos | Port verbatim to keep determinism |
 | Brian Gladman AES, MD5, zlib/unzip, Breakpad | Stats/cache encryption, map checks, downloads, crash dumps | Mostly droppable |
 

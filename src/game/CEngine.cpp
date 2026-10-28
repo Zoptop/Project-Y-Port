@@ -8,6 +8,8 @@
 #include "core/CUtils.h"
 #include "game/CCommandManager.h"
 #include "game/CGame.h"
+#include "game/CSoundManager.h"
+#include "audio/Ck.h"
 #include "core/CConfig.h"
 #include "core/CMemoryFile.h"
 #include "core/CTxtLoc.h"
@@ -23,7 +25,53 @@ namespace py {
 std::unique_ptr<CEngine> CEngine::sInstance;
 
 CEngine::CEngine() = default;
-CEngine::~CEngine() { releaseInterfaces(); }
+CEngine::~CEngine() {
+    releaseInterfaces();
+    releaseSound();
+}
+
+// ---------------------------------------------------------------------------
+// Sound
+
+namespace {
+// the clock the sound mixer keeps time by without an audio device: the
+// engine's frame time (fixed steps with --frames/--fps)
+float engineFrameTimeMs() { return CEngine::getSingletonPtr()->mFrameTime; }
+}  // namespace
+
+// The sound part of CEngine::init (Ghidra 0x16d074; CkInit is in the Java
+// shell's AppOnCreate)
+void CEngine::initSound() {
+    if (mSoundManager) return;
+    CkInit();
+    ck::setClock(&engineFrameTimeMs);
+    mSoundManager = CSoundManager::getSingletonPtr();
+    // [PC] options read before the sound manager existed
+    mSoundManager->setMixerMusicVolume(mMusicVolume);
+    mSoundManager->setMixerSFXVolume(mSFXVolume);
+    mSoundManager->setMixerMasterVolume(mMasterVolume);
+}
+
+void CEngine::releaseSound() {
+    if (!mSoundManager) return;
+    mSoundManager = nullptr;
+    CSoundManager::release();   // also CkShutdown
+}
+
+void CEngine::setMusicVolume(unsigned v) {
+    mMusicVolume = v;
+    if (mSoundManager) mSoundManager->setMixerMusicVolume(v);
+}
+
+void CEngine::setSFXVolume(unsigned v) {
+    mSFXVolume = v;
+    if (mSoundManager) mSoundManager->setMixerSFXVolume(v);
+}
+
+void CEngine::setMasterVolume(unsigned v) {
+    mMasterVolume = v;
+    if (mSoundManager) mSoundManager->setMixerMasterVolume(v);
+}
 
 // ---------------------------------------------------------------------------
 // User interface
@@ -37,6 +85,7 @@ void CEngine::initInterfaces() {
     mIntroInterface->init();
     mMenuInterface = std::make_unique<CInterfaceMenu>();
     mMenuInterface->init(0);
+    if (mSoundManager) mSoundManager->startBackgroundMusic();
 }
 
 void CEngine::releaseInterfaces() {
@@ -67,7 +116,8 @@ void CEngine::draw(float nowMs) {
         mIngameInterface->timeUpdate(mFrameDt);
         mCurrentInterface = mMenuInterface.get();
     }
-    // CSoundManager::update, GFX_error: not ported yet
+    if (mSoundManager) mSoundManager->update();
+    // GFX_error: not ported
 }
 
 // Ghidra 0x16888c
@@ -380,7 +430,7 @@ void CEngine::loadOptions() {
         music = 0x28;
     else if (music > 100)
         music = 100;
-    mMusicVolume = music;   // CSoundManager::setMixerMusicVolume
+    setMusicVolume(music);   // CSoundManager::setMixerMusicVolume
     const std::string lang = mLanguage;
     if (!r.readString("Language", mLanguage)) mLanguage = lang;
     if (!r.readUInt("MapID", mMapId)) mMapId = 2;
@@ -388,10 +438,10 @@ void CEngine::loadOptions() {
     if (!r.readUInt("GUIScalingOptionsInt", mGUIScalingOption)) mGUIScalingOption = 3;
     unsigned sfx = 0;
     if (!r.readUInt("SFXVolume", sfx) || sfx > 100) sfx = 100;
-    mSFXVolume = sfx;
+    setSFXVolume(sfx);   // CSoundManager::setMixerSFXVolume
     unsigned master = 0;
     if (!r.readUInt("MasterVolume", master) || master > 100) master = 100;
-    mMasterVolume = master;
+    setMasterVolume(master);   // CSoundManager::setMixerMasterVolume
     if (!r.readInt("EventVerboseness", mEventVerboseness)) mEventVerboseness = 0;
     if (!r.readBool("BeginnerMode", mBeginnerMode)) mBeginnerMode = false;
     if (!r.readInt("GameStartupSectorSetting", mSectorSetupMode)) mSectorSetupMode = 0;

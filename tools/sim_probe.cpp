@@ -3,7 +3,13 @@
 // simulation at the lockstep step and prints the checksum per step, and for
 // chosen steps every part of it with each value that went into it.
 //
-//   sim_probe --data data --map 1 --players 2 --steps 10 [--trace 0 5 ...]
+//   sim_probe --data data --map 1 --players 2 --steps 10 [--trace 0 5 ...] [--sound]
+//
+// --sound: a sound manager (no output) exists from the first step on, so the
+// simulation's sound calls (explosions, shots, the music mood counters) run;
+// the checksums and RNG states must not change. It is created after
+// CGame::init, whose music start (a CRng draw) the oracle does not run
+// (game_oracle.py stubs all of CSoundManager).
 //
 // tools/verify/compare_sim.py diffs this against the oracle.
 #include <cstdint>
@@ -28,6 +34,7 @@
 #include "game/CLevel.h"
 #include "game/CNav.h"
 #include "game/CPlayer.h"
+#include "game/CSoundManager.h"
 #include "game/CProjectile.h"
 #include "game/CSceneObject.h"
 #include "game/CSector.h"
@@ -151,7 +158,7 @@ int runQueries(CGame* g, const std::string& file) {
 int main(int argc, char** argv) {
     std::string data = "data";
     int map = 1, players = 2, steps = 10, gameType = 0;
-    bool dumpRes = false, dumpWeapons = false;
+    bool dumpRes = false, dumpWeapons = false, sound = false;
     std::set<int> trace;
     std::string queries;
     for (int i = 1; i < argc; ++i) {
@@ -165,6 +172,7 @@ int main(int argc, char** argv) {
         else if (a == "--gametype") gameType = std::atoi(next().c_str());
         else if (a == "--dump-res") dumpRes = true;
         else if (a == "--dump-weapons") dumpWeapons = true;
+        else if (a == "--sound") sound = true;
         else if (a == "--trace")
             while (i + 1 < argc && argv[i + 1][0] != '-') trace.insert(std::atoi(argv[++i]));
     }
@@ -213,6 +221,7 @@ int main(int argc, char** argv) {
         for (const Real& v : L->mRes) std::printf("%08x\n", fbits(v));
         return 0;
     }
+    if (sound) e->initSound();
     const Real step = bitsf(kStepBits);
     for (int s = 0; s < steps; ++s) {
         CUtils::resetChecksum();
@@ -226,6 +235,12 @@ int main(int argc, char** argv) {
         e->mFrameDt = step;
         e->mCurrentStep = n;
         game->timeUpdate(step, e->mGameTime);
+        if (CSoundManager* sm = e->getSoundManager()) sm->update();   // as CEngine::draw
+    }
+    if (CSoundManager* sm = e->getSoundManager()) {
+        std::fprintf(stderr, "sound: %u sound ids used, mood %d\n", CSoundManager::mNextSoundSourceID - 1,
+                     sm->getMoodAnalyzer().mMood);
+        e->releaseSound();
     }
     return 0;
 }

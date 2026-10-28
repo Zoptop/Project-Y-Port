@@ -17,6 +17,7 @@
 #include "game/CPlayer.h"
 #include "game/CProjectile.h"
 #include "game/CSceneObject.h"
+#include "game/CSoundManager.h"
 #include "game/CUnit.h"
 #include "game/CWeapon.h"
 #include "game/IIngameUI.h"
@@ -35,6 +36,7 @@ CGame::~CGame() {
     for (CSceneObject* s : mSceneObjects) delete s;
     mPlayers.clear();
     mLevel.reset();
+    if (CSoundManager* sm = mEngine->getSoundManager()) sm->clearSFX(false);
 }
 
 // Ghidra 0x17cd98
@@ -62,11 +64,15 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mRngAfterTU = 0;
     mNumPlayers = e->mNumPlayers;
     mFeatures.reset();
+    if (CSoundManager* sm = e->getSoundManager()) sm->getMoodAnalyzer().reset();
     mCraterManager = std::make_unique<CCraterManager>();   // +0xb8
     mGameObjectsMesh = CMeshManager::get().getMesh("gameobjects.3DS.mesh", true, false);   // +0xc4
     mFakeShadow = std::make_unique<CFakeShadow>();       // +0xb4
     if (!headless) initGraphics();                       // shaders, textures, flag mesh (CGameDraw.cpp)
     updateAIFactorsFromDifficulty();
+    // [!] the menu music changes to a track of the reset mood (draws CRng
+    // before the AI players exist)
+    if (CSoundManager* sm = e->getSoundManager()) sm->startBackgroundMusic();
     for (unsigned i = 0; i <= mNumPlayers; ++i) createPlayerFromPlayerSetup(i);
     mLevel = std::make_unique<CLevel>();
     mLevel->setHeadless(headless);

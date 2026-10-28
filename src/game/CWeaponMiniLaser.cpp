@@ -51,8 +51,9 @@ void CWeaponMiniLaser::timeUpdate(CUnit* target, Real distanceSq, Real angle, bo
         if (deg * 5.0f > err) {
             const Real damage = mDPS * Real(mEngine->mFrameDt) * mUnit->mDamageFactor;
             target->hit(damage, mUnit->mId, DAMAGE_LASER, mUnit->mOwner, nullptr);
-            // (sound: not ported) the beam from the turret's blast offset to the target
+            // the sound and the beam from the turret's blast offset to the target
             const CVector3 start = turretPointToWorld(mYaw, mBlastOffset.x, mBlastOffset.y, mBlastOffset.z);
+            updateBeamSound(mSoundSourceName, mSoundVolume, start);
             updateBeamParticleSystem(mParticleSystem, 2, start, target->mPosition, mUnit->mYaw + mYaw);
             return;
         }
@@ -63,7 +64,7 @@ void CWeaponMiniLaser::timeUpdate(CUnit* target, Real distanceSq, Real angle, bo
 // Ghidra 0x3dfb70
 void CWeaponMiniLaser::deactivate() {
     if (mEngine) mEngine->getParticleManager()->disableParticleSystem(mParticleSystem);
-    mSoundId = 0;
+    stopBeamSound();
 }
 
 // Ghidra 0x3e07c8

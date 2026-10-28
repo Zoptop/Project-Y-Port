@@ -1,0 +1,20 @@
+# [PC] sound smoke test (phase 8): map 1, 1280x720, 60 fps clock. Records the
+# mix with SDL's disk audio driver:
+#   SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=disk SDL_DISKAUDIOFILE=mix.raw \
+#       ./build-game/ProjectY --data data --skirmish 1 --frames 2100 \
+#       --input tools/ui/ingame_sound.input
+# mix.raw is 44.1 kHz stereo float32. The music starts with the game; the
+# HUD clicks, the order acknowledgements ("roger", "on my way", ...) and the
+# event voices ("robobrain produced") play on top. With the options file's
+# BackgroundMusicVolume 0 only the effects remain, with SFXVolume 0 only the
+# music (tools/verify/check_mix.py).
+1800 mousedown left 630 140            # box select the RoboBrains next to the HQ: "click"
++1 mousemove 760 220
++1 mousemove 900 310
++1 mouseup left 900 310
++30 click right 500 450                # move order: "click" + an acknowledgement
++60 click right 700 300
++60 click right 400 500
++60 click left 1000 600                # deselect: "click"
++60 click right 600 400                # nothing selected: just "click"
++60 quit

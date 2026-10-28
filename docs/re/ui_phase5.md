@@ -203,8 +203,8 @@ Quirks kept: `drawCounter` is never called (the overlay shows the counter); the 
 selected unit types without a button; "Info" acts on the last selected id even if that object is gone;
 the dial labels / event short texts are format strings in the original.
 
-Not ported yet: avatar icons of speaker texts (need CCampaign), chat input (network), sounds (no-op
-`uisound` calls at the sites), achievements. (The dial-centre unit, the object-info screen, the
+Not ported yet: avatar icons of speaker texts (need CCampaign), chat input (network),
+achievements. (Sounds: phase 8, `docs/re/sound_phase8.md`; the `uisound` calls play them.) (The dial-centre unit, the object-info screen, the
 off-screen arrows, the selection hand-over and the rally group copy: see 5e.)
 
 ## Phase 5e: the open items of 5c/5d (status)
@@ -287,8 +287,7 @@ is older (or there is no file) the update news screen (21) follows the intro. [P
 `SDL_GetPrefPath("LuminenceLabs", "ProjectY")` or `--save-dir <dir>`.
 
 [PC] additions: mouse wheel over a TextSlider2 steps it; TextInput2 is edited with the keyboard
-(Enter confirms, Escape cancels); website buttons open through `SDL_OpenURL`. Not ported: click
-sounds (TODO at the call sites), achievements, lobby/online features, savegames, the campaign
+(Enter confirms, Escape cancels); website buttons open through `SDL_OpenURL`. Not ported: achievements, lobby/online features, savegames, the campaign
 (CCampaign), the credits roll (draw mode 3), the server list element, the waiting-room chat.
 
 Headless check of the whole flow (empty save dir):

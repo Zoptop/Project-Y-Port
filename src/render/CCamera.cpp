@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "audio/Ck.h"
 #include "core/CMath.h"
 #include "core/CMatrix3.h"
 #include "core/CQuaternion.h"
@@ -71,8 +72,17 @@ void CCameraLevel::refresh() {
     mOrientationQuat = Quat(q.w, q.x, q.y, q.z);
     updateViewMatrix();
     updateDrawState();
-    // (+0x15c..+0x164 and the listener axes at +0x268 feed
-    //  CkSound::set3dListenerPosition: sound is not ported yet)
+    // the sound listener: at the eye, looking at the target on the ground;
+    // up = d x (d x -Z) with d the direction from the target to the eye
+    // (the original also keeps these axes at +0x268, unused elsewhere)
+    CVector3 d(mPosition.x - mTarget.x, mPosition.y - mTarget.y, mPosition.z);
+    d.normalise();
+    CVector3 right = d.crossProduct(CVector3(-0.0f, -0.0f, -1.0f));
+    right.normalise();
+    CVector3 up = d.crossProduct(right);
+    up.normalise();
+    CkSound::set3dListenerPosition(mPosition.x, mPosition.y, mPosition.z, mTarget.x, mTarget.y, 0.0f, up.x, up.y,
+                                   up.z);
 }
 
 // Ghidra 0x150008

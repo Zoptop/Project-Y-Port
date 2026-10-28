@@ -83,6 +83,7 @@ public:
     unsigned mThrusterPS1 = 0;        // +0x210
     int mCallerScript = 0;            // +0x22c "CallerScript" (-1: none)
     unsigned mDropMarkerParticleSystem = 0;   // +0x230 smoke 7 on the drop point (DROP_UNITS)
+    unsigned mSoundId = 0;            // +0x250 the "staticself" engine sound (CSoundManager id; not simulation)
     int mDroppedUnitID = 0;           // +0x24c "DroppedUnitID" (-1: next free id)
 };
 

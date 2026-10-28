@@ -10,7 +10,7 @@
 //   - (particles are ported: the systems' ids are +0x1178..+0x118c. [!] They
 //     draw from the unsynced CRng, as do CGame::createEUPs and
 //     CCraterManager::addCrater in die(); CRng also drives the AI.)
-//   - sound, sound mood, achievements;
+//   - achievements;
 //   - the per-player interface (selection, group bar, under-attack warning).
 //     hit() sets mVal14dc (the warning cooldown) only when the player has an
 //     interface; the port never sets it (it reaches neither the checksum nor
@@ -37,6 +37,7 @@
 #include "game/CNav.h"
 #include "game/CPlayer.h"
 #include "game/CSector.h"
+#include "game/CSoundManager.h"
 #include "game/CWeapon.h"
 
 namespace py {
@@ -1205,7 +1206,12 @@ void CUnit::hit(Real damage, unsigned attackerId, EDamageType type, CPlayer* att
                 mOwner->mDamageReceived = mOwner->mDamageReceived + dmg;
             }
         }
-        // (sound mood: damage dealt / received)
+        // the music mood of the local player (not simulation)
+        if (CSoundManager* sm = mEngine->getSoundManager())
+            if (CPlayer* local = game->getPlayer(mEngine->mLocalPlayer)) {
+                if (!mOwner->isFriend(local)) sm->getMoodAnalyzer().damageDealt(dmg);
+                else sm->getMoodAnalyzer().damageReceived(dmg);
+            }
     }
     if (isCommander()) return;
 
@@ -1291,9 +1297,15 @@ void CUnit::checkHealth() {
 void CUnit::die() {
     removeTarget();
     mOwner->removeUnit(mId);
-    // (sound "explosion")
+    CSoundManager* sm = mEngine->getSoundManager();
+    if (sm) sm->playSound("explosion", SOUNDTYPE_BANK, mPosition, CVector3::ZERO, false, 1.0f, true);
     if (mLastAttackingPlayer) ++mLastAttackingPlayer->mUnitsDestroyed;
-    // (sound mood: unit lost / destroyed)
+    // the music mood of the local player (not simulation)
+    if (sm)
+        if (CPlayer* local = mEngine->mGame->getPlayer(mEngine->mLocalPlayer)) {
+            if (!mOwner->isFriend(local)) sm->getMoodAnalyzer().unitDestroyed();
+            else sm->getMoodAnalyzer().unitLost();
+        }
     mUnitstate = UNITSTATE_KILLED;
     if (isCommanded())
         if (CUnit* d = mEngine->mGame->getAsUnit(mCommander)) d->leaveVehicle(true);

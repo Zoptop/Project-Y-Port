@@ -5,7 +5,7 @@
 //
 // Not ported here (later phases), each logged as "notPorted": the lobby and
 // game clients (multiplayer, friends, chat, rankings), downloads, purchases,
-// savegames, the campaign (CCampaign) and sound. The option actions are
+// savegames and the campaign (CCampaign). The option actions are
 // complete and call CEngine::saveOptions like the original.
 #include "CInterfaceMenu.h"
 
@@ -16,6 +16,7 @@
 #include "game/CEngine.h"
 #include "game/CGame.h"
 #include "game/CPlayer.h"
+#include "game/CSoundManager.h"
 #include "render/CCameraMenu.h"
 #include "render/Colors.h"
 #include "ui/CInterfaceElementBarSlider.h"
@@ -222,11 +223,11 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             }
             e->resetGame();
             go(MENU_MAIN);
-            // TODO(sound): CSoundManager::startBackgroundMusic
+            if (CSoundManager* sm = e->getSoundManager()) sm->startBackgroundMusic();
             break;
         }
         case 0x18: e->mTouchMinMovedDistanceID = sliderValue(); e->saveOptions(); break;
-        case 0x19: e->mMusicVolume = sliderValue(); e->saveOptions(); break;   // CSoundManager::setMixerMusicVolume
+        case 0x19: e->setMusicVolume(sliderValue()); e->saveOptions(); break;   // CSoundManager::setMixerMusicVolume
         case 0x1a:
         case 0x1b:
         case 0x1c:
@@ -270,7 +271,7 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             e->saveOptions();
             break;
         case 0x29: e->openURL("https://www.luminencelabs.com/database/dbmaps/"); break;
-        case 0x2a: e->mSFXVolume = sliderValue(); e->saveOptions(); break;   // CSoundManager::setMixerSFXVolume
+        case 0x2a: e->setSFXVolume(sliderValue()); e->saveOptions(); break;   // CSoundManager::setMixerSFXVolume
         case 0x2b: e->mPublishServer = sliderValue() == 1; break;
         case 0x2c: e->mEventVerboseness = static_cast<int>(sliderValue()); e->saveOptions(); break;
         case 0x2d: e->mBeginnerMode = sliderValue() == 1; e->saveOptions(); break;

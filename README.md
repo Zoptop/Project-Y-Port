@@ -66,9 +66,9 @@ The original was a touch game. On PC the controls are:
 | Enter / click | Continue a speaker text |
 | Esc | Pause menu |
 
-Command-line options: `--data <dir>`, `--save-dir <dir>`, `--width N`, `--height N`, `--fullscreen`, `--skirmish MAP` (start a game directly; with `--players N`, `--fow`, `--minimap 0..3`), `--viewer` (the map viewer below, `--map ID`, `--zoom Z`, `--cam X Y`, `--yaw DEG`), `--check-shaders`. For automated tests: `--frames N`, `--screenshot file.png`, `--input script` (timed input events; see `docs/re/ui_phase5.md`).
+Command-line options: `--data <dir>`, `--save-dir <dir>`, `--width N`, `--height N`, `--fullscreen`, `--skirmish MAP` (start a game directly; with `--players N`, `--fow`, `--minimap 0..3`), `--viewer` (the map viewer below, `--map ID`, `--zoom Z`, `--cam X Y`, `--yaw DEG`), `--check-shaders`, `--no-sound` (no audio device). For automated tests: `--frames N`, `--screenshot file.png`, `--input script` (timed input events; see `docs/re/ui_phase5.md`).
 
-Not ported yet: sound, the campaign, savegames, multiplayer.
+Not ported yet: the campaign, savegames, multiplayer.
 
 ### Map viewer controls (`--viewer`)
 

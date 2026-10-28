@@ -13,6 +13,9 @@ namespace py {
 class CWeaponLaserGatling : public CWeapon {
 public:
     CWeaponLaserGatling();                                                // Ghidra 0x3db3a8
+    // Ghidra 0x3db2f8 calls deactivate; [PC] only its sound part (stopBeamSound):
+    // the beam particle is left to the particle manager as before
+    ~CWeaponLaserGatling() override { stopBeamSound(); }
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3dac9c
     void init(CUnit* unit, const CVector3& mountPoint) override;          // Ghidra 0x3db414
     void deactivate() override;                                           // Ghidra 0x3dac48

@@ -10,6 +10,7 @@
 #include "game/CParticleManager.h"
 #include "game/CParticleSystemShotConstant.h"
 #include "game/CProjectile.h"
+#include "game/CSoundManager.h"
 #include "game/CUnit.h"
 
 namespace py {
@@ -144,6 +145,24 @@ CVector3 CWeapon::turretPointToWorld(Real yaw, Real ox, Real oy, Real oz) {
 }
 
 // e.g. CWeaponSniperGun::timeUpdate 0x3e0cec (bullet origin)
+// e.g. CWeaponLaserGatling::timeUpdate (Ghidra 0x3dac9c)
+void CWeapon::updateBeamSound(const std::string& name, Real volume, const CVector3& at) {
+    CSoundManager* sm = CEngine::getSingletonPtr()->getSoundManager();
+    if (!sm) return;
+    if (mSoundId == 0)
+        mSoundId = sm->playSound(name.c_str(), SOUNDTYPE_BANK, at, CVector3::ZERO, true, volume, true);
+    else
+        sm->updateSound3D(mSoundId, at, CVector3::ZERO);
+}
+
+// e.g. CWeaponLaserGatling::deactivate (Ghidra 0x3dac48)
+void CWeapon::stopBeamSound() {
+    if (mSoundId != 0) {
+        if (CSoundManager* sm = CEngine::getSingletonPtr()->getSoundManager()) sm->stopSound(mSoundId);
+        mSoundId = 0;
+    }
+}
+
 CVector3 CWeapon::mountPointToWorld() {
     const Real uyaw = mUnit->mYaw;
     Real px = mUnit->mPosition.x + mMountPoint.x * Real(CMath::SinTable(uyaw + CMath::HALF_PI));

@@ -12,6 +12,7 @@
 #include "game/CLevel.h"
 #include "game/CPlayer.h"
 #include "game/CScriptManager.h"
+#include "game/CSoundManager.h"
 #include "game/CUnit.h"
 
 namespace py {
@@ -73,7 +74,7 @@ void CBomber::init(const CVector2& target, CPlayer* owner, int dropType, unsigne
     mDroppedUnitID = droppedUnitId;
     mRoll = 0.0f;
     // two engine flames (each draws 150 CRng numbers) and, for units, a smoke
-    // marker on the drop point; the "staticself" engine sound is not ported.
+    // marker on the drop point, then the looping "staticself" engine sound.
     // CBomber::draw (renderer) moves the flames to the engines every frame.
     CParticleManager* pm = mEngine->getParticleManager();
     mThrusterPS0 = pm->createParticleSystemId(PS_THRUSTER, mPosition, 1);
@@ -81,6 +82,8 @@ void CBomber::init(const CVector2& target, CPlayer* owner, int dropType, unsigne
     if (dropType == BOMBER_DROP_UNITS)
         mDropMarkerParticleSystem =
             pm->createParticleSystemId(PS_SMOKE, CVector3(target.x, target.y, 0.0f), 7);
+    if (CSoundManager* sm = mEngine->getSoundManager())
+        mSoundId = sm->playSound("staticself", SOUNDTYPE_BANK, mPosition, CVector3::ZERO, true, bitsf(0x3f333333u), true);
 }
 
 // Ghidra 0x126a2c
@@ -98,11 +101,13 @@ void CBomber::timeUpdate() {
     mPosition.x = dx + mPosition.x;
     mPosition.y = dy + mPosition.y;
     mPosition.z = dz + mPosition.z;
-    // (3D sound position update)
+    CSoundManager* sm = mEngine->getSoundManager();
+    if (sm) sm->updateSound3D(mSoundId, mPosition, vel);
     if (bitsf(fbits(mPosition.z) & 0x7fffffffu) > 700.0f) {
-        mReadyToDelete = true;   // (sound stopped)
+        mReadyToDelete = true;
         mEngine->getParticleManager()->disableParticleSystem(mThrusterPS0);
         mEngine->getParticleManager()->disableParticleSystem(mThrusterPS1);
+        if (sm) sm->stopSound(mSoundId);
     }
 
     auto distance = [&]() -> Real { return CVector2(mPosition.x, mPosition.y).distance(mTargetPos); };
@@ -137,7 +142,9 @@ void CBomber::timeUpdate() {
                     mPitch = mPitch + dt * Real(CMath::HALF_PI);
                     return;
                 }
-                // ("explosion" sound at the bomber)
+                if (sm)
+                    sm->playSound("explosion", SOUNDTYPE_BANK, CVector3(mPosition.x, mPosition.y, 0.0f),
+                                  CVector3::ZERO, false, 1.0f, true);
                 nextStage();
                 return;
             }
@@ -188,7 +195,7 @@ void CBomber::timeUpdate() {
                         mTimer = 0.5f;
                         mPitch = 0.0f;
                         mPitchAir = pitchAir + pitch;
-                        // (engine sound volume 0.3)
+                        if (sm) sm->setSoundVolume(mSoundId, bitsf(0x3e99999au));   // 0.3
                     }
                     if (d > 40.0f) {
                         const Real pitch = mPitch;
@@ -237,7 +244,7 @@ void CBomber::timeUpdate() {
                     }
                 }
                 ++mBombsDropped;
-                // (engine sound volume 0.7)
+                if (sm) sm->setSoundVolume(mSoundId, bitsf(0x3f333333u));   // 0.7
                 if (mCallerScript == -1) return;
                 game->getLevel()->getScriptManager()->setScriptDone(mCallerScript);
                 return;
