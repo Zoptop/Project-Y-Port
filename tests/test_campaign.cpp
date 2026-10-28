@@ -177,7 +177,7 @@ TEST(campaign_progress_round_trip) {
         c->mCompleted = false;
         c->saveProgress();
     }
-    std::ifstream f(dir + "/cmp1prog.txt", std::ios::binary);
+    std::ifstream f(dir + "/cmp1prog.txt");   // text mode: fprintf writes "\r\n" on Windows
     std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     CHECK(text == "chp 2\neps 3\ncmp 0\n");
     auto c = testCampaign(dir);
