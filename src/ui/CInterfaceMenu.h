@@ -156,7 +156,19 @@ public:
     void createElementsOptionsA();
     void createElementsOptionsB();
     void createElementStatistics(float x, float y);
+    // Ghidra 0x1bb4f4: the four user slots (actions 0x1a..0x1d) and, for
+    // loading, the autosave (0x1e), 19 units apart
     void createElementsLoadSave(float x, float y, const std::string& prefix, bool load);
+    // Ghidra 0x1ba838: one slot (file <prefix><name> in the save dir): its
+    // header's first four lines (date, map, game time, sectors) or "Empty
+    // slot", see the .cpp
+    void createElementLoadSave(float x, float y, const std::string& name, const std::string& prefix,
+                               const Vec3& color, int action, int slot, bool load, const std::string& mesh);
+    // Ghidra 0x1af8a0: the file's header says a campaign mission (line 7) of
+    // a loadable revision (line 5)
+    bool isSavegameFromCampaign(const std::string& name, const std::string& prefix) const;
+    // Ghidra 0x1afae4: any of autosave, usersave1..4
+    bool areSavegamesFromCampaign(const std::string& prefix) const;
     void createElementCampaignSlider(const std::string& name, float x, float y, const std::string& subMesh,
                                      unsigned campaignId);
 

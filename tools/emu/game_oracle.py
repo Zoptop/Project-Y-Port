@@ -405,6 +405,7 @@ def main():
     ap.add_argument('--budget', type=int, default=2_000_000_000)
     ap.add_argument('--players', type=int, default=2)
     ap.add_argument('--fow', type=int, default=0)
+    ap.add_argument('--gametype', type=int, default=0, help='engine +0x2d0 (3: resources)')
     ap.add_argument('--mission', type=int, default=0, help='start campaign mission <map> like the menus (ignores --map/--players)')
     ap.add_argument('--detail', type=int, nargs='*', help='steps to dump per-object checksums for')
     ap.add_argument('--trace', type=int, nargs='*', help='steps to dump every updateChecksum value for')
@@ -432,7 +433,7 @@ def main():
     elif a.mission:
         o.start_mission(engine, a.mission, a.data)
     else:
-        o.start_game(engine, a.map, a.players, fow=a.fow)
+        o.start_game(engine, a.map, a.players, fow=a.fow, game_type=a.gametype)
     print('game started; log tail:', o.libc.log_lines[-4:])
     for step in range(first, first + a.steps):
         print('step %4d checksum %08x' % (step, o.checksum()))

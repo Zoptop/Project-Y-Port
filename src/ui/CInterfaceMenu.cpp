@@ -499,8 +499,10 @@ void CInterfaceMenu::draw() {
             switch (mStartGameMode) {
                 case 1: initSingleplayerGame(); break;
                 case 2: initMultiplayerSplitGame(); break;
-                case 3: CUtils::log("CInterfaceMenu: loadGame %s notPorted (savegames: later phase)", mLoadFile.c_str());
-                    mDrawMode = 0;
+                case 3:
+                    // the slot's file (action 0x1a..0x1e); the loaded game's
+                    // interface becomes current
+                    if (!mEngine->loadGame(mLoadFile)) mDrawMode = 0;   // [PC] back to the menu
                     break;
                 case 4: initMultiplayerNetworkGame(); break;
                 default: CUtils::log("Error: unknown mStartGameMode %i", mStartGameMode);

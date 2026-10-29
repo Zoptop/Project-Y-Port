@@ -17,6 +17,7 @@
 // 25 campaign, 26 campaign progress (episode list). Others: a stand-in
 // page with the screen number and Back ([PC], marked).
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -1043,35 +1044,120 @@ void CInterfaceMenu::createElementStatistics(float x, float y) {
 void CInterfaceMenu::createElementsLoadSave(float x, float y, const std::string& prefix, bool load) {
     mSaveSlot = 0;
     const std::string mesh = load ? "load" : "save";
-    static const char* kFiles[5] = {"usersave1.txt", "usersave2.txt", "usersave3.txt", "usersave4.txt",
-                                    "autosave.txt"};
-    static const int kActions[5] = {0x1a, 0x1b, 0x1c, 0x1d, 0x1e};
-    static const int kSlots[5] = {1, 2, 3, 4, 0};
-    static const float kOff[5] = {0.0f, 19.0f, 38.0f, 57.0f, 76.0f};
-    const int n = load ? 5 : 4;
-    for (int i = 0; i < n; ++i) {
-        const int slot = kSlots[i];
-        const float sy = y - kOff[i];
-        mSlotFiles[slot] = prefix + kFiles[i];
-        const std::string path = mEngine->mSaveDir + "/" + mSlotFiles[slot];
-        FILE* f = std::fopen(path.c_str(), "r");
-        std::string line2 = T(0xdc);
-        if (f) {
-            std::fclose(f);
-            CUtils::log("CInterfaceMenu: savegame %s found - reading savegames notPorted", path.c_str());
-        } else {
-            CUtils::log("Preload game open failed!");
+    const Vec3& w = colors::COL_WHITE;
+    createElementLoadSave(x, y, "usersave1.txt", prefix, w, 0x1a, 1, load, mesh + "_1");
+    createElementLoadSave(x, y - 19.0f, "usersave2.txt", prefix, w, 0x1b, 2, load, mesh + "_2");
+    createElementLoadSave(x, y - 38.0f, "usersave3.txt", prefix, w, 0x1c, 3, load, mesh + "_3");
+    createElementLoadSave(x, y - 57.0f, "usersave4.txt", prefix, w, 0x1d, 4, load, mesh + "_4");
+    // the autosave is only offered for loading (and always gets its button
+    // when valid: the last argument is "load" either way)
+    if (load) createElementLoadSave(x, y - 76.0f, "autosave.txt", prefix, w, 0x1e, 0, true, mesh + "_5");
+}
+
+namespace {
+
+// fgets(n) and drop one trailing '\n' (a '\r' stays: [!] the map name's)
+std::string headerLine(FILE* f, int n) {
+    char buf[128] = "";
+    if (!std::fgets(buf, n, f)) buf[0] = 0;
+    std::string s = buf;
+    if (!s.empty() && s.back() == '\n') s.pop_back();
+    return s;
+}
+
+}  // namespace
+
+// Ghidra 0x1ba838. The slot's file is <prefix><name> (kept in mSlotFiles
+// for the slot's action). Without a file, or with one older than config
+// MinLoadableSavegameRevision (line 5), the slot reads "Empty Slot"
+// (0xdc). A campaign save (line 7) needs the campaign checked and
+// installed, any other its map (line 6) downloaded and purchased; else the
+// slot is grey and its first line says CTxtLoc 0x1c3 in red. Buttons: a
+// usable save always has one; an empty, old or unusable slot only on the
+// save screen (to overwrite it).
+void CInterfaceMenu::createElementLoadSave(float x, float y, const std::string& name, const std::string& prefix,
+                                           const Vec3& color, int action, int slot, bool load,
+                                           const std::string& mesh) {
+    CEngine* e = mEngine;
+    mSlotFiles[slot] = prefix + name;
+    const std::string path = e->mSaveDir + "/" + mSlotFiles[slot];
+    std::string l1, l2, l3, l4;
+    Vec3 c = color;
+    bool usable = true;      // bVar2: the first line is the date (not 0x1c3)
+    bool hasFile = false;    // the stream pointer of the original (0 for an old revision)
+    if (FILE* f = std::fopen(path.c_str(), "r")) {
+        hasFile = true;
+        l1 = headerLine(f, 0x31);
+        l2 = headerLine(f, 99);
+        l3 = headerLine(f, 0x31);
+        l4 = headerLine(f, 0x31);
+        const std::string revision = headerLine(f, 0x31);
+        const std::string mapId = headerLine(f, 0x31);
+        const std::string campaign = headerLine(f, 0x31);
+        std::fclose(f);
+        if (static_cast<unsigned>(std::atoi(revision.c_str())) <
+            CConfig::get().getUInt("MinLoadableSavegameRevision", 0)) {   // config +0x3c
+            hasFile = false;
+            l1.clear();
+            l2 = T(0xdc);
+            l3.clear();
+            l4.clear();
         }
-        const Vec3& w = colors::COL_WHITE;
-        if (!load)
-            addElement(new CInterfaceElementButton2(this, kActions[i], mesh + "_" + std::to_string(i + 1), x - 15.0f,
-                                                    sy, "", 0, false, 5.0f, w, 100.0f, 20.0f, 0.0f, 2.0f));
-        const Vec3 c75(w.x * 0.75f, w.y * 0.75f, w.z * 0.75f);
-        addElement(new CInterfaceElementText(this, x, sy, "", 0, 3.5f, c75));
-        addElement(new CInterfaceElementText(this, x, sy - 6.0f, line2, 0, 4.0f, w));
-        addElement(new CInterfaceElementText(this, x + 65.0f, sy, "", 0, 3.5f, c75));
-        addElement(new CInterfaceElementText(this, x + 65.0f, sy - 8.0f, "", 0, 3.5f, c75));
+        bool available;
+        if (std::atoi(campaign.c_str()) != 0) {
+            CCampaign* cmp = e->mCampaigns[1].get();   // std::map::operator[](1)
+            available = cmp && cmp->wasInitSuccessful() && cmp->mPurchased && cmp->mDownloaded;
+        } else {
+            const unsigned id = static_cast<unsigned>(std::atoi(mapId.c_str()));
+            available = e->isMapDownloaded(id) && e->isMapPurchased(id);
+        }
+        if (!available) {
+            usable = false;
+            c = colors::COL_GRAY50;
+        }
+    } else {
+        CUtils::log("Preload game open failed!");
+        l2 = T(0xdc);
     }
+    const bool button = (usable && hasFile) || !load;
+    if (button)
+        addElement(new CInterfaceElementButton2(this, action, mesh, x - 15.0f, y, "", 0, false, 5.0f,
+                                                colors::COL_WHITE, 100.0f, 20.0f, 0.0f, 2.0f));
+    const Vec3 c75(c.x * 0.75f, c.y * 0.75f, c.z * 0.75f);
+    if (usable) {
+        addElement(new CInterfaceElementText(this, x, y, l1, 0, 3.5f, c75));
+    } else {
+        const Vec3& r = colors::COL_RED;
+        addElement(new CInterfaceElementText(this, x, y, T(0x1c3), 0, 3.5f, Vec3(r.x * 0.75f, r.y * 0.75f, r.z * 0.75f)));
+    }
+    addElement(new CInterfaceElementText(this, x, y - 6.0f, l2, 0, 4.0f, c));
+    addElement(new CInterfaceElementText(this, x + 65.0f, y, l3, 0, 3.5f, c75));
+    addElement(new CInterfaceElementText(this, x + 65.0f, y - 8.0f, l4, 0, 3.5f, c75));
+}
+
+// Ghidra 0x1af8a0
+bool CInterfaceMenu::isSavegameFromCampaign(const std::string& name, const std::string& prefix) const {
+    const std::string path = mEngine->mSaveDir + "/" + prefix + name;
+    FILE* f = std::fopen(path.c_str(), "r");
+    if (!f) return false;
+    headerLine(f, 0x31);
+    headerLine(f, 99);
+    headerLine(f, 0x31);
+    headerLine(f, 0x31);
+    const std::string revision = headerLine(f, 0x31);
+    headerLine(f, 0x31);
+    const std::string campaign = headerLine(f, 0x31);
+    std::fclose(f);
+    if (static_cast<unsigned>(std::atoi(revision.c_str())) < CConfig::get().getUInt("MinLoadableSavegameRevision", 0))
+        return false;
+    return std::atoi(campaign.c_str()) != 0;
+}
+
+// Ghidra 0x1afae4
+bool CInterfaceMenu::areSavegamesFromCampaign(const std::string& prefix) const {
+    return isSavegameFromCampaign("autosave.txt", prefix) || isSavegameFromCampaign("usersave1.txt", prefix) ||
+           isSavegameFromCampaign("usersave2.txt", prefix) || isSavegameFromCampaign("usersave3.txt", prefix) ||
+           isSavegameFromCampaign("usersave4.txt", prefix);
 }
 
 // Ghidra 0x1d1468: the campaign slider of screen 25 (+0x5f4). Its entry
