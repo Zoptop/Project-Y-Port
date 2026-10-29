@@ -384,7 +384,7 @@ TEST(sound_manager_volumes_and_gating) {
     CSoundManager* sm = CSoundManager::getSingletonPtr();
     CHECK(CSoundManager::get() == sm && sm->mInitialized && !sm->mAllVolumeZero);
     CHECK(sm->getMixerSFXVolume() == 100u && sm->getMixerMusicVolume() == 40u && sm->getMixerMasterVolume() == 100u);
-    CHECK(sm->mMixerMusic->getVolume() == 0.4f * 3.0f && sm->mMixerSFX->getVolume() == 1.0f);
+    CHECK(approx(sm->mMixerMusic->getVolume(), CSoundManager::musicMixerGain(0.4f), 1e-6f) && sm->mMixerSFX->getVolume() == 1.0f);
     CHECK(CkMixer::getMaster()->getVolume() == 1.0f);
     sm->setMixerMasterVolume(50);
     CHECK(CkMixer::getMaster()->getVolume() == 0.5f && approx(sm->mMixerSFX->getMixedVolume(), 0.5f, 0.0f));
@@ -400,7 +400,7 @@ TEST(sound_manager_volumes_and_gating) {
     CHECK(sm->getSound(1) == nullptr);
     // on again
     sm->setMixerMusicVolume(70);
-    CHECK(!sm->mAllVolumeZero && approx(sm->mMixerMusic->getVolume(), 0.7f * 3.0f, 1e-6f));
+    CHECK(!sm->mAllVolumeZero && approx(sm->mMixerMusic->getVolume(), CSoundManager::musicMixerGain(0.7f), 1e-6f));
     CSoundManager::release();
     CHECK(CSoundManager::get() == nullptr);
     endCk();
@@ -619,4 +619,15 @@ TEST(sound_names_resolve) {
             const std::string f = std::string(m) + "_" + std::to_string(i) + ".ogg";
             CHECK_MSG(!CMemoryFile::resolve(f).empty(), "missing music %s", f.c_str());
         }
+}
+
+// [PC] the quieter music curve: half the original's gain (x 3 linear) at the
+// default volume 40, a quarter at 10, 0 at 0 (values by hand: 2.37 v^1.5).
+TEST(sound_music_volume_curve) {
+    CHECK(CSoundManager::musicMixerGain(0.0f) == 0.0f);
+    CHECK(approx(CSoundManager::musicMixerGain(0.4f), 0.5995f, 1e-3f));   // 0.5 x 1.2
+    CHECK(approx(CSoundManager::musicMixerGain(0.1f), 0.07495f, 1e-4f));  // 0.25 x 0.3
+    CHECK(approx(CSoundManager::musicMixerGain(1.0f), 2.37f, 1e-6f));
+    for (int v = 1; v <= 100; ++v)   // never louder than the original
+        CHECK(CSoundManager::musicMixerGain(v / 100.0f) <= v / 100.0f * 3.0f);
 }

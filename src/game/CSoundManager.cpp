@@ -1,6 +1,8 @@
 // CSoundManager.cpp - see CSoundManager.h.
 #include "game/CSoundManager.h"
 
+#include <cmath>
+
 #include <cstdio>
 #include <string>
 
@@ -119,6 +121,18 @@ void CSoundManager::setMixerSFXVolume(unsigned v) {
     if (mMixerSFX) mMixerSFX->setVolume(f);
 }
 
+// [PC] The original's music mixer gain is linear, volume x 3, which is loud
+// next to the effects on PC speakers, even at low slider settings. Players
+// asked for quieter music, so the slider follows a curve instead:
+// gain = 2.37 x volume^1.5. At the default volume (40) that is half the
+// original's gain (-6 dB); at 10 it is a quarter (-12 dB); at 100 about
+// 0.8 x (-2 dB). Only the music mixer changes; nothing in the simulation
+// depends on it.
+float CSoundManager::musicMixerGain(float volume) {
+    if (!(volume > 0.0f)) return 0.0f;
+    return 2.37f * volume * std::sqrt(volume);
+}
+
 // Ghidra 0x39bae4. [!] The music mixer gets volume / 100 x 3, and each
 // track also keeps the volume / 100 it was created with (addBGMTrack, in the
 // constructor: 40 -> 0.4), so the default music gain is 0.4 x 1.2.
@@ -140,7 +154,7 @@ void CSoundManager::setMixerMusicVolume(unsigned v) {
     }
     const float f = u2f(v) / 100.0f;
     CUtils::log("setMixerMusicVolume %f", static_cast<double>(f));
-    if (mMixerMusic) mMixerMusic->setVolume(f * 3.0f);
+    if (mMixerMusic) mMixerMusic->setVolume(musicMixerGain(f));
 }
 
 // Ghidra 0x39ab58

@@ -88,7 +88,8 @@ public:
 
     void setMixerMasterVolume(unsigned v);                     // Ghidra 0x399964 (0..100)
     void setMixerSFXVolume(unsigned v);                        // Ghidra 0x39b9b8
-    void setMixerMusicVolume(unsigned v);                      // Ghidra 0x39bae4 (mixer = v / 100 x 3)
+    void setMixerMusicVolume(unsigned v);                      // Ghidra 0x39bae4 (original mixer = v / 100 x 3)
+    static float musicMixerGain(float volume);                 // [PC] volume 0..1 -> music mixer gain (quieter curve)
     unsigned getMixerSFXVolume() const { return mSFXVolume; }
     unsigned getMixerMusicVolume() const { return mMusicVolume; }
     unsigned getMixerMasterVolume() const { return mMasterVolume; }
