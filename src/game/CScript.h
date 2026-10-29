@@ -35,6 +35,8 @@
 // getParamVarIntList 0x388c38, getParamBool 0x388b7c, getParamString 0x3886e0.
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 #include <map>
 #include <string>
@@ -73,6 +75,8 @@ enum EScriptType {
 
 class CScript {
 public:
+    virtual void save(FILE* f);              // +0x00 Ghidra 0x38806c (CGameSave.cpp)
+    virtual void load(FILE* f);              // +0x04 Ghidra 0x388110
     explicit CScript(const std::string& params);
     virtual ~CScript() = default;
 
@@ -188,6 +192,8 @@ public:
 
 class CScriptUnitTrigger : public CScript {       // "unittrigger", 0x64 bytes
 public:
+    void save(FILE* f) override;   // +0x00 Ghidra 0x391888
+    void load(FILE* f) override;   // +0x04 Ghidra 0x3918b4
     explicit CScriptUnitTrigger(const std::string& p) : CScript(p) { mType = SCRIPT_UNITTRIGGER; }
     void parseParams() override;
     void run() override;
@@ -289,6 +295,8 @@ public:
 
 class CScriptTimeTrigger : public CScript {       // "timetrigger", 0x68 bytes
 public:
+    void save(FILE* f) override;   // +0x00 Ghidra 0x390de8 [!] StartTime only, not CScript's lines
+    void load(FILE* f) override;   // +0x04 Ghidra 0x390e28
     explicit CScriptTimeTrigger(const std::string& p) : CScript(p) { mType = SCRIPT_TIMETRIGGER; }
     void parseParams() override;
     void run() override;
@@ -321,6 +329,8 @@ public:
 
 class CScriptCountTrigger : public CScript {      // "counttrigger", 0x68 bytes
 public:
+    void save(FILE*) override {}   // +0x00 Ghidra 0x38c860 [!] empty: nothing of the script is saved
+    void load(FILE*) override {}   // +0x04 Ghidra 0x38c864
     explicit CScriptCountTrigger(const std::string& p) : CScript(p) { mType = SCRIPT_COUNTTRIGGER; }
     void parseParams() override;
     void run() override;

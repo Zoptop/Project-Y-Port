@@ -9,6 +9,8 @@
 // ownerChanged 0x391a30, draw 0x3918e0.
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 #include <map>
 
@@ -22,6 +24,8 @@ class CPlayer;
 
 class CSector {
 public:
+    void save(FILE* f);                      // Ghidra 0x391b64 (CGameSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x391ba8
     CSector(unsigned id, unsigned ownerId);
 
     // "create building <type> sector <id> ..." without / with an explicit id.

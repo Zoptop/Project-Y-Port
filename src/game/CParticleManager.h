@@ -18,6 +18,8 @@
 // 0x36c4d4. Drawing: draw 0x36cea8 (CParticleManagerDraw.cpp). Not ported: save/load.
 #pragma once
 
+#include <cstdio>
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -79,6 +81,8 @@ private:
 
 class CParticleManager {
 public:
+    void save(FILE* f);                      // Ghidra 0x36c728 (CParticleSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x36cc28
     CParticleManager();    // Ghidra 0x36c890 (shader, texture, quad buffers: render only)
     ~CParticleManager();   // Ghidra 0x36c7fc
 

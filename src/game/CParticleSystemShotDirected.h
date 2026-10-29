@@ -6,6 +6,8 @@
 // 0x2d26c4, timeUpdate 0x2d28d0, getQuads 0x2d25dc (CParticleSystemDraw.cpp).
 #pragma once
 
+#include <cstdio>
+
 #include "core/CMatrix3.h"
 #include "core/CQuaternion.h"
 #include "game/CParticleSystem.h"
@@ -14,6 +16,8 @@ namespace py {
 
 class CParticleSystemShotDirected : public CParticleSystem {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x2d29e0 (CParticleSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x2d2ab4
     explicit CParticleSystemShotDirected(int subtype);   // Ghidra 0x2d2624
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d26c4

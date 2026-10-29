@@ -113,6 +113,7 @@ class Oracle:
         self.emu.uc.mem_write(addr, bytes([v & 0xff]))
 
     SEED_W, SEED_Z = 0x1234, 0x5678   # both RNGs; the menu seeds them from time()
+    PLAYER_NAMES = ('Neutral Player', 'Player 1', 'Player 2', 'Player 3', 'Player 4')
 
     def start_game(self, engine, map_id, players, fow=0, game_type=0):
         """Skirmish setup like the menu (player slots at engine+0x4c+i*0x2c:
@@ -124,6 +125,9 @@ class Oracle:
         self.w32(engine + 0x128, players)
         for i in range(5):
             slot = engine + 0x4c + i * 0x2c
+            # the slot names the menus give (config Player<i>Name, trimmed)
+            name = self.PLAYER_NAMES[i].encode()
+            self.w32(slot, e.read_u32(self.make_string(name)))
             self.w32(slot + 4, i)
             self.w32(slot + 8, i)
             self.w32(slot + 0xc, 1 if i == 0 else (0 if i == 1 else 2))
@@ -160,6 +164,20 @@ class Oracle:
                 return 0
             e.hook_function('_ZN8ProjectY%d%s21SetSeedFromSystemTimeEv' % (len(cls), cls), seed)
 
+    def prepare_campaign(self, engine):
+        """Campaign 1 read as the menus read it before a mission starts or a
+        campaign save is listed (startInitAsync: CCampaign::parseDef +
+        readProgress; the worker thread's file check is replaced by setting
+        purchased/installed). Returns the CCampaign."""
+        self.w32(engine + 0x2f8, 1)
+        cmp = self.call('_ZN8ProjectY7CEngine14getCurCampaignEv', engine)
+        if not self.call('_ZN8ProjectY9CCampaign8parseDefEv', cmp, max_insns=2_000_000_000) & 0xff:
+            raise SystemExit('CCampaign::parseDef failed')
+        self.call('_ZN8ProjectY9CCampaign12readProgressEv', cmp)
+        self.w8(cmp + 0x194, 1)     # purchased (checkPurchased)
+        self.w8(cmp + 0x195, 1)     # installed (checkDownloaded, worker thread)
+        return cmp
+
     def start_mission(self, engine, map_id, data):
         """A campaign mission (cmp1def: 301..318) the way the original's menus
         start one: the campaign is read (CCampaign::parseDef + readProgress, the
@@ -185,13 +203,7 @@ class Oracle:
                 break
         if chp is None:
             raise SystemExit('map %d is not a campaign mission' % map_id)
-        self.w32(engine + 0x2f8, 1)
-        cmp = self.call('_ZN8ProjectY7CEngine14getCurCampaignEv', engine)
-        if not self.call('_ZN8ProjectY9CCampaign8parseDefEv', cmp, max_insns=2_000_000_000) & 0xff:
-            raise SystemExit('CCampaign::parseDef failed')
-        self.call('_ZN8ProjectY9CCampaign12readProgressEv', cmp)
-        self.w8(cmp + 0x194, 1)     # purchased (checkPurchased)
-        self.w8(cmp + 0x195, 1)     # installed (checkDownloaded, worker thread)
+        cmp = self.prepare_campaign(engine)
         self.w32(cmp + 0x180, chp)
         self.w32(cmp + 0x184, eps)
         self.w32(engine + 0x2d0, 1)
@@ -205,6 +217,61 @@ class Oracle:
             raise SystemExit('processAction(0x52) did not start the mission (draw mode %d)' % e.read_u32(menu + 0x80))
         self.call('_ZN8ProjectY14CInterfaceMenu20initSingleplayerGameEv', menu, max_insns=20_000_000_000)
         self.game = e.read_u32(engine + 0x178)
+
+    # ------------------------------------------------------------ savegames
+    def make_string(self, text: bytes) -> int:
+        """A gnustl (COW) std::string object holding `text`: a pointer to the
+        characters, preceded by the rep header (length, capacity, refcount)."""
+        rep = self.libc.alloc(12 + len(text) + 1)
+        self.w32(rep, len(text))
+        self.w32(rep + 4, len(text))
+        self.w32(rep + 8, 0)
+        self.emu.uc.mem_write(rep + 12, text + b'\0')
+        obj = self.libc.alloc(4)
+        self.w32(obj, rep + 12)
+        return obj
+
+    def save_dir(self) -> str:
+        return self.emu.cstr(self.emu.read_u32(self.engine + 0x208)).decode('latin-1')
+
+    def save_game(self, name: str) -> bytes:
+        """CEngine::saveGame(name) (Ghidra 0x16c448): the file it writes."""
+        self.call('_ZN8ProjectY7CEngine8saveGameESs', self.engine, self.make_string(name.encode()),
+                  max_insns=5_000_000_000)
+        path = '%s/%s' % (self.save_dir(), name)
+        if path not in self.libc.written:
+            raise SystemExit('saveGame wrote nothing (log: %s)' % self.libc.log_lines[-3:])
+        return self.libc.written[path]
+
+    def load_game(self, engine, name: str, content: bytes):
+        """CEngine::loadGame(name) (Ghidra 0x168bec) on a file with `content`,
+        into the engine as CEngine::init left it. The RNGs are not part of a
+        savegame and loadGame does not touch them: both get the fixed seeds
+        first (the port's sim_probe --load does the same)."""
+        e = self.emu
+        self.engine = engine
+        # a campaign save (header line 7 "1") is only offered once the menus
+        # have read the campaign (actions 0xb / 0xc); IPP::load needs it for
+        # the speaker's avatar (CCampaign::getAvatarSubttitle throws otherwise)
+        header = content.split(b'\n')
+        if len(header) > 6 and header[6].strip() == b'1':
+            self.prepare_campaign(engine)
+        self.libc.written['%s/%s' % (self.save_dir(), name)] = content
+        for cls in ('CRng', 'CRngSafe'):
+            self.w32(e.addr('_ZN8ProjectY%d%s2mWE' % (len(cls), cls)), self.SEED_W)
+            self.w32(e.addr('_ZN8ProjectY%d%s2mZE' % (len(cls), cls)), self.SEED_Z)
+        menu = e.read_u32(engine + 0x16c)
+        self.w32(menu + 0x70, 720)
+        self.w32(menu + 0x74, 1280)
+        self.w32(engine + 0x168, menu)     # the menu is the current interface (its size)
+        # the slot action (processAction 0x1a..0x1e) sets the start mode 3:
+        # CUnit::init creates no weapons while it is set (loadGame clears it)
+        self.w32(menu + 0x7c, 3)
+        self.call('_ZN8ProjectY7CEngine8loadGameESs', engine, self.make_string(name.encode()),
+                  max_insns=20_000_000_000)
+        self.game = e.read_u32(engine + 0x178)
+        if not self.game:
+            raise SystemExit('loadGame failed (log: %s)' % self.libc.log_lines[-5:])
 
     def checksum(self) -> int:
         e = self.emu
@@ -352,9 +419,15 @@ def main():
     ap.add_argument('--budget', type=int, default=2_000_000_000)
     ap.add_argument('--players', type=int, default=2)
     ap.add_argument('--fow', type=int, default=0)
+    ap.add_argument('--gametype', type=int, default=0, help='engine +0x2d0 (3: resources)')
     ap.add_argument('--mission', type=int, default=0, help='start campaign mission <map> like the menus (ignores --map/--players)')
     ap.add_argument('--detail', type=int, nargs='*', help='steps to dump per-object checksums for')
     ap.add_argument('--trace', type=int, nargs='*', help='steps to dump every updateChecksum value for')
+    ap.add_argument('--save-at', type=int, nargs='*', default=[],
+                    help='CEngine::saveGame after that many steps (with --load: steps after the loaded one)')
+    ap.add_argument('--save-out', default='oracle_save', help='--save-at writes <this>_<step>.txt')
+    ap.add_argument('--load', help='CEngine::loadGame this file instead of starting a game')
+    ap.add_argument('--first-step', type=int, default=0, help='with --load: the step the save was made at')
     a = ap.parse_args()
     o = Oracle(a.so, a.data, a.v)
     e = o.emu
@@ -366,12 +439,17 @@ def main():
     pc = e.uc.reg_read(UC_ARM_REG_PC)
     print('stopped at %s after %.1fs (lr %s)' % (o.where(pc), time.time() - t0, o.where(e.uc.reg_read(UC_ARM_REG_LR))))
     print('log tail:', o.libc.log_lines[-3:])
-    if a.mission:
+    first = 0
+    if a.load:
+        import os
+        o.load_game(engine, os.path.basename(a.load), open(a.load, 'rb').read())
+        first = a.first_step
+    elif a.mission:
         o.start_mission(engine, a.mission, a.data)
     else:
-        o.start_game(engine, a.map, a.players, fow=a.fow)
+        o.start_game(engine, a.map, a.players, fow=a.fow, game_type=a.gametype)
     print('game started; log tail:', o.libc.log_lines[-4:])
-    for step in range(a.steps):
+    for step in range(first, first + a.steps):
         print('step %4d checksum %08x' % (step, o.checksum()))
         print('step %4d rng %s' % (step, ' '.join('%08x' % e.read_u32(e.addr(n)) for n in (
             '_ZN8ProjectY8CRngSafe2mWE', '_ZN8ProjectY8CRngSafe2mZE', '_ZN8ProjectY4CRng2mWE', '_ZN8ProjectY4CRng2mZE'))))
@@ -383,6 +461,10 @@ def main():
                 print('  %-10s %-6s %s' % (kind, ident, desc))
                 for caller, k, v in tr or ():
                     print('      %-8s %08x  %s' % (k, v, caller))
+        if step in a.save_at:
+            out = '%s_%d.txt' % (a.save_out, step)
+            open(out, 'wb').write(o.save_game('usersave1.txt'))
+            print('step %4d saved %s' % (step, out))
         o.step(step + 1)
     print('engine init done; unhandled:', dict(e.unhandled.most_common(12)))
 

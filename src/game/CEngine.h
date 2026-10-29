@@ -6,10 +6,12 @@
 // fields the game code reads, under their original offsets.
 #pragma once
 
+#include <ctime>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "core/FloatBits.h"
 #include "game/CParticleManager.h"
@@ -25,6 +27,7 @@ class CInterfaceIntro;
 class CInterfaceMenu;
 class CSoundManager;
 class CTextRender;
+class CUnit;
 
 // One player slot of the menu's game setup (engine+0x4c + i*0x2c; the
 // offsets below are relative to the slot).
@@ -143,6 +146,22 @@ public:
     // Nothing without a menu interface (tests).
     void showAftermathInterface();
 
+    // ---- savegames (CEngineSave.cpp)
+    // Ghidra 0x16c448: writes <mSaveDir>/<name> (header, the engine's part,
+    // CGame, CParticleManager, CInterfaceIngame). Needs a game.
+    void saveGame(const std::string& name);
+    // Ghidra 0x168bec: reads it back into a new game and ingame interface
+    // (the current one is replaced, not reset: see the .cpp). False if the
+    // file could not be opened or its engine part did not read.
+    bool loadGame(const std::string& name);
+    // [PC] the clock of the savegame header (default: localtime(time(0)));
+    // the tests and tools set a fixed one.
+    std::function<std::tm()> mSaveClock;
+    // [PC] time(0) where the game stores it (CGame +0x184 GameStartTime);
+    // the tests and tools set a fixed one (the emulated original: 1445000000)
+    std::function<long()> mTimeHook;
+    long timeNow() const { return mTimeHook ? mTimeHook() : static_cast<long>(std::time(nullptr)); }
+
     // ---- sound (phase 8)
     // The sound part of CEngine::init (Ghidra 0x16d074): CkInit (the Java
     // shell's AppOnCreate) and CSoundManager::getSingletonPtr (+0x17c); the
@@ -178,8 +197,10 @@ public:
     float mFpsFrames = 0.0f;           // +0x184
     float mFpsTime = 0.0f;             // +0x188
     float mFps = 0.0f;                 // +0x190
+    std::string mLoadedSavegamePath;   // +0x13c the path of the last loadGame
     float mGameTime = 0.0f;            // +0x198  seconds, advances while not paused
     float mRealGameTime = 0.0f;        // +0x19c  seconds, also while paused (0 at game init)
+    CUnit* mDebugUnit = nullptr;       // +0x1a0  "DebugUnitID" (the debug overlay's unit; never set by the port)
     float mFrameDt = 0.0f;             // +0x1a8  "mDeltaT": the step's dt during CGame::timeUpdate
     float mFrameTime = 0.0f;           // +0x1ac  timer (ms) of this frame
     int mNetworkMode = 0;              // +0x1b0  2 = network game
@@ -195,6 +216,7 @@ public:
     Vec3 mMenuColorR{bitsf(0x3e851eb8), bitsf(0x3eb851ec), bitsf(0x3f051eb8)};   // +0x224 (0.26 0.36 0.52)
     Vec3 mMenuColorG{bitsf(0x3ef5c28f), bitsf(0x3f23d70a), 1.0f};                // +0x230 (0.48 0.64 1)
     Vec3 mMenuColorB{bitsf(0x3f6b851f), bitsf(0x3dcccccd), bitsf(0x3ecccccd)};   // +0x23c (0.92 0.1 0.4)
+    unsigned mDebugDrawMode = 0;       // +0x248  "DebugDrawMode" (savegames only)
     float mGUIScale = 1.0f;            // +0x24c  GUI scale (pixel UI sizes are multiplied by it)
     bool mUseFOW = true;               // +0x250  option UseFOW (constructor: on)
     unsigned mLocalPlayer = 1;         // +0x254
@@ -209,6 +231,7 @@ public:
     // ---- options and profile (phase 5d; constructor defaults of Ghidra 0x16a6c4)
     bool mShowDebug = false;           // +0x194 "ShowDebug" (loadOptions always clears it)
     bool mDrawWater = true;            // +0x1bc "DrawWater"
+    bool mAllowRotate = false;         // +0x1bd "AllowRotate" (savegames only)
     bool mDrawCircles = true;          // +0x1be "DrawCircles" (the "Show range" option)
     bool mGlobalChatEnabled = true;    // +0x1bf "GlobalChatEnabled"
     bool mShowCompass = true;          // +0x1c0 "ShowCompass"
@@ -240,6 +263,11 @@ public:
     unsigned mMusicVolume = 40;        // "BackgroundMusicVolume"
     unsigned mMasterVolume = 100;      // "MasterVolume"
     std::unique_ptr<CGame> mOwnedGame; // [PC] owner of mGame (see setGame)
+    // [PC] a game / ingame interface replaced by loadGame (the original leaks
+    // them): kept until resetGame, so nothing of the old game is destroyed
+    // (and no destructor touches shared state) while the loaded one runs
+    std::vector<std::unique_ptr<CGame>> mAbandonedGames;
+    std::vector<std::unique_ptr<CInterface>> mAbandonedInterfaces;
     // ---- ingame interface state (HUD package)
     bool mFollowMode = false;          // +0x1a4  the camera follows IPP +0x8c
     int mChatInputMode = 0;            // +0x31c  0 ingame chat, 1 lobby chat (createInputDialog)

@@ -4,6 +4,8 @@
 // none, and hits every step it is within 5 degrees.
 #pragma once
 
+#include <cstdio>
+
 #include <string>
 
 #include "game/CWeapon.h"
@@ -12,6 +14,8 @@ namespace py {
 
 class CWeaponMiniLaser : public CWeapon {
 public:
+    void save(FILE* f) override;   // +0x24 Ghidra 0x3e0780 (CWeaponSave.cpp)
+    void load(FILE* f) override;   // +0x28 Ghidra 0x3e0754
     // the model flat on the screen (CWeaponFactory::drawWeapon; CUnitFactoryDraw.cpp)
     static void drawWeapon(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q, Real size,
                            const CVector3& offset);   // Ghidra 0x3e0410

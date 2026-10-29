@@ -5,12 +5,16 @@
 // when it is hit while ready. While ready, it has flag 0x10000.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CUnit.h"
 
 namespace py {
 
 class CUnitMineDropper : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3bf420 (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3bf46c
     // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
     static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3beca4
     CUnitMineDropper() = default;   // Ghidra 0x3bec28

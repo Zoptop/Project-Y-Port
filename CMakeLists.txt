@@ -61,6 +61,7 @@ add_library(projecty_core STATIC
   src/core/CMath.cpp
   src/core/CRng.cpp
   src/core/CUtils.cpp
+  src/core/CSaveIO.cpp
   src/core/CConfig.cpp
   src/core/CTxtLoc.cpp
   src/core/CMemoryFile.cpp

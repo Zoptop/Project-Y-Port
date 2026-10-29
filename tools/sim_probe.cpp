@@ -4,6 +4,15 @@
 // chosen steps every part of it with each value that went into it.
 //
 //   sim_probe --data data --map 1 --players 2 --steps 10 [--trace 0 5 ...] [--sound]
+//   sim_probe ... --save-at 100 [--save-out prefix]   CEngine::saveGame after 100 steps
+//   sim_probe --data data --load <file> --first-step 100 --steps 50 [--save-at 100]
+//
+// Savegames (as game_oracle.py --save-at / --load): a headless ingame
+// interface exists (its state is the file's last section), the header clock
+// is the emulator's (16.10.2015 12:00:00, time() 1445000000) and the player
+// slots have the config's names, as in the oracle. --load reads the file into a fresh
+// engine after setting both RNGs to the fixed seeds (the file has no RNG
+// state); the steps continue at --first-step.
 //
 // --sound: a sound manager (no output) exists from the first step on, so the
 // simulation's sound calls (explosions, shots, the music mood counters) run;
@@ -43,6 +52,7 @@
 #include "game/CWeapon.h"
 #include "render/CCameraMenu.h"
 #include "render/CMesh.h"
+#include "ui/CInterfaceIngame.h"
 #include "ui/CInterfaceMenu.h"
 
 using namespace py;
@@ -162,8 +172,9 @@ int main(int argc, char** argv) {
     std::string data = "data";
     int map = 1, players = 2, steps = 10, gameType = 0, mission = 0;
     bool dumpRes = false, dumpWeapons = false, sound = false;
-    std::set<int> trace;
-    std::string queries;
+    std::set<int> trace, saveAt;
+    std::string queries, saveOut = "probe_save", loadFile;
+    int firstStep = 0;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? std::string(argv[++i]) : std::string(); };
@@ -179,6 +190,11 @@ int main(int argc, char** argv) {
         else if (a == "--sound") sound = true;
         else if (a == "--trace")
             while (i + 1 < argc && argv[i + 1][0] != '-') trace.insert(std::atoi(argv[++i]));
+        else if (a == "--save-at")
+            while (i + 1 < argc && argv[i + 1][0] != '-') saveAt.insert(std::atoi(argv[++i]));
+        else if (a == "--save-out") saveOut = next();
+        else if (a == "--load") loadFile = next();
+        else if (a == "--first-step") firstStep = std::atoi(next().c_str());
     }
     CUtils::setQuiet(true);
     CUtils::setDataDir(data);
@@ -187,7 +203,47 @@ int main(int argc, char** argv) {
     CConfig::get().load(CUtils::dataPath("config.txt"));
     CTxtLoc::get().load("English");
     CEngine* e = CEngine::getSingletonPtr();
-    if (mission > 0) {
+    // the emulator's clock (libc_emu.py: localtime, time)
+    e->mSaveClock = [] {
+        std::tm tm{};
+        tm.tm_mday = 16;
+        tm.tm_mon = 9;
+        tm.tm_year = 115;
+        tm.tm_hour = 12;
+        return tm;
+    };
+    e->mTimeHook = [] { return 1445000000L; };
+    const bool savegames = !saveAt.empty() || !loadFile.empty();
+    if (!loadFile.empty()) {
+        // a fresh engine reads the file (game_oracle.py --load)
+        const size_t slash = loadFile.find_last_of("/\\");
+        e->mSaveDir = slash == std::string::npos ? "." : loadFile.substr(0, slash);
+        // a campaign save (header line 7 "1") is only offered once the menus
+        // have read the campaign (actions 0xb / 0xc): read it first, as
+        // game_oracle.py does (IPP::load takes the speaker's avatar from it)
+        bool campaignSave = false;
+        if (FILE* hf = std::fopen(loadFile.c_str(), "r")) {
+            char line[0x900];
+            for (int i = 0; i < 7 && std::fgets(line, sizeof line, hf); ++i)
+                if (i == 6) campaignSave = line[0] == '1' && (line[1] == '\n' || line[1] == '\r' || line[1] == 0);
+            std::fclose(hf);
+        }
+        if (campaignSave) {
+            CCampaign* c = e->initCampaign(1);
+            if (!c->parseDef()) {
+                std::printf("CAMPAIGN FAILED\n");
+                return 1;
+            }
+            c->readProgress();
+            c->mPurchased = c->mDownloaded = true;
+        }
+        CRng::SetSeed(kSeedW, kSeedZ);
+        CRngSafe::SetSeed(kSeedW, kSeedZ);
+        if (!e->loadGame(slash == std::string::npos ? loadFile : loadFile.substr(slash + 1))) {
+            std::printf("LOAD FAILED\n");
+            return 1;
+        }
+    } else if (mission > 0) {
         // --mission: a campaign mission started like the menus (and like
         // game_oracle.py --mission): the campaign read, the mission's episode
         // current, game type 1, then CInterfaceMenu::processAction(0x52),
@@ -224,53 +280,84 @@ int main(int argc, char** argv) {
         e->mCratesEnabled = false;
         e->mSectorSetupMode = 0;
         e->mUnitAvailabilityMode = 0;
+        // the menus' slot names (config Player<i>Name), as game_oracle.py sets them
+        for (int i = 0; i < CEngine::kMaxPlayers; ++i)
+            e->mPlayerSetup[i].name = CConfig::get().getString("Player" + std::to_string(i) + "Name");
     }
     // CInterfaceMenu::initSingleplayerGame seeds both RNGs from time(). The
     // oracle fixes CRngSafe (SEED_W/SEED_Z); its hook on
     // CRng::SetSeedFromSystemTime does not take, so CRng gets the real
     // function's seed from the emulated clock: time() = 1445000000
     // (projecty_emu.py), seed (t >> 16, |t|) = (0x5620, 0x5620f340).
-    CRng::SetSeed(kOracleClockW, kOracleClockZ);
-    CRngSafe::SetSeed(kSeedW, kSeedZ);
-    e->mNetworkMode = 0;
-    auto game = std::make_unique<CGame>();
-    e->mGame = game.get();
-    if (!game->init(false, true)) {
-        std::printf("LOAD FAILED\n");
-        return 1;
+    CGame* gamePtr = e->mGame;
+    std::unique_ptr<CGame> game;
+    if (loadFile.empty()) {
+        CRng::SetSeed(kOracleClockW, kOracleClockZ);
+        CRngSafe::SetSeed(kSeedW, kSeedZ);
+        e->mNetworkMode = 0;
+        if (savegames) {
+            // with an ingame interface, as initSingleplayerGame sets it up
+            // (the oracle's menu: 1280 x 720)
+            e->mLocalPlayer = 1;
+            e->setGame(std::make_unique<CGame>());
+            if (!e->mGame->init(false, true)) {
+                std::printf("LOAD FAILED\n");
+                return 1;
+            }
+            auto ingame = std::make_unique<CInterfaceIngame>();
+            ingame->initSingleplayer(1280, 720, e->mLocalPlayer);
+            e->mIngameInterface = std::move(ingame);
+            e->mCurrentInterface = e->mIngameInterface.get();
+            gamePtr = e->mGame;
+        } else {
+            game = std::make_unique<CGame>();
+            e->mGame = game.get();
+            if (!game->init(false, true)) {
+                std::printf("LOAD FAILED\n");
+                return 1;
+            }
+            gamePtr = game.get();
+        }
     }
-    if (!queries.empty()) return runQueries(game.get(), queries);
+    if (!queries.empty()) return runQueries(gamePtr, queries);
     if (dumpWeapons) {   // each unit's weapons after loading: unit id, weapon id:type ...
-        for (unsigned id : game->objectList()) {
-            CUnit* u = game->getAsUnit(id);
+        for (unsigned id : gamePtr->objectList()) {
+            CUnit* u = gamePtr->getAsUnit(id);
             if (!u) continue;
             std::printf("unit %u", id);
             for (unsigned w : u->mWeaponIds)
-                if (CWeapon* wp = game->getWeapon(w)) std::printf(" %u:%d", w, wp->mType);
+                if (CWeapon* wp = gamePtr->getWeapon(w)) std::printf(" %u:%d", w, wp->mType);
             std::printf("\n");
         }
         return 0;
     }
     if (dumpRes) {   // resource grid after loading (CLevel +0x1c4), as float bits
-        const CLevel* L = game->getLevel();
+        const CLevel* L = gamePtr->getLevel();
         std::printf("res %d %d\n", L->mResW, L->mResH);
         for (const Real& v : L->mRes) std::printf("%08x\n", fbits(v));
         return 0;
     }
     if (sound) e->initSound();
     const Real step = bitsf(kStepBits);
-    for (int s = 0; s < steps; ++s) {
+    for (int s = firstStep; s < firstStep + steps; ++s) {
         CUtils::resetChecksum();
-        game->calcChecksum();
+        gamePtr->calcChecksum();
         std::printf("step %4d checksum %08x\n", s, CUtils::mChecksum);
         std::printf("step %4d rng %08x %08x %08x %08x\n", s, CRngSafe::mW, CRngSafe::mZ, CRng::mW, CRng::mZ);
-        if (trace.count(s)) dumpTrace(game.get());
+        if (trace.count(s)) dumpTrace(gamePtr);
+        if (saveAt.count(s)) {
+            const std::string out = saveOut + "_" + std::to_string(s) + ".txt";
+            const size_t slash = out.find_last_of("/\\");
+            e->mSaveDir = slash == std::string::npos ? "." : out.substr(0, slash);
+            e->saveGame(slash == std::string::npos ? out : out.substr(slash + 1));
+            std::printf("step %4d saved %s\n", s, out.c_str());
+        }
         // like CCommandManagerNetworked::timeUpdate for step s+1
         const unsigned n = static_cast<unsigned>(s + 1);
         e->mGameTime = i2f(static_cast<int32_t>(n)) * step;
         e->mFrameDt = step;
         e->mCurrentStep = n;
-        game->timeUpdate(step, e->mGameTime);
+        gamePtr->timeUpdate(step, e->mGameTime);
         if (CSoundManager* sm = e->getSoundManager()) sm->update();   // as CEngine::draw
     }
     if (CSoundManager* sm = e->getSoundManager()) {

@@ -11,12 +11,16 @@
 // the arrival distance (distance - 4 instead of - 8).
 #pragma once
 
+#include <cstdio>
+
 #include "game/CProjectile.h"
 
 namespace py {
 
 class CProjectileLaserBlastB : public CProjectile {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x37bbf8 (CProjectileSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x37bc24
     CProjectileLaserBlastB();                                             // Ghidra 0x37b7d4
     ~CProjectileLaserBlastB() override;                                   // Ghidra 0x37b848 (shot off)
     void update() override;                                               // Ghidra 0x37b468

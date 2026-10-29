@@ -17,6 +17,8 @@
 // Drawing: CBomberBombDraw.cpp. Not ported: timeUpdateSimple, save/load.
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector3.h"
 #include "core/Real.h"
 #include "game/CSceneObject.h"
@@ -27,6 +29,8 @@ class CPlayer;
 
 class CBomberBomb : public CSceneObject {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x12f684 (CBomberSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x12f7e8
     CBomberBomb() = default;   // Ghidra 0x12f4fc
 
     // Ghidra 0x12f370

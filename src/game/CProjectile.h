@@ -17,6 +17,7 @@
 // of the new position (crossesShield). Laser blasts ignore shields.
 #pragma once
 
+#include <cstdio>
 #include "core/CVector3.h"
 #include "core/Real.h"
 
@@ -28,6 +29,8 @@ class CUnit;
 
 class CProjectile {
 public:
+    virtual void save(FILE* f);              // +0x14 Ghidra 0x37681c (CProjectileSave.cpp)
+    virtual void load(FILE* f);              // +0x18 Ghidra 0x376a08
     CProjectile();                                     // Ghidra 0x376c00
     virtual ~CProjectile() = default;                  // +0x00/+0x04
     virtual void drawMesh() {}                         // +0x08 (pure in the original; the draw files)
@@ -35,7 +38,6 @@ public:
     // +0x10 Ghidra 0x376770
     virtual void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,
                       unsigned starterUnit, Real damageBonus);
-    // +0x14 save / +0x18 load: savegames are not ported yet
     virtual void holdState();                          // +0x1c Ghidra 0x376650
     virtual void restoreState();                       // +0x20 Ghidra 0x3766dc
     virtual void updateSimple() {}                     // +0x24 render extrapolation

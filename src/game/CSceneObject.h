@@ -10,6 +10,7 @@
 // checksummed values directly.
 #pragma once
 
+#include <cstdio>
 #include <cstdint>
 
 #include "core/CUtils.h"
@@ -20,13 +21,14 @@ class CEngine;
 
 class CSceneObject {
 public:
+    virtual void save(FILE* f);              // +0x14 Ghidra 0x3875c4
+    virtual void load(FILE* f);              // +0x18 Ghidra 0x38761c
     CSceneObject();                          // Ghidra 0x387be4
     virtual ~CSceneObject() = default;       // vtable +0x00/+0x04
 
     virtual void timeUpdate() = 0;           // +0x08
     virtual void timeUpdateSimple() {}       // +0x0c render extrapolation
     virtual void draw(bool, float) {}        // +0x10 (pure in the original)
-    // +0x14 save / +0x18 load: savegames are not ported yet
     virtual void holdState() {}              // +0x1c
     virtual void restoreState() {}           // +0x20
     virtual void calcChecksum();             // +0x24

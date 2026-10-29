@@ -15,6 +15,8 @@
 //   replaces the earlier script).
 #pragma once
 
+#include <cstdio>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -67,6 +69,8 @@ public:
 
 class CScriptManager {
 public:
+    void save(FILE* f);                      // Ghidra 0x38e1ec (CGameSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x38ed2c
     explicit CScriptManager(CEngine* engine);
     ~CScriptManager();
 

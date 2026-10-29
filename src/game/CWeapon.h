@@ -25,6 +25,7 @@
 // ported. The beams' particle systems are (updateBeamParticleSystem).
 #pragma once
 
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,8 @@ enum EWeaponType {
 
 class CWeapon {
 public:
+    virtual void save(FILE* f);              // +0x24 Ghidra 0x3d3ea4 (CWeaponSave.cpp; CWeaponVisionTower's 0x3e7928 is the same)
+    virtual void load(FILE*) {}              // +0x28 Ghidra 0x3d3d64 (empty)
     CWeapon();                                         // Ghidra 0x3d4b5c
     virtual ~CWeapon() = default;                      // +0x00/+0x04
     virtual void hit(Real damage);                     // +0x08 Ghidra 0x3d458c
@@ -72,7 +75,6 @@ public:
     virtual void init(CUnit* unit, const CVector3& mountPoint);   // +0x18 Ghidra 0x3d3e0c
     virtual bool park() { return true; }               // +0x1c Ghidra 0x3d3d5c
     virtual void deactivate() {}                       // +0x20 Ghidra 0x3d3d58
-    // +0x24 save / +0x28 load: savegames are not ported yet
     virtual CUnit* findClosestEnemyFast(Real* distanceSq, Real* angle);   // +0x2c Ghidra 0x3d47e0
     virtual void calcChecksum();                       // +0x34 Ghidra 0x3d4564
     virtual void holdState() {}                        // +0x38 Ghidra 0x3d3d68

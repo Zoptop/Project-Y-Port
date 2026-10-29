@@ -6,12 +6,16 @@
 // / DistanceScaleFactor).
 #pragma once
 
+#include <cstdio>
+
 #include "game/CUnit.h"
 
 namespace py {
 
 class CUnitLandmine : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3beb58 (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3beb88
     CUnitLandmine() = default;   // Ghidra 0x3be4bc
 
     void timeUpdate() override;                          // Ghidra 0x3be5bc

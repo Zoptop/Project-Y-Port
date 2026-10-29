@@ -8,6 +8,8 @@
 // (its text label waits for CTextRender).
 #pragma once
 
+#include <cstdio>
+
 #include <string>
 
 #include "game/CParticleSystem.h"
@@ -16,6 +18,8 @@ namespace py {
 
 class CParticleSystemInfo : public CParticleSystem {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x2d09b0 (CParticleSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x2d09f8
     explicit CParticleSystemInfo(int subtype);   // Ghidra 0x2cf66c
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d07cc

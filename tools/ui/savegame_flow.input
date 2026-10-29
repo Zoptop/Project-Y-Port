@@ -1,0 +1,38 @@
+# Savegames through the menus (docs/re/savegames_phase8.md), 1280x720, 60 fps
+# clock, with an EMPTY save dir:
+#   mkdir -p /tmp/py_save && rm -f /tmp/py_save/*
+#   SDL_VIDEODRIVER=offscreen ./build-game/ProjectY --data data --save-dir /tmp/py_save \
+#       --frames 2700 --input tools/ui/savegame_flow.input
+# Path: update news -> main -> Singleplayer -> Custom Game -> Start Game ->
+# play 10 s -> Esc (statistics) -> Main menu (pause screen 4) -> Save game
+# (screen 7) -> slot 1 (singleusersave1.txt, back to the pause screen) ->
+# Surrender -> "Yes, I capitulate!" -> aftermath -> Main menu (action 0x17:
+# the autosave singleautosave.txt, then the main menu) -> Singleplayer -> Load
+# game (screen 8: slot 1 and the autosave) -> slot 1 -> loading screen ->
+# the loaded game, which runs on and is saved again into slot 2.
+# (The original's pause screen has no Load entry: loading is on the single
+# player screen.)
+480 click left 646 626                 # update news: Back
+570 click left 637 205                 # main: Singleplayer
+660 click left 560 367                 # singleplayer: Custom Game
+760 click left 563 207                 # custom game: Start Game
+1360 screenshot save_ingame_before.png
+1370 key escape                        # ingame Back -> statistics (screen 11)
+1450 click left 658 585                # statistics: Main menu -> pause screen 4
+1540 screenshot save_pause.png
+1550 click left 640 278                # Save game -> screen 7
+1640 screenshot save_screen.png
+1650 click left 610 235                # slot 1: CEngine::saveGame("singleusersave1.txt"), pause screen
+1740 click left 640 428                # Surrender -> screen 30
+1830 click left 545 322                # Yes, I capitulate! (single player: aftermath, "Draw")
+1920 click left 658 585                # aftermath: Main menu (autosave, resetGame)
+2020 click left 637 205                # main: Singleplayer
+2110 click left 600 443                # singleplayer: Load game -> screen 8
+2200 screenshot load_screen.png
+2210 click left 600 235                # slot 1 -> loading screen -> CEngine::loadGame
+2500 screenshot load_ingame_after.png
+2510 key escape                        # statistics
+2590 click left 658 585                # pause screen
+2680 click left 640 278                # Save game -> screen 7
+2770 screenshot save_screen_after_load.png
+2780 click left 610 302                # slot 2

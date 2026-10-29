@@ -8,6 +8,8 @@
 // has no weapon and armour factor 1.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CUnit.h"
 
 namespace py {
@@ -16,6 +18,8 @@ class CSector;
 
 class CUnitTurret : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3cf63c (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3cf6e0
     CUnitTurret();   // Ghidra 0x3cf080
 
     void timeUpdate() override;                          // Ghidra 0x3cf368

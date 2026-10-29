@@ -15,6 +15,8 @@
 // timeUpdate 0x2d3c3c, getQuads 0x2d2b98 (CParticleSystemDraw.cpp).
 #pragma once
 
+#include <cstdio>
+
 #include "core/CQuaternion.h"
 #include "game/CParticleSystem.h"
 
@@ -22,6 +24,8 @@ namespace py {
 
 class CParticleSystemThruster : public CParticleSystem {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x2d3d4c (CParticleSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x2d3e2c
     explicit CParticleSystemThruster(int subtype);   // Ghidra 0x2d372c
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2d3a84

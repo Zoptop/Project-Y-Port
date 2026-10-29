@@ -7,12 +7,16 @@
 // processDialButton 0x1445b8, getRandomTech 0x144454, calcChecksum 0x146268.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CBuilding.h"
 
 namespace py {
 
 class CBuildingScienceLab : public CBuilding {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x145778 (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x145838
     void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x145908 (CInfoscreenDraw.cpp)
     CBuildingScienceLab() = default;                // Ghidra 0x1442dc
 

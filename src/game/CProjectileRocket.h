@@ -13,12 +13,16 @@
 // is gone.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CProjectile.h"
 
 namespace py {
 
 class CProjectileRocket : public CProjectile {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x37e3cc (CProjectileSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x37e464
     CProjectileRocket();                                                  // Ghidra 0x37e088
     ~CProjectileRocket() override;                                        // Ghidra 0x37e0e4 (trail off)
     void update() override;                                               // Ghidra 0x37d1fc

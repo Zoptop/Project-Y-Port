@@ -11,12 +11,16 @@
 // MaxDistance (still stunning in that last step) or at a shield.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CProjectile.h"
 
 namespace py {
 
 class CProjectileEMPWave : public CProjectile {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x379b2c (CProjectileSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x379b58
     CProjectileEMPWave();                                                 // Ghidra 0x379768
     void update() override;                                               // Ghidra 0x378c7c
     void init(CUnit* target, const CVector3& position, Real yaw, Real pitch, CPlayer* owner,

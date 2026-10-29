@@ -7,6 +7,8 @@
 // spotter dies the UAV falls (4) and crashes (5).
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector3.h"
 #include "game/CUnit.h"
 
@@ -14,6 +16,8 @@ namespace py {
 
 class CUnitSpotter : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3caabc (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3cac70
     // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
     static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3c8c2c
     CUnitSpotter() = default;   // Ghidra 0x3c8b60

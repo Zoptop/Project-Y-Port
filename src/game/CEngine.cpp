@@ -104,6 +104,8 @@ void CEngine::releaseInterfaces() {
     mIngameInterface.reset();
     mGame = nullptr;   // [PC] the game the menu started (see setGame)
     mOwnedGame.reset();
+    mAbandonedGames.clear();
+    mAbandonedInterfaces.clear();
     mMenuInterface.reset();
     mIntroInterface.reset();
     mTextRender.reset();
@@ -240,6 +242,8 @@ void CEngine::resetGame() {
         mGame = nullptr;
         mOwnedGame.reset();
     }
+    mAbandonedGames.clear();   // [PC] (see loadGame)
+    mAbandonedInterfaces.clear();
     if (mParticleManager) mParticleManager->cleanUp();
     if (mCurrentInterface == mIngameInterface.get() && mIngameInterface) mCurrentInterface = mMenuInterface.get();
     mIngameInterface.reset();

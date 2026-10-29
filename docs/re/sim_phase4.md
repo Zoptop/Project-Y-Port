@@ -77,7 +77,7 @@ Read `CLAUDE.md` and `docs/DETERMINISM.md` first.
 - **Not ported (yet):**
   - Drawing, shaders, UI (dial menus, info screens), sound. Particles are ported (logic, state
     and CRng draws; see the RNG rules); their getQuads/draw belong to the renderer.
-  - Savegames (`save`/`load`) come in a later phase.
+  - Savegames (`save`/`load`): ported in phase 8, see `docs/re/savegames_phase8.md`.
   - Network-only branches (`engine->mNetworkMode == 2`) get a TODO comment unless trivial.
 - **Stubs:** a method that is not ported yet calls `notPorted("Class::method")`, which logs once.
   Leave no silent stubs.
@@ -135,5 +135,5 @@ at each step (`tools/verify/compare_sim.py --map N --players <numplayers> --step
 Maps 4, 5, 8, 9 and 10 have 4 players and map 7 has 3; the others have 2.
 
 Still not ported: the networked command manager (lockstep queue and checksum exchange),
-production rally to a unit group (needs the UI's group bar), savegames, and everything
+production rally to a unit group (needs the UI's group bar), and everything
 drawn.

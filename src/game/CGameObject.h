@@ -7,6 +7,8 @@
 // reads them.
 #pragma once
 
+#include <cstdio>
+
 #include <string>
 
 #include "core/CMatrix4.h"
@@ -49,6 +51,8 @@ enum EObjectFlags : uint32_t {
 
 class CGameObject : public CSceneObject {
 public:
+    void save(FILE* f) override;             // +0x14 Ghidra 0x1814ac (CGame::load reads these lines)
+    void load(FILE*) override {}             // +0x18 Ghidra 0x180f78 (empty)
     enum ECategory { CATEGORY_UNIT = 1, CATEGORY_BUILDING = 2 };
 
     CGameObject();                                    // Ghidra 0x182568
@@ -152,6 +156,7 @@ public:
     CVector2 mShadowUVSize;              // +0x1ac (shrunk) atlas cell size in shadow.png
     CVector2 mShadowUVTopLeft;           // +0x1b4
     CVector2 mShadowSizeHalf;            // +0x1bc "<...>ShadowSizeHalf" (shrunk)
+    bool mEnableRender = false;          // +0x1c4 "EnableRender": only ever saved (always 0)
     bool mVisible = false;               // +0x1c5 frustum culling result
     uint32_t mSubMeshFirst = 0;          // +0x1c8 main submesh: first triangle
     uint32_t mSubMeshCount = 0;          // +0x1cc main submesh: triangle count

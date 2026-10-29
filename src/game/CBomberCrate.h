@@ -9,6 +9,8 @@
 // calcChecksum 0x131ca4, holdState 0x1307d8, restoreState 0x130844.
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector3.h"
 #include "core/Real.h"
 #include "game/CSceneObject.h"
@@ -17,6 +19,8 @@ namespace py {
 
 class CBomberCrate : public CSceneObject {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x131a08 (CBomberSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x131b38
     CBomberCrate() = default;   // Ghidra 0x1318a8
 
     void init(Real yaw, Real pitch, CVector3 position, Real velocity);   // Ghidra 0x131774

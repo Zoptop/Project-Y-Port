@@ -172,10 +172,27 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
         case 8: go(MENU_INGAME); break;
         case 9: go(MENU_TUTORIAL); break;
         case 10: go(MENU_CUSTOMGAME); break;
-        case 0xb:   // Load game (campaign saves would first check the campaign: no saves on PC)
+        case 0xb:   // Load game
+            // from the single player screen: with a campaign save among the
+            // slots the campaign is checked first (their slots need it), then
+            // 0x5c opens the screen
+            if (mCurrentMenu == MENU_SINGLEPLAYER && areSavegamesFromCampaign("single")) {
+                if (CCampaign* cmp = e->mCampaigns[1].get()) cmp->startInitAsync(false);   // operator[](1)
+                mModalState = 1;
+                mActionAfterLongOp = 0x5c;
+                break;
+            }
             go(MENU_LOADGAME);
             break;
-        case 0xc: go(MENU_SAVEGAME); break;
+        case 0xc:   // Save game (the pause screen); the same campaign check, then 0x5d
+            if (e->mNetworkMode != 1 && areSavegamesFromCampaign("single")) {
+                if (CCampaign* cmp = e->mCampaigns[1].get()) cmp->startInitAsync(false);
+                mModalState = 1;
+                mActionAfterLongOp = 0x5d;
+                break;
+            }
+            go(MENU_SAVEGAME);
+            break;
         case 0xd:   // start the custom game
             if (!e->isMapPurchased(e->mMapId)) {
                 CUtils::log("purchase required %i", static_cast<int>(e->mMapId));
@@ -272,9 +289,9 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             if (!e->mLoadingSavegame && e->mGameTime > 0.0f && e->mGame && e->mGame->mStarted &&
                 e->mNetworkMode != 2) {
                 CPlayer* p = e->mGame->getPlayer(e->mLocalPlayer);
+                // the autosave of a game left for the main menu
                 if (p && !p->mLost && !p->mWon)
-                    CUtils::log("CEngine::saveGame %s: notPorted (savegames: later phase)",
-                                e->mNetworkMode == 1 ? "multiautosave.txt" : "singleautosave.txt");
+                    e->saveGame(e->mNetworkMode == 1 ? "multiautosave.txt" : "singleautosave.txt");
             }
             e->resetGame();
             go(MENU_MAIN);
@@ -291,8 +308,12 @@ void CInterfaceMenu::processAction(int action, CInterfaceElement* element) {
             static const int kSlot[5] = {1, 2, 3, 4, 0};
             mSaveSlot = kSlot[action - 0x1a];
             if (mCurrentMenu == MENU_SAVEGAME) {
+                // save over the slot, back to the pause screen
                 mSaveFile = mSlotFiles[mSaveSlot];
-                CUtils::log("CEngine::saveGame %s: notPorted (savegames: later phase)", mSaveFile.c_str());
+                if (e->mGame)
+                    e->saveGame(mSaveFile);
+                else
+                    CUtils::log("CEngine::saveGame %s: no game", mSaveFile.c_str());   // [PC] the original crashes
                 go(MENU_INGAME);
             } else if (mCurrentMenu == MENU_LOADGAME) {
                 mLoadFile = mSlotFiles[mSaveSlot];

@@ -17,6 +17,8 @@
 // placeholder renderer can be swapped for the real one in one place.
 #pragma once
 
+#include <cstdio>
+
 #include <list>
 #include <string>
 #include <vector>
@@ -69,6 +71,8 @@ enum ECursorHint : int { CURSOR_DEFAULT = 0, CURSOR_SELECT, CURSOR_ATTACK, CURSO
 
 class CInterfaceIngamePerPlayer {
 public:
+    void save(FILE* f);   // Ghidra 0x1a53a8 (CInterfaceIngameSave.cpp)
+    void load(FILE* f);   // Ghidra 0x1a4b90
     // one touch pointer (0x28 bytes at +0x3c and +0x64)
     struct CPointer {
         int id = -1;              // +0x00 (-1 = free)

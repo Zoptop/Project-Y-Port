@@ -100,5 +100,5 @@ This found one simulation bug: `CBuildingHQ::isCommandable` in hqmode 2 required
 checks type 0x16, the ThinkerBrain (the campaign's "reactivate the HQ" was impossible, and the AI's
 ThinkerBrains never entered their HQ). Speaker texts never complete on either side (no interface updates).
 
-Not ported: `CInterfaceElementMultiTextScrollable` (used by the lobby chat screens 19/20 only), campaign
-savegames (`isSavegameFromCampaign`), downloads, achievements (`addach` logs).
+Not ported: `CInterfaceElementMultiTextScrollable` (used by the lobby chat screens 19/20 only),
+downloads, achievements (`addach` logs).

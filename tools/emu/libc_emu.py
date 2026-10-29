@@ -19,6 +19,48 @@ def f32(x: float) -> float:
     return struct.unpack('<f', struct.pack('<f', x))[0]
 
 
+def strtof_bits(text: str) -> int:
+    """strtof (gdtoa, correctly rounded) of a decimal string: the binary32
+    bit pattern. (float(text) would round to double first.)"""
+    from fractions import Fraction
+    t = text.strip().lower()
+    neg = t.startswith('-')
+    t = t.lstrip('+-')
+    sign = 0x80000000 if neg else 0
+    if t.startswith('inf'):
+        return sign | 0x7f800000
+    if t.startswith('nan'):
+        return sign | 0x7fc00000
+    if t.endswith('.'):
+        t += '0'
+    if t.startswith('.'):
+        t = '0' + t
+    fr = Fraction(t)
+    if fr == 0:
+        return sign
+    s = 23 - (fr.numerator.bit_length() - fr.denominator.bit_length())
+    while True:
+        s2 = min(s, 149)
+        num = fr.numerator << s2 if s2 >= 0 else fr.numerator
+        den = fr.denominator if s2 >= 0 else fr.denominator << -s2
+        q, r = divmod(num, den)
+        if q >= 1 << 24:
+            s -= 1
+            continue
+        if q < 1 << 23 and s2 < 149:
+            s += 1
+            continue
+        if 2 * r > den or (2 * r == den and q & 1):
+            q += 1
+        if q == 1 << 24:
+            q >>= 1
+            s2 -= 1
+        if q >= 1 << 23:
+            b = 150 - s2
+            return sign | (0x7f800000 if b >= 255 else (b << 23) | (q - (1 << 23)))
+        return sign | q
+
+
 class ArgSeq:
     """Variadic arguments: the integer argument sequence of the call (r0-r3,
     then stack) starting at index `start`, or a va_list pointer."""
@@ -114,6 +156,7 @@ class LibC:
         self.log = log
         self.time_ms = 0.0
         self.opened = []
+        self.written = {}        # path -> bytes of files written and closed (savegames)
         self._install()
 
     # ------------------------------------------------------------- helpers
@@ -343,7 +386,30 @@ class LibC:
             return 0
         h.update(sprintf=sprintf, snprintf=snprintf, vsprintf=vsprintf, vsnprintf=vsnprintf,
                  __android_log_print=android_log_print, __android_log_write=android_log_write,
-                 printf=r(0), puts=r(0), putchar=r(0), fprintf=r(0), fputs=r(0), fputc=r(0), fflush=r(0))
+                 printf=r(0), puts=r(0), putchar=r(0), fflush=r(0))
+
+        # writing files (savegames): into memory, kept in self.written on fclose
+        def wfile(hd):
+            f = self.files.get(hd)
+            return f[0] if f is not None and isinstance(f[0], bytearray) else None
+        def fprintf(emu, a):
+            s = c_format(emu, emu.cstr(a[1]), ArgSeq(emu, start=2))
+            buf = wfile(a[0])
+            if buf is not None:
+                buf += s
+            return len(s)
+        def fputs(emu, a):
+            s = emu.cstr(a[0])
+            buf = wfile(a[1])
+            if buf is not None:
+                buf += s
+            return 1
+        def fputc(emu, a):
+            buf = wfile(a[1])
+            if buf is not None:
+                buf.append(a[0] & 0xff)
+            return a[0] & 0xff
+        h.update(fprintf=fprintf, fputs=fputs, fputc=fputc)
 
         # scanf family
         def sscanf(emu, a):
@@ -358,6 +424,10 @@ class LibC:
                 hd = self.next_handle; self.next_handle += 16
                 self.files[hd] = [bytearray(), 0, path]
                 return hd
+            if path in self.written:
+                hd = self.next_handle; self.next_handle += 16
+                self.files[hd] = [self.written[path], 0, path]
+                return hd
             f = self.resolve(path)
             if not f:
                 return 0
@@ -366,7 +436,9 @@ class LibC:
             self.files[hd] = [open(f, 'rb').read(), 0, path]
             return hd
         def fclose(emu, a):
-            self.files.pop(a[0], None)
+            f = self.files.pop(a[0], None)
+            if f is not None and isinstance(f[0], bytearray):
+                self.written[f[2]] = bytes(f[0])
             return 0
         def fread(emu, a):
             f = self.files.get(a[3])
@@ -611,7 +683,8 @@ class LibC:
                     if length in (b'l', b'L'):
                         emu.uc.mem_write(p, struct.pack('<d', v))
                     else:
-                        emu.uc.mem_write(p, struct.pack('<f', v))   # (float)strtod
+                        # bionic's sscanf %f is strtof: correctly rounded to binary32
+                        emu.uc.mem_write(p, struct.pack('<I', strtof_bits(mm.group(0).decode('latin-1'))))
                     n += 1
             else:
                 raise RuntimeError('scanf conversion %r not emulated' % conv)

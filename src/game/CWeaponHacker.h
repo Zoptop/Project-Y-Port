@@ -6,6 +6,8 @@
 // (CGameObject::ownerChanged) when the resistance drops below 0.
 #pragma once
 
+#include <cstdio>
+
 #include <string>
 
 #include "game/CWeapon.h"
@@ -14,6 +16,8 @@ namespace py {
 
 class CWeaponHacker : public CWeapon {
 public:
+    void save(FILE* f) override;   // +0x24 Ghidra 0x3d9988 (CWeaponSave.cpp)
+    void load(FILE* f) override;   // +0x28 Ghidra 0x3d9918
     CWeaponHacker();                                                      // Ghidra 0x3d963c
     void timeUpdate(CUnit* target, Real distanceSq, Real angle, bool aim) override;   // Ghidra 0x3d8f58
     void drawMesh(bool alphaPass, float alpha) override;   // +0x10 Ghidra 0x3d8d8c (CWeaponDraw.cpp)

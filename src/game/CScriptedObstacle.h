@@ -11,6 +11,8 @@
 // enable 0x38e2a8, disable 0x38e3e0. Not ported: save/load.
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 
 #include "core/CVector2.h"
@@ -20,6 +22,8 @@ namespace py {
 
 class CScriptedObstacle {
 public:
+    void save(FILE* f);                      // Ghidra 0x38e130 (CGameSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x38e338
     CScriptedObstacle() = default;                                         // Ghidra 0x38e0cc
     CScriptedObstacle(unsigned id, const CVector2& pos, Real radius);       // Ghidra 0x38e07c
 
