@@ -135,5 +135,5 @@ at each step (`tools/verify/compare_sim.py --map N --players <numplayers> --step
 Maps 4, 5, 8, 9 and 10 have 4 players and map 7 has 3; the others have 2.
 
 Still not ported: the networked command manager (lockstep queue and checksum exchange),
-production rally to a unit group (needs the UI's group bar), savegames, and everything
+production rally to a unit group (needs the UI's group bar), and everything
 drawn.

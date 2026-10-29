@@ -16,7 +16,7 @@ An unofficial, fan-made PC port (Windows, Linux, macOS) of **ProjectY**, the rea
 | 5 | Drawing the game, mouse/keyboard input, HUD, menus | done: skirmish playable from the menus |
 | 6 | AI | done as part of phase 4 (bit-exact) |
 | 7 | Campaign | done: all 18 missions and the tutorial, from the menus to the credits; missions match the original under emulation |
-| 8 | Audio, particles, saves, polish | audio and particles done; savegames next |
+| 8 | Audio, particles, saves, polish | audio, particles and savegames done (the original's save files, loaded games match the original under emulation) |
 | 9 | LAN multiplayer (lockstep) | |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the engine overview and plan, and [docs/DETERMINISM.md](docs/DETERMINISM.md) for how bit-exactness is enforced and tested.
@@ -68,7 +68,7 @@ The original was a touch game. On PC the controls are:
 
 Command-line options: `--data <dir>`, `--save-dir <dir>`, `--width N`, `--height N`, `--fullscreen`, `--mission MAP` (start a campaign mission or the tutorial, 201), `--skirmish MAP` (start a game directly; with `--players N`, `--fow`, `--minimap 0..3`), `--viewer` (the map viewer below, `--map ID`, `--zoom Z`, `--cam X Y`, `--yaw DEG`), `--check-shaders`, `--no-sound` (no audio device). For automated tests: `--frames N`, `--screenshot file.png`, `--input script` (timed input events; see `docs/re/ui_phase5.md`).
 
-Not ported yet: savegames (the Save/Load screens show their layout only), multiplayer.
+Not ported yet: multiplayer. Savegames: `docs/re/savegames_phase8.md`.
 
 ### Map viewer controls (`--viewer`)
 

@@ -259,7 +259,7 @@ and in `CEngine`: `saveOptions`/`loadOptions`, `validateNameAndClan`, `resetGame
 | 0 main, 1 single player, 10 custom game, 9 tutorial | ported (start the game) |
 | 4 pause, 11 statistics, 12 aftermath, 30 surrender | ported |
 | 5/6 options, 3 profile, 14 credits, 21 update news | ported (profile: no online stats; online options disabled) |
-| 7/8 save/load | layout; every slot "Empty Slot" (savegames: later phase, actions log notPorted) |
+| 7/8 save/load | ported in phase 8 (`savegames_phase8.md`) |
 | 25 campaign, 26 campaign progress | ported in phase 7 (`campaign_phase7.md`) |
 | 2, 15–18, 20 multiplayer | layout; split screen starts a single-player game (log), networking actions log notPorted |
 | 13 download | layout ([PC] nothing is downloaded) |
@@ -288,7 +288,7 @@ is older (or there is no file) the update news screen (21) follows the intro. [P
 
 [PC] additions: mouse wheel over a TextSlider2 steps it; TextInput2 is edited with the keyboard
 (Enter confirms, Escape cancels); website buttons open through `SDL_OpenURL`. Not ported:
-achievements, lobby/online features, savegames, the server list element, the waiting-room chat.
+achievements, lobby/online features, the server list element, the waiting-room chat.
 (The campaign and the credits roll: phase 7, `campaign_phase7.md`; sounds: phase 8, `sound_phase8.md`.)
 
 Headless check of the whole flow (empty save dir):
