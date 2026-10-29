@@ -3,6 +3,8 @@
 // the target and hits it every step it is within 2 degrees.
 #pragma once
 
+#include <cstdio>
+
 #include <string>
 
 #include "game/CWeapon.h"
@@ -11,6 +13,8 @@ namespace py {
 
 class CWeaponTurretGun : public CWeapon {
 public:
+    void save(FILE* f) override;   // +0x24 Ghidra 0x3e4b04 (CWeaponSave.cpp)
+    void load(FILE* f) override;   // +0x28 Ghidra 0x3e4ad8
     // the model flat on the screen (CWeaponFactory::drawWeapon; CUnitFactoryDraw.cpp)
     static void drawWeapon(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q, Real size,
                            const CVector3& offset);   // Ghidra 0x3e3d3c

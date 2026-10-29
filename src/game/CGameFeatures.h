@@ -12,10 +12,14 @@
 // p1, p2) 0x180c10, isFeatureEnabled 0x180ed0.
 #pragma once
 
+#include <cstdio>
+
 namespace py {
 
 class CGameFeatures {
 public:
+    void save(FILE* f) const;                // Ghidra 0x180a48 (CGameSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x180a00
     static constexpr int kCount = 26;
 
     CGameFeatures() { reset(); }

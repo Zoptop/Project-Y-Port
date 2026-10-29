@@ -3,6 +3,7 @@
 
 #include <cstdarg>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,6 +13,9 @@
 #include "Real.h"
 
 namespace py {
+
+struct CVector3;
+class CQuaternion;
 
 // Logs "NOT PORTED YET: <what>" once per name (stubs of unported functions).
 void notPorted(const char* what);
@@ -59,6 +63,27 @@ public:
     // Debugging: when set, every update is also recorded (kind, value), as
     // tools/emu/game_oracle.py --trace records the original's.
     static std::vector<std::pair<char, uint32_t>>* mChecksumTrace;
+
+    // ---- savegames (core/CSaveIO.cpp, Ghidra 0x3d2ef4..0x3d3a68): read the
+    // next line, sscanf it as "<key> <value>" and return whether the key
+    // matches (the value is stored even when it does not). Order matters:
+    // the reader never searches, every key must come in the written order.
+    static bool safeReadFromFile(FILE* f, const char* key, const char* key2, unsigned* v);   // "%s %s %i"
+    static bool safeReadFromFile(FILE* f, const char* key, const char* key2);                // "%s %s"
+    static bool safeReadFromFile(FILE* f, const char* key, bool* v);
+    static bool safeReadFromFile(FILE* f, const char* key, unsigned* v);
+    static bool safeReadFromFile(FILE* f, const char* key, int* v);
+    static bool safeReadFromFile(FILE* f, const char* key, unsigned char* v);
+    static bool safeReadFromFile(FILE* f, const char* key, long* v);
+    static bool safeReadFromFile(FILE* f, const char* key, float* v);
+    static bool safeReadFromFile(FILE* f, const char* key, Real* v);
+    static bool safeReadFromFile(FILE* f, const char* key, CVector2* v);
+    static bool safeReadFromFile(FILE* f, const char* key, CVector3* v);
+    static bool safeReadFromFile(FILE* f, const char* key, CQuaternion* v);
+    // wholeLine: "%s %[^\n]s" (the rest of the line), else "%s %s"
+    static bool safeReadFromFile(FILE* f, const char* key, std::string* v, bool wholeLine);
+    // [PC] forget the string reads' leftover value (see CSaveIO.cpp)
+    static void resetSafeReadStaleString();
 
 private:
     static void add(char kind, uint32_t v) {

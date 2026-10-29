@@ -20,6 +20,7 @@
 // Ghidra: CPlayer::CPlayer 0x375124, getBonus 0x374454, calcChecksum 0x373430.
 #pragma once
 
+#include <cstdio>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -64,6 +65,8 @@ struct CRadarEntry {
 
 class CPlayer {
 public:
+    virtual void save(FILE* f);              // +0x10 Ghidra 0x372c18 (CGameSave.cpp)
+    virtual void load(FILE* f);              // +0x14 Ghidra 0x373abc
     enum EType { TYPE_HUMAN = 0, TYPE_NEUTRAL = 1, TYPE_AI = 2 };
     static constexpr unsigned kNumTechs = 33;
 
@@ -75,7 +78,7 @@ public:
     virtual void addUnit(CUnit* unit);                         // +0x04 Ghidra 0x374fe4
     virtual void removeUnit(unsigned id);                      // +0x08 Ghidra 0x375034
     virtual void unitProduced(CUnit*, CBuilding*) {}           // +0x0c Ghidra 0x3729f4
-    // +0x10 save / +0x14 load: savegames are not ported yet; +0x18 draw: empty
+    // +0x18 draw: empty
     virtual bool isAI() const { return false; }                // +0x1c
     virtual void initFOWTexture();                             // +0x20 Ghidra 0x374168 (grid only)
     virtual void updateFOWtexture();                           // +0x24 Ghidra 0x373230 (texture upload only, CPlayerDraw.cpp)

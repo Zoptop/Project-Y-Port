@@ -26,6 +26,8 @@
 // original touch events.
 #pragma once
 
+#include <cstdio>
+
 #include <memory>
 #include <vector>
 
@@ -48,6 +50,8 @@ class CTexture;
 
 class CInterfaceIngame : public CInterface, public IIngameUI, public IScriptUI {
 public:
+    void save(FILE* f);                                           // Ghidra 0x1a01fc (CInterfaceIngameSave.cpp)
+    void load(FILE* f);                                           // Ghidra 0x1a0244
     static constexpr int kMaxQuads = 999;
 
     using CCircleInfo = CIngameQuads::CCircleInfo;   // a queued selection/range circle (0x20 bytes)

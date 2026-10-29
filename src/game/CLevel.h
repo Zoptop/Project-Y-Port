@@ -23,6 +23,8 @@
 //     (TODO phase 4, needs the navmesh)
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -60,6 +62,8 @@ struct CGridCell {
 
 class CLevel {
 public:
+    void save(FILE* f);                      // Ghidra 0x2dcf10 (CGameSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x2e00d0
     CLevel();
     ~CLevel();
 

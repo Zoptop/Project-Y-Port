@@ -7,12 +7,16 @@
 // for 10 s (mDeployDelayTimer) holds position and deploys.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CUnit.h"
 
 namespace py {
 
 class CUnitTank : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3cda10 (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3cda8c
     // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
     static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3ccfd0
     CUnitTank() = default;   // Ghidra 0x3ccf38

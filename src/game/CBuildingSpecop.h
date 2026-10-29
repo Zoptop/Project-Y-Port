@@ -8,12 +8,16 @@
 // doOp 0x148d24, hasOp 0x1492d8, processDialButton 0x1496b4.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CBuilding.h"
 
 namespace py {
 
 class CBuildingSpecop : public CBuilding {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x14b198 (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x14b280
     void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x14b360 (CInfoscreenDraw.cpp)
     CBuildingSpecop() = default;                    // Ghidra 0x149388
 

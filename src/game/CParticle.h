@@ -6,6 +6,8 @@
 // 0x36c270, timeUpdate 0x36c328, setUVtile 0x36c454. Not ported: save/load.
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector2.h"
 #include "core/CVector3.h"
 #include "core/Real.h"
@@ -14,6 +16,8 @@ namespace py {
 
 class CParticle {
 public:
+    void save(FILE* f);                      // Ghidra 0x36be9c (vtable +0x00; CParticleSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x36c0f0 (vtable +0x04)
     // Ghidra 0x36c244. The original sets only the age; the port zero-fills
     // the rest (every system sets what it reads).
     CParticle() = default;

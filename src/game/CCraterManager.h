@@ -21,6 +21,8 @@
 // batching moved to CFakeShadow, nothing calls these), save/load.
 #pragma once
 
+#include <cstdio>
+
 #include <list>
 #include <memory>
 #include <vector>
@@ -50,6 +52,8 @@ struct CCrater {
 
 class CCraterManager {
 public:
+    void save(FILE* f);                      // Ghidra 0x16103c (CGameSave.cpp)
+    void load(FILE* f);                      // Ghidra 0x1612a8
     CCraterManager();    // Ghidra 0x160574 (shader/texture: initGraphics)
 
     // Ghidra 0x160970. 'size' is the crater radius before the random factor.

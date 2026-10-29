@@ -11,6 +11,8 @@
 // Slots are 64 * guiScale px, 70 * guiScale apart, from y = 46 * guiScale.
 #pragma once
 
+#include <cstdio>
+
 #include <list>
 #include <string>
 #include <vector>
@@ -38,6 +40,8 @@ struct CGroupInfo {
 
 class CGroupBar {
 public:
+    void save(FILE* f);   // Ghidra 0x186d34 (CInterfaceIngameSave.cpp)
+    void load(FILE* f);   // Ghidra 0x187f18
     CGroupBar();    // Ghidra 0x186eb4
     void init(CInterfaceIngamePerPlayer* ipp);   // Ghidra 0x187718
     void timeUpdate();                           // Ghidra 0x1856c4

@@ -77,7 +77,7 @@ Read `CLAUDE.md` and `docs/DETERMINISM.md` first.
 - **Not ported (yet):**
   - Drawing, shaders, UI (dial menus, info screens), sound. Particles are ported (logic, state
     and CRng draws; see the RNG rules); their getQuads/draw belong to the renderer.
-  - Savegames (`save`/`load`) come in a later phase.
+  - Savegames (`save`/`load`): ported in phase 8, see `docs/re/savegames_phase8.md`.
   - Network-only branches (`engine->mNetworkMode == 2`) get a TODO comment unless trivial.
 - **Stubs:** a method that is not ported yet calls `notPorted("Class::method")`, which logs once.
   Leave no silent stubs.

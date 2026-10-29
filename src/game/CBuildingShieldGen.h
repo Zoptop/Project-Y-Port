@@ -7,12 +7,16 @@
 // ownerChanged 0x148058, calcChecksum 0x1481d4.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CBuilding.h"
 
 namespace py {
 
 class CBuildingShieldGen : public CBuilding {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x1480d8 (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x148164
     CBuildingShieldGen() = default;                 // Ghidra 0x147c04
 
     void timeUpdate() override;                     // +0x08 Ghidra 0x147e90

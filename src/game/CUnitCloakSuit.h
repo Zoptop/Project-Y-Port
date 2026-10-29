@@ -5,12 +5,16 @@
 // (CGameObject::decloakEnemys, while the timeout is below 5).
 #pragma once
 
+#include <cstdio>
+
 #include "game/CUnit.h"
 
 namespace py {
 
 class CUnitCloakSuit : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3b919c (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3b91e8
     // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
     static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3b8c40
     CUnitCloakSuit() = default;   // Ghidra 0x3b8bd8

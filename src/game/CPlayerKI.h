@@ -33,6 +33,8 @@
 // index x + W*y).
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -62,6 +64,8 @@ struct CKIUnitLess {
 
 class CPlayerKI : public CPlayer {
 public:
+    void save(FILE* f) override;             // +0x10 Ghidra 0x2d99a4 (CGameSave.cpp)
+    void load(FILE* f) override;             // +0x14 Ghidra 0x2d9a68
     // EInfluenceMaps (updateInfluenceMapAtIndex; 1 BLOCKED / 2 FULLYBLOCKED are
     // written directly by updateInfluenceBlocked, 11 COUNT is debug only)
     enum EInfluenceMaps {

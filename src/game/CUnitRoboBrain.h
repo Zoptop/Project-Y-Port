@@ -12,12 +12,16 @@
 // vehicle's type, drawn with the unsynchronised CRng; 2: repeat the last rank).
 #pragma once
 
+#include <cstdio>
+
 #include "game/CUnit.h"
 
 namespace py {
 
 class CUnitRoboBrain : public CUnit {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x3c35a0 (CUnitSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x3c36bc
     // the model flat on the screen (CUnitFactory::drawUnit; CUnitFactoryDraw.cpp)
     static void drawUnit(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q);   // Ghidra 0x3c13b8
     CUnitRoboBrain();   // Ghidra 0x3c12b4

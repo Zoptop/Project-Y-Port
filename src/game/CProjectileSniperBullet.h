@@ -6,12 +6,16 @@
 // (see CProjectile.h), and hits with projectile damage.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CProjectile.h"
 
 namespace py {
 
 class CProjectileSniperBullet : public CProjectile {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x37f91c (CProjectileSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x37f948
     CProjectileSniperBullet();                                            // Ghidra 0x37f4e0
     ~CProjectileSniperBullet() override;                                  // Ghidra 0x37f554 (tracer off)
     void update() override;                                               // Ghidra 0x37ecd4

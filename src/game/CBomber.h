@@ -27,6 +27,8 @@
 // timeUpdateSimple (render extrapolation), sound, save/load.
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector2.h"
 #include "core/CVector3.h"
 #include "core/Real.h"
@@ -43,6 +45,8 @@ enum EBomberDropType { BOMBER_DROP_BOMBS = 0, BOMBER_DROP_CRATES = 1, BOMBER_DRO
 
 class CBomber : public CSceneObject {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x1294c4 (CBomberSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x1297b4
     CBomber();   // Ghidra 0x128dd0
 
     // Ghidra 0x128fa4

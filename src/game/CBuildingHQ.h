@@ -11,6 +11,8 @@
 // destroy 0x13c1b0, ownerChanged 0x13b6fc, doSplashDamage 0x13bc70.
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector3.h"
 #include "game/CBuildingProduction.h"
 
@@ -18,6 +20,8 @@ namespace py {
 
 class CBuildingHQ : public CBuildingProduction {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x13b2d0 (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x13b68c
     void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x13b348 (CInfoscreenDraw.cpp)
     CBuildingHQ();                                  // Ghidra 0x13bc18
 

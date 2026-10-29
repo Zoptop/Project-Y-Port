@@ -14,12 +14,16 @@
 // timeUpdate 0x371878, getQuads 0x36fd10 (CParticleSystemDraw.cpp).
 #pragma once
 
+#include <cstdio>
+
 #include "game/CParticleSystem.h"
 
 namespace py {
 
 class CParticleSystemSmoke : public CParticleSystem {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x371b70 (CParticleSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x371ca4
     explicit CParticleSystemSmoke(int subtype);   // Ghidra 0x370e64
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x37170c

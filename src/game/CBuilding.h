@@ -11,6 +11,8 @@
 // campaign maps) before the building itself is registered with the game.
 #pragma once
 
+#include <cstdio>
+
 #include <list>
 
 #include "core/CVector2.h"
@@ -34,6 +36,8 @@ enum ESpecOpType { SPECOP_AIRSTRIKE = 0, SPECOP_CRATEDROP, SPECOP_DROPSOLDIERS, 
 
 class CBuilding : public CGameObject {
 public:
+    void save(FILE* f) override;             // +0x14 Ghidra 0x135dd4 (CBuildingSave.cpp)
+    void load(FILE* f) override;             // +0x18 Ghidra 0x135f78
     CBuilding();                                       // Ghidra 0x135210
     ~CBuilding() override;
 

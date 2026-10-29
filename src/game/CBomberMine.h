@@ -9,6 +9,8 @@
 // calcChecksum 0x133ca0, holdState 0x13274c, restoreState 0x1327b8.
 #pragma once
 
+#include <cstdio>
+
 #include "core/CVector3.h"
 #include "core/Real.h"
 #include "game/CSceneObject.h"
@@ -19,6 +21,8 @@ class CPlayer;
 
 class CBomberMine : public CSceneObject {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x1339b4 (CBomberSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x133b00
     CBomberMine() = default;   // Ghidra 0x13382c
 
     // Ghidra 0x1336f0

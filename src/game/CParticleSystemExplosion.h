@@ -9,12 +9,16 @@
 // 0x2cbe38 (CParticleSystemDraw.cpp).
 #pragma once
 
+#include <cstdio>
+
 #include "game/CParticleSystem.h"
 
 namespace py {
 
 class CParticleSystemExplosion : public CParticleSystem {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x2cf474 (CParticleSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x2cf4bc
     explicit CParticleSystemExplosion(int subtype);   // Ghidra 0x2ce0d4
 
     void init(const CVector3& position, CPlayer* player) override;   // Ghidra 0x2ce11c

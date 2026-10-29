@@ -4,12 +4,16 @@
 // every GunShotDelay / speed factor seconds when within 3 degrees.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CWeapon.h"
 
 namespace py {
 
 class CWeaponLaserSingleShot : public CWeapon {
 public:
+    void save(FILE* f) override;   // +0x24 Ghidra 0x3deb74 (CWeaponSave.cpp)
+    void load(FILE* f) override;   // +0x28 Ghidra 0x3deb04
     // the model flat on the screen (CWeaponFactory::drawWeapon; CUnitFactoryDraw.cpp)
     static void drawWeapon(const CMatrix4& view, const CVector2& screenPos, const CQuaternion& q, Real size,
                            const CVector3& offset);   // Ghidra 0x3de178

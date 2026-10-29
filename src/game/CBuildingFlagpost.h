@@ -13,12 +13,16 @@
 // calcChecksum 0x13ac1c.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CBuilding.h"
 
 namespace py {
 
 class CBuildingFlagpost : public CBuilding {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x13aac0 (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x13ab8c
     CBuildingFlagpost() = default;                  // Ghidra 0x138f7c
 
     void timeUpdate() override;                     // +0x08 Ghidra 0x139e58

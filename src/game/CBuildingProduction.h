@@ -12,12 +12,16 @@
 // processDialButton 0x13d32c, calcChecksum 0x13eebc.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CBuilding.h"
 
 namespace py {
 
 class CBuildingProduction : public CBuilding {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x13ed5c (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x13ee04
     CBuildingProduction();                          // Ghidra 0x13d170
 
     // ---- overrides (vtable slot)

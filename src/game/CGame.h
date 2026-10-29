@@ -13,6 +13,8 @@
 // in CGame.cpp.
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 #include <list>
 #include <map>
@@ -47,6 +49,8 @@ class CWeapon;
 
 class CGame {
 public:
+    void save(FILE* f);                      // Ghidra 0x179c1c (CGameSave.cpp)
+    void load(FILE* f, bool headless = false);   // Ghidra 0x17d3e0
     CGame();     // Ghidra 0x17c844
     ~CGame();    // Ghidra 0x17cabc
 
@@ -200,6 +204,7 @@ public:
     Real mAIArmorFactor = 1.0f;                              // +0x16c "AIArmorFactor" (CUnit::hit, AI-owned units)
     int mAIExtraDriverXP = 0;                                // +0x170 (updateAIFactorsFromDifficulty)
     int mGameEndingCondition = 0;                            // +0x174
+    long mGameStartTime = 0;                                 // +0x184 time() at init (new games), "GameStartTime"
     bool mStateHeld = false;                                 // +0x180 holdState done
     bool mInTimeUpdateSimple = false;                        // +0x1e0
     uint32_t mRngBeforeTU = 0;                               // +0x1c0 CRngSafe::GetUint(1) at step start

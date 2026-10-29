@@ -20,6 +20,8 @@
 // checksum histories between the fields are not kept (see CSceneObject.h).
 #pragma once
 
+#include <cstdio>
+
 #include <cstdint>
 #include <vector>
 
@@ -59,6 +61,8 @@ enum EDamageType { DAMAGE_LASER = 0, DAMAGE_AREA = 1, DAMAGE_PROJECTILE = 2, DAM
 
 class CUnit : public CGameObject {
 public:
+    void save(FILE* f) override;             // +0x14 Ghidra 0x3b4bb4 (CUnitSave.cpp)
+    void load(FILE* f) override;             // +0x18 Ghidra 0x3b0f14
     static constexpr int kMaxStraightPath = 256;
 
     CUnit();                                           // Ghidra 0x3a5ae8

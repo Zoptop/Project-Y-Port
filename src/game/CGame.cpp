@@ -65,6 +65,7 @@ bool CGame::init(bool fromSavegame, bool headless) {
     mNumPlayers = e->mNumPlayers;
     mFeatures.reset();
     if (CSoundManager* sm = e->getSoundManager()) sm->getMoodAnalyzer().reset();
+    if (!fromSavegame) mGameStartTime = e->timeNow();   // +0x184
     mCraterManager = std::make_unique<CCraterManager>();   // +0xb8
     mGameObjectsMesh = CMeshManager::get().getMesh("gameobjects.3DS.mesh", true, false);   // +0xc4
     mFakeShadow = std::make_unique<CFakeShadow>();       // +0xb4

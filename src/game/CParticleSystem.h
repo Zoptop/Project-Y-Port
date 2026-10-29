@@ -16,6 +16,8 @@
 // save/load.
 #pragma once
 
+#include <cstdio>
+
 #include <memory>
 #include <vector>
 
@@ -42,6 +44,8 @@ enum EParticleSystemType {
 
 class CParticleSystem {
 public:
+    virtual void save(FILE* f);              // +0x14 Ghidra 0x36ddec (CParticleSave.cpp)
+    virtual void load(FILE* f);              // +0x18 Ghidra 0x36ee44
     explicit CParticleSystem(int subtype);   // Ghidra 0x36df90
     virtual ~CParticleSystem() = default;     // Ghidra 0x36dd58 (deletes the particles)
 

@@ -5,12 +5,16 @@
 // Ghidra: CBuildingProductionLarge 0x142380, init 0x141ff8.
 #pragma once
 
+#include <cstdio>
+
 #include "game/CBuildingProduction.h"
 
 namespace py {
 
 class CBuildingProductionLarge : public CBuildingProduction {
 public:
+    void save(FILE* f) override;   // +0x14 Ghidra 0x141fa0 (CBuildingSave.cpp)
+    void load(FILE* f) override;   // +0x18 Ghidra 0x141fcc
     void drawInfoscreen(CVector2& pos) override;   // +0x94 Ghidra 0x1423b8 (CInfoscreenDraw.cpp)
     CBuildingProductionLarge() = default;           // Ghidra 0x142380
     void init(const CVector2& position, Real rotation, unsigned sectorId, int subtype) override;   // +0xcc 0x141ff8
