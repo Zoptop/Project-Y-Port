@@ -164,6 +164,20 @@ class Oracle:
                 return 0
             e.hook_function('_ZN8ProjectY%d%s21SetSeedFromSystemTimeEv' % (len(cls), cls), seed)
 
+    def prepare_campaign(self, engine):
+        """Campaign 1 read as the menus read it before a mission starts or a
+        campaign save is listed (startInitAsync: CCampaign::parseDef +
+        readProgress; the worker thread's file check is replaced by setting
+        purchased/installed). Returns the CCampaign."""
+        self.w32(engine + 0x2f8, 1)
+        cmp = self.call('_ZN8ProjectY7CEngine14getCurCampaignEv', engine)
+        if not self.call('_ZN8ProjectY9CCampaign8parseDefEv', cmp, max_insns=2_000_000_000) & 0xff:
+            raise SystemExit('CCampaign::parseDef failed')
+        self.call('_ZN8ProjectY9CCampaign12readProgressEv', cmp)
+        self.w8(cmp + 0x194, 1)     # purchased (checkPurchased)
+        self.w8(cmp + 0x195, 1)     # installed (checkDownloaded, worker thread)
+        return cmp
+
     def start_mission(self, engine, map_id, data):
         """A campaign mission (cmp1def: 301..318) the way the original's menus
         start one: the campaign is read (CCampaign::parseDef + readProgress, the
@@ -189,13 +203,7 @@ class Oracle:
                 break
         if chp is None:
             raise SystemExit('map %d is not a campaign mission' % map_id)
-        self.w32(engine + 0x2f8, 1)
-        cmp = self.call('_ZN8ProjectY7CEngine14getCurCampaignEv', engine)
-        if not self.call('_ZN8ProjectY9CCampaign8parseDefEv', cmp, max_insns=2_000_000_000) & 0xff:
-            raise SystemExit('CCampaign::parseDef failed')
-        self.call('_ZN8ProjectY9CCampaign12readProgressEv', cmp)
-        self.w8(cmp + 0x194, 1)     # purchased (checkPurchased)
-        self.w8(cmp + 0x195, 1)     # installed (checkDownloaded, worker thread)
+        cmp = self.prepare_campaign(engine)
         self.w32(cmp + 0x180, chp)
         self.w32(cmp + 0x184, eps)
         self.w32(engine + 0x2d0, 1)
@@ -242,6 +250,12 @@ class Oracle:
         first (the port's sim_probe --load does the same)."""
         e = self.emu
         self.engine = engine
+        # a campaign save (header line 7 "1") is only offered once the menus
+        # have read the campaign (actions 0xb / 0xc); IPP::load needs it for
+        # the speaker's avatar (CCampaign::getAvatarSubttitle throws otherwise)
+        header = content.split(b'\n')
+        if len(header) > 6 and header[6].strip() == b'1':
+            self.prepare_campaign(engine)
         self.libc.written['%s/%s' % (self.save_dir(), name)] = content
         for cls in ('CRng', 'CRngSafe'):
             self.w32(e.addr('_ZN8ProjectY%d%s2mWE' % (len(cls), cls)), self.SEED_W)

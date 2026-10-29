@@ -218,6 +218,25 @@ int main(int argc, char** argv) {
         // a fresh engine reads the file (game_oracle.py --load)
         const size_t slash = loadFile.find_last_of("/\\");
         e->mSaveDir = slash == std::string::npos ? "." : loadFile.substr(0, slash);
+        // a campaign save (header line 7 "1") is only offered once the menus
+        // have read the campaign (actions 0xb / 0xc): read it first, as
+        // game_oracle.py does (IPP::load takes the speaker's avatar from it)
+        bool campaignSave = false;
+        if (FILE* hf = std::fopen(loadFile.c_str(), "r")) {
+            char line[0x900];
+            for (int i = 0; i < 7 && std::fgets(line, sizeof line, hf); ++i)
+                if (i == 6) campaignSave = line[0] == '1' && (line[1] == '\n' || line[1] == '\r' || line[1] == 0);
+            std::fclose(hf);
+        }
+        if (campaignSave) {
+            CCampaign* c = e->initCampaign(1);
+            if (!c->parseDef()) {
+                std::printf("CAMPAIGN FAILED\n");
+                return 1;
+            }
+            c->readProgress();
+            c->mPurchased = c->mDownloaded = true;
+        }
         CRng::SetSeed(kSeedW, kSeedZ);
         CRngSafe::SetSeed(kSeedW, kSeedZ);
         if (!e->loadGame(slash == std::string::npos ? loadFile : loadFile.substr(slash + 1))) {

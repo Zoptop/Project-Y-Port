@@ -133,6 +133,10 @@ port does exactly the same. The comparisons with the original set both RNGs to t
   in the original). [PC] The port keeps them (`mAbandonedGames`, `mAbandonedInterfaces`) until `resetGame`,
   so nothing of the old game is destroyed, and no destructor touches shared state, while the loaded one runs.
 - A failed read in the engine part returns with +0x1cc still set.
+- `CInterfaceIngamePerPlayer::load` takes a shown speaker's avatar from the current campaign
+  (`CCampaign::getAvatarSubttitle`, a `map::at`): with the campaign not read, the original throws and
+  terminates. The menus always read it before they list a campaign save; the tools do the same
+  (`prepare_campaign` in the oracle, sim_probe `--load`). [PC] The port's lookups give an empty avatar instead.
 - The autosave (`singleautosave.txt`) is written by "Main menu" (action 0x17) of a game that is neither won nor
   lost, which includes a single player "surrender" (it only shows the aftermath, a draw).
 - The original's pause screen has no Load entry; games are loaded from the single player screen (action 0xb).
@@ -189,7 +193,7 @@ quirks).
 | map 2 with combat (`mkdata.py` overlay: 21 player-1 units at the AI's base, airdrop, airstrike, obstacle), N 120, M 120 | identical (12985 lines; projectiles, bombers, craters, 47+ particle systems) | equal, steps 120..239 | identical (12985 / 16022 lines) | fixed point at trip 3 |
 | map 4, 4 players (3 AIs), N 300, M 100 | identical (7907 lines) | equal, steps 300..399 | identical | fixed point at trip 3 |
 | map 1, resources (game type 3), N 300, M 100 | identical (10776 lines, 4096 RES values) | equal, steps 300..399 | identical | fixed point at trip 3 |
-| mission 301, N 200, M 120 | identical (429886 bytes: FOW, a speaker text with avatar) | see the report | see the report | see the report |
+| mission 301 (campaign, game type 1), N 200, M 120 | identical (31316 lines, 429886 bytes: FOW, 42 scripts, a speaker text with avatar) | equal, steps 200..319 | identical (right after, after 120) | fixed point at trip 2 |
 
 Trip 1 of the port's round trip is checked against the original (step 2); trip 2 still changes the stale
 `OverlayCmdText`; from trip 3 on the file is the one it loaded. `tests/test_savegame.cpp` keeps the map 2 case
